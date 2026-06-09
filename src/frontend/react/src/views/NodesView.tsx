@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CustomNodeConfig } from "../models/config/types";
+import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
 
 export interface SaveNodeInput {
   id?: string;
@@ -38,8 +39,9 @@ export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
       setCode(await onRead(node.path));
       setMessage("");
     } catch (error) {
-      setCode(DEFAULT_CODE);
-      setMessage(error instanceof Error ? error.message : String(error));
+      const bundled = bundledNodeSource(node.path);
+      setCode(bundled ?? `# Could not load node source:\n# ${error instanceof Error ? error.message : String(error)}\n`);
+      setMessage(bundled ? "Loaded bundled default source preview" : "Could not load node source");
     }
   }
 

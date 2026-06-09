@@ -6,31 +6,26 @@ from proxy.models.policy.flow import PolicyStep
 
 
 class OperatorRunner:
+    """Operators are described by inline Python code.
+
+    - if:     def if_condition(input) -> bool      (routes to "then" / "else")
+    - switch: def switch_condition(input) -> str   (routes to the returned label)
+    """
+
     def evaluate(self, step: PolicyStep, input_value: Any) -> str:
         if step.type == "if":
-            return self._if(step, input_value)
+            return "then" if bool(self._call(step, "if_condition", input_value)) else "else"
         if step.type == "switch":
-            return self._switch(step, input_value)
+            return str(self._call(step, "switch_condition", input_value))
         raise ValueError(f"Unknown operator type: {step.type}")
 
-    def _if(self, step: PolicyStep, input_value: Any) -> str:
-        value = _get_path(input_value, str(step.params["path"]))
-        return "true" if bool(value) else "false"
-
-    def _switch(self, step: PolicyStep, input_value: Any) -> str:
-        value = _get_path(input_value, str(step.params["path"]))
-        if value is None:
-            return "default"
-        return str(value)
-
-
-def _get_path(value: Any, path: str) -> Any:
-    current = value
-    for part in path.split("."):
-        if isinstance(current, dict):
-            current = current.get(part)
-        else:
-            current = getattr(current, part, None)
-        if current is None:
-            return None
-    return current
+    def _call(self, step: PolicyStep, function_name: str, input_value: Any) -> Any:
+        code = step.params.get("code")
+        if not code:
+            raise ValueError(f"Operator '{step.id}' is missing code")
+        namespace: dict[str, Any] = {}
+        exec(str(code), namespace)
+        function = namespace.get(function_name)
+        if not callable(function):
+            raise ValueError(f"Operator '{step.id}' must define {function_name}(input)")
+        return function(input_value)

@@ -80,9 +80,16 @@ pub fn write_custom_node(app: AppHandle, file_name: String, code: String) -> Res
 #[tauri::command]
 pub fn read_custom_node(app: AppHandle, path: String) -> Result<String, String> {
     let paths = paths_for_app(&app)?;
-    let requested = PathBuf::from(path).canonicalize().map_err(to_string)?;
+    let repo_root = discover_repo_root()?;
+    let raw_path = PathBuf::from(path);
+    let requested_path = if raw_path.is_absolute() {
+        raw_path
+    } else {
+        repo_root.join(raw_path)
+    };
+    let requested = requested_path.canonicalize().map_err(to_string)?;
     let custom_dir = paths.custom_nodes_dir.canonicalize().ok();
-    let defaults_dir = discover_repo_root()?
+    let defaults_dir = repo_root
         .join("src/proxy/defaults/nodes")
         .canonicalize()
         .map_err(to_string)?;

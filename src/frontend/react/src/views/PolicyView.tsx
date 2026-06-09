@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { GraphEditor } from "../components/GraphEditor";
 import type { AppConfig, ModeConfig, PolicyConfig, PolicyStep, PolicyStepKind, StepParams } from "../models/config/types";
 import { createPolicy, slug } from "../services/config/configEditing";
-import { addStep, updateEdgeOutput, updateStepParams } from "../services/policy/policyOperations";
+import { addStep, updateStepParams } from "../services/policy/policyOperations";
 
 interface Props {
   config: AppConfig;
@@ -112,7 +112,6 @@ export function PolicyView({ config, onConfigChange }: Props) {
             policy={activePolicy}
             selectedStepId={selectedStepId}
             onParamsChange={(id, params) => updatePolicy(updateStepParams(activePolicy, id, params))}
-            onEdgeChange={(i, output) => updatePolicy(updateEdgeOutput(activePolicy, i, output))}
           />
         </>
       )}
@@ -122,11 +121,10 @@ export function PolicyView({ config, onConfigChange }: Props) {
 
 /* --- Step Inspector: shows selected step's params + outgoing routes --- */
 
-function StepInspector({ policy, selectedStepId, onParamsChange, onEdgeChange }: {
+function StepInspector({ policy, selectedStepId, onParamsChange }: {
   policy: PolicyConfig;
   selectedStepId: string | null;
   onParamsChange: (stepId: string, params: StepParams) => void;
-  onEdgeChange: (index: number, output: string) => void;
 }) {
   const step = policy.steps.find((s) => s.id === selectedStepId);
   const outEdges = policy.edges.map((e, i) => ({ ...e, index: i })).filter((e) => e.from === selectedStepId);
@@ -157,7 +155,7 @@ function StepInspector({ policy, selectedStepId, onParamsChange, onEdgeChange }:
           <h3>Outgoing routes</h3>
           {outEdges.map((e) => (
             <div className="route-row" key={e.index}>
-              <input className="route-output" value={e.output} onChange={(ev) => onEdgeChange(e.index, ev.target.value)} />
+              <span className="route-tag">{e.output}</span>
               <span className="muted">→ {e.to}</span>
             </div>
           ))}
@@ -218,14 +216,45 @@ function ParamsEditor({ step, onParamsChange }: { step: PolicyStep; onParamsChan
 }
 
 function OperatorEditor({ step, onParamsChange }: { step: PolicyStep; onParamsChange: (id: string, p: StepParams) => void }) {
-  const path = String(step.params?.path ?? "");
+  const isIf = step.type === "if";
+  const code = String(step.params?.code ?? "");
+  const cases = (step.params?.cases as string[]) ?? [];
+
+  function setCode(value: string) { onParamsChange(step.id, { ...step.params, code: value }); }
+  function setCases(next: string[]) { onParamsChange(step.id, { ...step.params, cases: next }); }
+
   return (
     <div className="params-editor">
       <label className="field">
-        <span>Condition path <small className="muted">(dot-separated field in input data)</small></span>
-        <input value={path} onChange={(e) => onParamsChange(step.id, { ...step.params, path: e.target.value })} />
+        <span className="code-signature">{isIf ? "def if_condition(input) -> bool" : "def switch_condition(input) -> str"}</span>
+        <textarea className="code-input operator-code" value={code} spellCheck={false} onChange={(e) => setCode(e.target.value)} />
       </label>
-      <p className="inline-note">{step.type === "if" ? 'Outputs: "true" / "false"' : 'Outputs: the value at path, or "default"'}</p>
+      {isIf ? (
+        <p className="inline-note">Return <b>True</b> to take the <b>then</b> port, <b>False</b> for <b>else</b>.</p>
+      ) : (
+        <SwitchCases cases={cases} onChange={setCases} />
+      )}
+    </div>
+  );
+}
+
+function SwitchCases({ cases, onChange }: { cases: string[]; onChange: (next: string[]) => void }) {
+  function rename(index: number, value: string) { onChange(cases.map((c, i) => (i === index ? value : c))); }
+  function remove(index: number) { onChange(cases.filter((_, i) => i !== index)); }
+  function add() { if (cases.length < 7) onChange([...cases, `case_${cases.length + 1}`]); }
+  return (
+    <div className="switch-cases">
+      <div className="switch-cases-head">
+        <span>Cases <small className="muted">({cases.length})</small></span>
+        <button type="button" className="small" onClick={add} disabled={cases.length >= 7}>+ case</button>
+      </div>
+      {cases.map((label, index) => (
+        <div className="param-row" key={index}>
+          <input className="param-value" value={label} onChange={(e) => rename(index, e.target.value)} />
+          <button type="button" className="danger small" onClick={() => remove(index)} disabled={cases.length <= 2}>del</button>
+        </div>
+      ))}
+      <p className="inline-note">Each label is an output port. The shape grows with the number of cases (max 7).</p>
     </div>
   );
 }

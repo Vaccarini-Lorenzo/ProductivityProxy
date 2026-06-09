@@ -8,7 +8,7 @@ export function addStep(policy: PolicyConfig, kind: PolicyStepKind, type: string
     id: `${type}-${count}`,
     kind,
     type,
-    params: {},
+    params: defaultParams(kind, type),
     position: {
       x: 80 + col * 340,
       y: 120 + row * 160,
@@ -34,4 +34,13 @@ export function updateEdgeOutput(policy: PolicyConfig, index: number, output: st
     ...policy,
     edges: policy.edges.map((edge, edgeIndex) => (edgeIndex === index ? { ...edge, output } : edge)),
   };
+}
+
+function defaultParams(kind: PolicyStepKind, type: string): StepParams {
+  if (kind === "operator") {
+    if (type === "if") return { code: "def if_condition(input):\n    return False\n" };
+    return { code: 'def switch_condition(input):\n    return "default"\n', cases: ["case_a", "case_b", "case_c", "default"] };
+  }
+  if (type === "block-response") return { status: 403, message: "Blocked" };
+  return {};
 }

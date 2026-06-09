@@ -99,7 +99,7 @@
               "kind": "operator",
               "type": "if",
               "position": { "x": 980, "y": 120 },
-              "params": { "path": "over_limit" }
+              "params": { "code": "def if_condition(input):\n    return bool(input.get('over_limit'))\n" }
             },
             {
               "id": "block",
@@ -119,8 +119,8 @@
             { "from": "start", "output": "next", "to": "track" },
             { "from": "track", "output": "next", "to": "check-limit" },
             { "from": "check-limit", "output": "next", "to": "over-limit" },
-            { "from": "over-limit", "output": "true", "to": "block" },
-            { "from": "over-limit", "output": "false", "to": "end" },
+            { "from": "over-limit", "output": "then", "to": "block" },
+            { "from": "over-limit", "output": "else", "to": "end" },
             { "from": "block", "output": "next", "to": "end" }
           ]
         }
