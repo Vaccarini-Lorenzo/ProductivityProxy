@@ -35,6 +35,7 @@ Location: `src/proxy/`
 | --- | --- | --- |
 | `services.config.config_service` | `ConfigService(path).load()` | Loads JSON into `AppConfig`. |
 | `services.events.event_log` | `append(event)`, `read_recent(limit)` | JSONL event file. Creates parent dirs on append. |
+| `services.events.observability` | request/policy/step/config events, `context.log` support | Emits filterable observability events for proxy behavior and custom nodes. |
 | `services.state.state_store` | `load`, `save`, `track_usage`, `usage_today` | Tracks usage by UTC day and request gaps. |
 | `services.policy.custom_nodes` | `CustomNodeRunner(config).run(step, input, context)` | Imports trusted Python files and calls `run(input, context, params)`. No sandbox. |
 | `services.policy.operators` | `OperatorRunner.evaluate(step, input)` | Supports `if` and `switch` routing. |
@@ -55,6 +56,7 @@ Location: `src/frontend/tauri/`
 | `stop_proxy` | none | void | Restores system proxy snapshot and stops `mitmdump`. |
 | `proxy_status` | none | `{ running }` | Also restores system proxy if the child process died. |
 | `read_recent_events` | `{ limit }` | JSON array | Reads last N JSONL entries. |
+| `query_events` | `{ query }` | JSON array | Reads last N JSONL entries matching filters such as `category`, `type`, `level`, `policyId`, `stepId`, `requestId`, `search`, `since`, and `until`. |
 | `network_info` | none | `{ localHost, lanHost }` | Best-effort LAN IP detection. |
 
 ### Rust modules
@@ -69,7 +71,7 @@ Location: `src/frontend/tauri/`
 | `services.proxy.mitmdump_args` | `build_mitmdump_args(settings, paths)` | Builds `mitmdump` CLI args. |
 | `services.proxy.process_service` | `start`, `start_args`, `stop`, `is_running` | Child process lifecycle. |
 | `services.system_proxy` | `capture_system_proxy_snapshot`, `enable_system_proxy`, `restore_system_proxy` | macOS `networksetup`; non-macOS enable is unsupported. |
-| `services.events.event_log` | `read_recent_events(path, limit)` | Reads recent JSONL events. |
+| `services.events.event_log` | `read_recent_events(path, limit)`, `query_events(path, query)` | Reads recent/filterable JSONL events. |
 | `services.network.network_info` | `detect_network_info()` | Returns local and LAN host info. |
 
 ## React dashboard
@@ -89,7 +91,7 @@ Location: `src/frontend/react/src/`
 | `services/config/configRepository.ts` | Tauri config command wrapper. |
 | `services/config/configValidation.ts` | Minimal active mode/policy validation. |
 | `services/policy/policyOperations.ts` | Pure policy editing helpers. |
-| `services/proxy/proxyRepository.ts` | Tauri proxy command wrapper. |
+| `services/proxy/proxyRepository.ts` | Tauri proxy and event query command wrapper. |
 | `services/notifications/notificationService.ts` | Notification event deduplication. |
 | `services/notifications/tauriNotifier.ts` | Native notification adapter. |
 | `services/tauri/tauriClient.ts` | Tauri `invoke` client. |

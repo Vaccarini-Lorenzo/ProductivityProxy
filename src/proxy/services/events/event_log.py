@@ -12,7 +12,7 @@ class EventLog:
     def append(self, event: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as file:
-            file.write(json.dumps(event, sort_keys=True) + "\n")
+            file.write(json.dumps(event, sort_keys=True, default=str) + "\n")
 
     def read_recent(self, limit: int) -> list[dict[str, Any]]:
         if limit <= 0 or not self.path.exists():

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
+import time
 from typing import Any
 
 from proxy.models.policy.flow import AppConfig, Policy, PolicyStep
+from proxy.services.events import observability
 from proxy.services.policy.custom_nodes import CustomNodeRunner
 from proxy.services.policy.operators import OperatorRunner
 
@@ -16,30 +18,67 @@ class PolicyEvaluator:
         self.max_steps = max_steps if max_steps is not None else _max_steps_from_env()
 
     def evaluate(self, context) -> None:
-        for policy in self.config.active_mode().policies:
-            self._evaluate_policy(policy, context)
-            if getattr(context.flow, "response", None) is not None:
-                return
+        observability.request_started(context)
+        try:
+            for policy in self.config.active_mode().policies:
+                self._evaluate_policy(policy, context)
+                if getattr(context.flow, "response", None) is not None:
+                    observability.request_finished(context, "blocked")
+                    return
+            observability.request_finished(context, "allowed")
+        except Exception as error:
+            observability.request_failed(context, error)
+            raise
 
     def _evaluate_policy(self, policy: Policy, context) -> None:
         step = policy.start_step()
         input_value: Any = None
         executed = 0
+        observability.policy_started(context, policy)
 
-        while True:
-            executed += 1
-            if executed > self.max_steps:
-                raise RuntimeError(f"Policy exceeded max steps: {policy.id}")
+        try:
+            while True:
+                executed += 1
+                if executed > self.max_steps:
+                    raise RuntimeError(f"Policy exceeded max steps: {policy.id}")
 
-            output, input_value = self._execute_step(step, input_value, context)
-            if step.kind == "node" and step.type == "end":
-                return
-            next_id = policy.next_step_id(step.id, output)
-            if next_id is None and step.kind == "operator" and step.type == "switch":
-                next_id = policy.next_step_id(step.id, "default")
-            if next_id is None:
-                return
-            step = policy.step_by_id(next_id)
+                started = time.perf_counter()
+                output, input_value = self._execute_scoped_step(policy, step, input_value, context)
+                duration_ms = (time.perf_counter() - started) * 1000
+                if step.kind == "node" and step.type == "end":
+                    observability.policy_step(context, policy, step, output, output, None, duration_ms)
+                    observability.policy_finished(context, policy, "end")
+                    return
+                next_id = policy.next_step_id(step.id, output)
+                route_output = output
+                if next_id is None and step.kind == "operator" and step.type == "switch":
+                    next_id = policy.next_step_id(step.id, "default")
+                    route_output = "default" if next_id is not None else output
+                observability.policy_step(context, policy, step, output, route_output, next_id, duration_ms)
+                if next_id is None:
+                    observability.policy_finished(context, policy, "no_route")
+                    return
+                step = policy.step_by_id(next_id)
+        except Exception as error:
+            observability.policy_error(context, policy, step, error)
+            raise
+
+    def _execute_scoped_step(self, policy: Policy, step: PolicyStep, input_value: Any, context) -> tuple[str, Any]:
+        previous = context.data.get(observability.SCOPE_KEY)
+        context.data[observability.SCOPE_KEY] = {
+            "policyId": policy.id,
+            "policyName": policy.name,
+            "stepId": step.id,
+            "stepKind": step.kind,
+            "stepType": step.type,
+        }
+        try:
+            return self._execute_step(step, input_value, context)
+        finally:
+            if previous is None:
+                context.data.pop(observability.SCOPE_KEY, None)
+            else:
+                context.data[observability.SCOPE_KEY] = previous
 
     def _execute_step(self, step: PolicyStep, input_value: Any, context) -> tuple[str, Any]:
         if step.kind == "node":

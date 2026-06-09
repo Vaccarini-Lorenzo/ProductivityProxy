@@ -136,7 +136,31 @@ Rules:
 
 ## Event log schema
 
-Events are JSON lines. Each line is one object.
+Events are JSON lines. Each line is one object. Events are intentionally shaped for filtering in the frontend.
+
+Common observability fields:
+
+```json
+{
+  "schema": "observability.v1",
+  "timestamp": 1781020000.0,
+  "category": "observability",
+  "source": "python_proxy",
+  "type": "policy_step",
+  "level": "debug",
+  "message": "Step detect-reddit returned next",
+  "requestId": "...",
+  "modeId": "productivity",
+  "policyId": "reddit-limit-policy",
+  "policyName": "Reddit Limit",
+  "stepId": "detect-reddit",
+  "stepKind": "node",
+  "stepType": "detect-platform",
+  "url": "https://www.reddit.com/r/test",
+  "host": "www.reddit.com",
+  "path": "/r/test"
+}
+```
 
 Known event types:
 
@@ -170,6 +194,76 @@ Known event types:
 ```
 
 The Tauri/React layer reads recent events and displays native notifications for unseen notification events.
+
+### Observability events
+
+The proxy automatically emits:
+
+- `config_loaded`
+- `config_rejected`
+- `request_started`
+- `request_finished`
+- `request_failed`
+- `policy_started`
+- `policy_step`
+- `policy_finished`
+- `policy_error`
+
+`request_finished.outcome` is `allowed` or `blocked`.
+
+`policy_step` contains `output`, `routeOutput`, `nextStepId`, `durationMs`, `responseSet`, and optionally `responseStatus`.
+
+### Custom node logging API
+
+Custom nodes can write filterable events through `context.log`:
+
+```python
+def run(input, context, params):
+    context.log.info("detected candidate", platform="reddit", score=0.91)
+    context.log.event("my_custom_event", "custom decision", level="debug", reason="matched host")
+    return input
+```
+
+Custom node logs use:
+
+```json
+{
+  "schema": "observability.v1",
+  "category": "custom_node",
+  "source": "custom_node",
+  "type": "custom_node_log",
+  "level": "info",
+  "message": "detected candidate",
+  "policyId": "...",
+  "stepId": "...",
+  "data": { "platform": "reddit", "score": 0.91 }
+}
+```
+
+Supported helper methods are `debug`, `info`, `warning`, `warn`, `error`, and `event`.
+
+### Event query API
+
+Tauri exposes `query_events` with this query shape:
+
+```json
+{
+  "limit": 100,
+  "category": "observability",
+  "type": "policy_step",
+  "level": "debug",
+  "source": "python_proxy",
+  "modeId": "productivity",
+  "policyId": "reddit-limit-policy",
+  "stepId": "detect-reddit",
+  "requestId": "...",
+  "search": "reddit",
+  "since": 1781020000.0,
+  "until": 1781023600.0
+}
+```
+
+All filters except `limit` are optional. Results are returned in chronological order after taking the latest matching events.
 
 ## Data lifecycle
 

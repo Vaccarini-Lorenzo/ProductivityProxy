@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createDefaultConfig } from "@app/models/config/defaultConfig";
-import { readRecentEvents, startProxy, stopProxy, getProxyStatus } from "@app/services/proxy/proxyRepository";
+import { readRecentEvents, startProxy, stopProxy, getProxyStatus, queryEvents } from "@app/services/proxy/proxyRepository";
 
 class FakeClient {
   calls: Array<{ command: string; args?: Record<string, unknown> }> = [];
@@ -13,6 +13,9 @@ class FakeClient {
     }
     if (command === "read_recent_events") {
       return [{ type: "log" }] as T;
+    }
+    if (command === "query_events") {
+      return [{ type: "policy_step" }] as T;
     }
     return undefined as T;
   }
@@ -41,5 +44,16 @@ describe("proxyRepository", () => {
 
     await expect(getProxyStatus(client)).resolves.toEqual({ running: true });
     await expect(readRecentEvents(client, 10)).resolves.toEqual([{ type: "log" }]);
+  });
+
+  it("queries filtered events", async () => {
+    const client = new FakeClient();
+
+    await expect(queryEvents(client, { limit: 25, category: "observability", policyId: "policy" })).resolves.toEqual([{ type: "policy_step" }]);
+
+    expect(client.calls[0]).toEqual({
+      command: "query_events",
+      args: { query: { limit: 25, category: "observability", policyId: "policy" } },
+    });
   });
 });

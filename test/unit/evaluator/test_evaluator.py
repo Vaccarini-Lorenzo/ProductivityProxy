@@ -118,7 +118,7 @@ class PolicyEvaluatorTest(unittest.TestCase):
 
             PolicyEvaluator(config).evaluate(context)
 
-            self.assertFalse(event_path.exists())
+            self.assertNotIn("should_not_run", event_path.read_text(encoding="utf-8"))
 
     def test_loop_guard_raises(self):
         config = AppConfig.from_dict(

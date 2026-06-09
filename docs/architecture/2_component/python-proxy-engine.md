@@ -160,7 +160,17 @@ Usage tracking counts elapsed time only when the previous request for a platform
 
 `EventLog` appends one JSON object per line to `events.jsonl`.
 
-Events are used for logs, usage tracking, and notification requests.
+Events are used for logs, usage tracking, notification requests, and observability.
+
+The evaluator automatically emits config, request, policy, step, and error events with stable fields such as `category`, `type`, `level`, `requestId`, `modeId`, `policyId`, and `stepId`.
+
+Custom nodes receive `context.log` and can emit filterable events:
+
+```python
+def run(input, context, params):
+    context.log.info("custom decision", reason="matched")
+    return input
+```
 
 ## Tests
 

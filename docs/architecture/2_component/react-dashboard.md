@@ -126,7 +126,8 @@ Thin wrapper around Tauri commands:
 - `start_proxy`,
 - `stop_proxy`,
 - `proxy_status`,
-- `read_recent_events`.
+- `read_recent_events`,
+- `query_events`.
 
 ### Notifications
 

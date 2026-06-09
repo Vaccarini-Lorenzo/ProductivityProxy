@@ -4,6 +4,7 @@ from pathlib import Path
 
 from proxy.models.runtime.context import RequestContext
 from proxy.services.config.config_service import ConfigService
+from proxy.services.events import observability
 from proxy.services.events.event_log import EventLog
 from proxy.services.policy.evaluator import PolicyEvaluator
 from proxy.services.state.state_store import StateStore
@@ -17,9 +18,14 @@ class PolicyProxyController:
         self.evaluator = None
 
     def configure(self, config_path: Path, state_path: Path, event_log_path: Path) -> None:
-        self.config = ConfigService(config_path).load()
-        self.state = StateStore(state_path)
         self.event_log = EventLog(event_log_path)
+        try:
+            self.config = ConfigService(config_path).load()
+        except Exception as error:
+            observability.config_rejected(self.event_log, config_path, error)
+            raise
+        observability.config_loaded(self.event_log, config_path, self.config)
+        self.state = StateStore(state_path)
         self.evaluator = PolicyEvaluator(self.config)
 
     def request(self, flow) -> None:

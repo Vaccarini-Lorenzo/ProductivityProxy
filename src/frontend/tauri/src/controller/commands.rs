@@ -1,7 +1,7 @@
 use crate::models::proxy::settings::ProxySettings;
 use crate::services::config::file_store::FileStore;
 use crate::services::config::runtime_paths::RuntimePaths;
-use crate::services::events::event_log::read_recent_events as read_events;
+use crate::services::events::event_log::{query_events as query_event_log, read_recent_events as read_events, EventQuery};
 use crate::services::network::network_info::{detect_network_info, NetworkInfo};
 use crate::services::proxy::mitmdump_args::build_mitmdump_args;
 use crate::services::proxy::process_service::ProcessService;
@@ -146,6 +146,12 @@ pub fn proxy_status(state: State<AppState>) -> Result<ProxyStatus, String> {
 pub fn read_recent_events(app: AppHandle, limit: usize) -> Result<Vec<Value>, String> {
     let paths = paths_for_app(&app)?;
     read_events(&paths.proxy.event_log_path, limit).map_err(to_string)
+}
+
+#[tauri::command]
+pub fn query_events(app: AppHandle, query: EventQuery) -> Result<Vec<Value>, String> {
+    let paths = paths_for_app(&app)?;
+    query_event_log(&paths.proxy.event_log_path, &query).map_err(to_string)
 }
 
 #[tauri::command]

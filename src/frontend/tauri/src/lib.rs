@@ -3,7 +3,7 @@ pub mod models;
 pub mod services;
 
 use controller::commands::{
-    network_info, proxy_status, read_app_config, read_recent_events, start_proxy, stop_proxy,
+    network_info, proxy_status, query_events, read_app_config, read_recent_events, start_proxy, stop_proxy,
     write_app_config, write_custom_node, AppState,
 };
 use controller::tray::actions::TrayAction;
@@ -24,6 +24,7 @@ pub fn run() {
             stop_proxy,
             proxy_status,
             read_recent_events,
+            query_events,
             network_info
         ])
         .setup(|app| {

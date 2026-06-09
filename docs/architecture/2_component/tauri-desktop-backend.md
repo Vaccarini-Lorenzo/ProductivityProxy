@@ -33,6 +33,7 @@ Both fields are protected with `Mutex` because Tauri commands can run concurrent
 | `stop_proxy` | Restore macOS system proxy and stop `mitmdump`. |
 | `proxy_status` | Report whether `mitmdump` is still running; restore proxy settings if it died. |
 | `read_recent_events` | Read the last N JSONL event entries. |
+| `query_events` | Read recent JSONL event entries with frontend-friendly filters. |
 | `network_info` | Return `127.0.0.1` and best-effort LAN IP. |
 
 ## App data paths
