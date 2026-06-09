@@ -36,7 +36,7 @@ describe("policyOperations", () => {
     const updated = updateStepParams(original, "block-response-1", { message: "Blocked" });
 
     expect(updated.steps.find((step) => step.id === "block-response-1")?.params).toEqual({ message: "Blocked" });
-    expect(original.steps.find((step) => step.id === "block-response-1")?.params).toEqual({});
+    expect(original.steps.find((step) => step.id === "block-response-1")?.params).toEqual({ status: 403, message: "Blocked" });
   });
 
   it("updates edge outputs", () => {

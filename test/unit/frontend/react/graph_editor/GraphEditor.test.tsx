@@ -10,12 +10,21 @@ describe("GraphEditor", () => {
     const policy = config.modes[0].policies[0];
 
     const markup = renderToStaticMarkup(
-      <GraphEditor policy={policy} customNodes={[]} onPolicyChange={() => undefined} onAddStep={() => undefined} />,
+      <GraphEditor
+        policy={policy}
+        customNodes={[]}
+        selectedStepId={null}
+        onPolicyChange={() => undefined}
+        onAddStep={() => undefined}
+        onSelectStep={() => undefined}
+        onDeleteStep={() => undefined}
+      />,
     );
 
-    expect(markup).toContain("Productivity policy");
-    expect(markup).toContain("$ add start");
-    expect(markup).toContain("$ add if");
+    expect(markup).toContain("Block YouTube Shorts");
+    expect(markup).toContain("start");
+    expect(markup).toContain("Library");
+    expect(markup).toContain("If / Then / Else");
   });
 
   it("formats params as editable JSON", () => {

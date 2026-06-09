@@ -12,17 +12,22 @@ from test.helpers.fakes import FakeFlow
 
 
 class OperatorRunnerTest(unittest.TestCase):
-    def test_if_routes_by_truthy_path(self):
-        step = PolicyStep("choice", "operator", "if", {"path": "match"})
+    def test_if_routes_then_else_from_code(self):
+        step = PolicyStep("choice", "operator", "if", {"code": "def if_condition(input):\n    return input['match']"})
 
-        self.assertEqual(OperatorRunner().evaluate(step, {"match": True}), "true")
-        self.assertEqual(OperatorRunner().evaluate(step, {"match": False}), "false")
+        self.assertEqual(OperatorRunner().evaluate(step, {"match": True}), "then")
+        self.assertEqual(OperatorRunner().evaluate(step, {"match": False}), "else")
 
-    def test_switch_routes_by_selected_value(self):
-        step = PolicyStep("switch", "operator", "switch", {"path": "platform"})
+    def test_switch_routes_by_returned_label(self):
+        step = PolicyStep("switch", "operator", "switch", {"code": "def switch_condition(input):\n    return input.get('platform', 'default')"})
 
         self.assertEqual(OperatorRunner().evaluate(step, {"platform": "reddit"}), "reddit")
         self.assertEqual(OperatorRunner().evaluate(step, {}), "default")
+
+    def test_missing_code_raises(self):
+        step = PolicyStep("choice", "operator", "if", {})
+        with self.assertRaises(ValueError):
+            OperatorRunner().evaluate(step, {})
 
 
 class DefaultNodeTest(unittest.TestCase):

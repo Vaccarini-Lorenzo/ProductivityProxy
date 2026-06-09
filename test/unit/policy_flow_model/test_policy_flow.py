@@ -19,13 +19,13 @@ def config_dict(node_path: str):
                         "steps": [
                             {"id": "start", "kind": "node", "type": "start"},
                             {"id": "custom", "kind": "node", "type": "custom-node"},
-                            {"id": "choice", "kind": "operator", "type": "if", "params": {"path": "match"}},
+                            {"id": "choice", "kind": "operator", "type": "if", "params": {"code": "def if_condition(input):\n    return True"}},
                             {"id": "end", "kind": "node", "type": "end"},
                         ],
                         "edges": [
                             {"from": "start", "output": "next", "to": "custom"},
                             {"from": "custom", "output": "next", "to": "choice"},
-                            {"from": "choice", "output": "true", "to": "end"},
+                            {"from": "choice", "output": "then", "to": "end"},
                         ],
                     }
                 ],
@@ -45,8 +45,8 @@ class PolicyFlowTest(unittest.TestCase):
 
         self.assertEqual(mode.id, "mode")
         self.assertEqual(policy.start_step().id, "start")
-        self.assertEqual(policy.next_step_id("choice", "true"), "end")
-        self.assertIsNone(policy.next_step_id("choice", "false"))
+        self.assertEqual(policy.next_step_id("choice", "then"), "end")
+        self.assertIsNone(policy.next_step_id("choice", "else"))
 
     def test_rejects_relative_custom_node_path(self):
         with self.assertRaisesRegex(ValueError, "absolute"):
@@ -55,7 +55,7 @@ class PolicyFlowTest(unittest.TestCase):
     def test_rejects_duplicate_routes(self):
         with tempfile.TemporaryDirectory() as tmp:
             raw = config_dict(str(Path(tmp) / "node.py"))
-            raw["modes"][0]["policies"][0]["edges"].append({"from": "choice", "output": "true", "to": "end"})
+            raw["modes"][0]["policies"][0]["edges"].append({"from": "choice", "output": "then", "to": "end"})
 
             with self.assertRaisesRegex(ValueError, "Duplicate route"):
                 AppConfig.from_dict(raw)

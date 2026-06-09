@@ -19,6 +19,6 @@ describe("validateAppConfig", () => {
     const config = createDefaultConfig();
     config.modes[0].policies[0].steps = config.modes[0].policies[0].steps.filter((step) => step.type !== "start");
 
-    expect(validateAppConfig(config)).toContain("Policy Productivity/Productivity policy must have exactly one start node");
+    expect(validateAppConfig(config)).toContain("Policy Productivity/Block YouTube Shorts must have exactly one start node");
   });
 });

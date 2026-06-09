@@ -44,15 +44,15 @@ class PolicyEvaluatorTest(unittest.TestCase):
                                     "steps": [
                                         {"id": "start", "kind": "node", "type": "start"},
                                         {"id": "detect", "kind": "node", "type": "detect", "params": {"message": "hello"}},
-                                        {"id": "choice", "kind": "operator", "type": "if", "params": {"path": "match"}},
+                                        {"id": "choice", "kind": "operator", "type": "if", "params": {"code": "def if_condition(input):\n    return input['match']"}},
                                         {"id": "log", "kind": "node", "type": "log"},
                                         {"id": "end", "kind": "node", "type": "end"},
                                     ],
                                     "edges": [
                                         {"from": "start", "output": "next", "to": "detect"},
                                         {"from": "detect", "output": "next", "to": "choice"},
-                                        {"from": "choice", "output": "true", "to": "log"},
-                                        {"from": "choice", "output": "false", "to": "end"},
+                                        {"from": "choice", "output": "then", "to": "log"},
+                                        {"from": "choice", "output": "else", "to": "end"},
                                         {"from": "log", "output": "next", "to": "end"},
                                     ],
                                 }
