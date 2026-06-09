@@ -127,26 +127,55 @@ pre { overflow: auto; white-space: pre-wrap; color: #f2d4a1; font-size: .82rem; 
 
 /* --- Graph editor --- */
 .graph-panel { overflow: hidden; }
+.section-heading { display: flex; gap: 12px; align-items: start; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; }
+.node-palette { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: rgba(17,16,13,.7); }
+.palette-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.palette-group::after { content: ""; display: block; width: 1px; height: 22px; background: var(--line); margin-left: 4px; }
+.palette-group:last-child::after { display: none; }
+.palette-label { color: var(--muted); font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.palette-operator { border-color: var(--amber) !important; color: var(--amber-2) !important; }
+.palette-custom { border-color: var(--green) !important; color: var(--green) !important; }
 .section-heading { display: flex; gap: 12px; align-items: start; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; }
 .flow-canvas { height: 480px; border: 1px solid var(--line); border-radius: 4px; background: #0b0a08; }
 .flow-canvas .react-flow__background { stroke: rgba(245,158,11,.12) !important; }
 .flow-canvas .react-flow__minimap, .flow-canvas .react-flow__controls button { background: var(--panel); border-color: var(--line); color: var(--amber-2); fill: var(--amber-2); }
 .flow-canvas .react-flow__edge-path, .flow-canvas .react-flow__connection-line { stroke: var(--amber) !important; stroke-width: 2px; filter: drop-shadow(0 0 3px rgba(245,158,11,.4)); }
-.policy-node { display: grid; align-content: center; gap: 3px; width: 100%; height: 100%; padding: 10px 20px; border: 1px solid var(--line-soft); border-radius: 6px; background: #12100d; color: var(--text); font-size: .82rem; }
-.policy-node.operator { border-color: var(--amber); background: #1b140a; }
-.policy-node strong { color: var(--amber-2); text-transform: uppercase; font-size: .78rem; }
+.policy-node { display: grid; align-content: center; gap: 3px; width: 100%; height: 100%; padding: 10px 16px; border: 1px solid var(--line-soft); border-radius: 6px; background: #12100d; color: var(--text); font-size: .82rem; position: relative; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.policy-node.selected { border-color: var(--blue); box-shadow: 0 0 12px rgba(143,211,255,.3); }
+.policy-node strong { color: var(--text); text-transform: uppercase; font-size: .75rem; letter-spacing: .03em; }
 .policy-node span { color: var(--muted); font-size: .7rem; }
-.react-flow__handle { width: 16px !important; height: 16px !important; background: var(--amber) !important; border: 2px solid #12100d !important; box-shadow: 0 0 8px rgba(245,158,11,.6); }
-.react-flow__handle-left { left: -8px !important; }
-.react-flow__handle-right { right: -8px !important; }
+.policy-node:hover { border-color: var(--amber); }
+.node-delete { position: absolute; top: -8px; right: -8px; min-height: 20px; min-width: 20px; padding: 0; border-radius: 50%; border: 1px solid var(--red); background: #1a0806; color: var(--red); font-size: .75rem; line-height: 1; cursor: pointer; z-index: 10; }
+/* Operator node - distinct visual without clip-path */
+.operator-diamond { border: 2px solid var(--amber); background: linear-gradient(135deg, #1b140a, #12100d); border-radius: 12px; padding: 10px 16px; }
+.operator-diamond strong { color: var(--amber-2); }
+.operator-diamond::before { content: "◆"; position: absolute; top: 6px; right: 10px; color: var(--amber); font-size: .7rem; opacity: .6; }
+.diamond-inner { display: grid; align-content: center; gap: 2px; }
+.react-flow__handle { width: 18px !important; height: 18px !important; background: var(--green) !important; border: 2px solid #12100d !important; box-shadow: 0 0 6px rgba(119,214,107,.6); cursor: crosshair !important; transition: transform .15s, box-shadow .15s; }
+.react-flow__handle:hover { transform: scale(1.4); box-shadow: 0 0 12px rgba(119,214,107,.9); }
+.react-flow__handle-left { left: -9px !important; }
+.react-flow__handle-right { right: -9px !important; }
 .edge-action-zone { position: absolute; display: grid; place-items: center; pointer-events: all; }
 .edge-delete { min-height: 26px; padding: 2px 7px; font-size: .78rem; opacity: 0; pointer-events: none; border-color: var(--red); color: var(--red); background: #130908; }
 .edge-action-zone:hover .edge-delete { opacity: 1; pointer-events: all; }
 .graph-hint { margin-top: 8px; text-align: center; font-size: .75rem; color: var(--muted); }
 
 /* --- Inspector --- */
-.inspector-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.inspector-grid .wide-card { grid-column: 1 / -1; }
+.inspector-badge { display: inline-block; border-radius: 3px; padding: 1px 6px; font-size: .7rem; font-weight: 700; text-transform: uppercase; margin-right: 8px; }
+.inspector-badge.node { background: rgba(119,214,107,.15); color: var(--green); border: 1px solid rgba(119,214,107,.3); }
+.inspector-badge.operator { background: rgba(245,158,11,.15); color: var(--amber); border: 1px solid rgba(245,158,11,.3); }
+.inspector-routes { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.inspector-routes h3 { font-size: .82rem; margin-bottom: 8px; color: var(--muted); }
+.route-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.route-output { width: 100px; min-height: 28px; padding: 4px 8px; font-size: .82rem; }
+/* Params editor */
+.params-editor, .trigger-editor { display: grid; gap: 10px; }
+.param-row { display: flex; align-items: center; gap: 8px; }
+.param-key { min-width: 100px; color: var(--green); font-size: .82rem; font-weight: 600; }
+.param-value { flex: 1; min-height: 28px; padding: 4px 8px; font-size: .82rem; }
+.param-key-input { width: 120px; min-height: 28px; padding: 4px 8px; font-size: .82rem; }
+.add-row { opacity: .7; }
+.add-row:hover { opacity: 1; }
 .code-input { font-size: .82rem; line-height: 1.5; color: #f5d49a; }
 .small-code { min-height: 80px; }
 

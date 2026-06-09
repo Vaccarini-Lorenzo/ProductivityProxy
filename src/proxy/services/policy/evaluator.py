@@ -89,10 +89,30 @@ class PolicyEvaluator:
 
     def _execute_node(self, step: PolicyStep, input_value: Any, context) -> tuple[str, Any]:
         if step.type == "start":
-            return "next", input_value
+            return _evaluate_trigger(step, context), input_value
         if step.type == "end":
             return "end", input_value
         return "next", self.custom_nodes.run(step, input_value, context)
+
+
+def _evaluate_trigger(step: PolicyStep, context) -> str:
+    trigger = step.params.get("trigger")
+    if not trigger:
+        return "next"
+    flow = context.flow
+    host = flow.request.pretty_host.lower().strip(".")
+    host_patterns = trigger.get("hostPatterns", [])
+    if host_patterns:
+        if not any(host == p or host.endswith("." + p) for p in host_patterns):
+            return "skip"
+    path_patterns = trigger.get("pathPatterns", [])
+    if path_patterns:
+        url = flow.request.pretty_url.lower()
+        referer = flow.request.headers.get("referer", "").lower()
+        haystack = url + " " + referer
+        if not any(p in haystack for p in path_patterns):
+            return "skip"
+    return "next"
 
 
 def _max_steps_from_env() -> int:
