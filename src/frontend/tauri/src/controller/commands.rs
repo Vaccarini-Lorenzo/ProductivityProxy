@@ -12,18 +12,28 @@ use serde::Serialize;
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, Weak};
+use std::thread;
+use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 
-#[derive(Default)]
 pub struct AppState {
-    pub proxy: Mutex<ProcessService>,
-    pub system_proxy_snapshot: Mutex<Option<SystemProxySnapshot>>,
+    pub proxy: Arc<Mutex<ProcessService>>,
+    pub system_proxy_snapshot: Arc<Mutex<Option<SystemProxySnapshot>>>,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            proxy: Arc::new(Mutex::new(ProcessService::new())),
+            system_proxy_snapshot: Arc::new(Mutex::new(None)),
+        }
+    }
 }
 
 impl Drop for AppState {
     fn drop(&mut self) {
-        if let Ok(snapshot) = self.system_proxy_snapshot.get_mut() {
+        if let Ok(mut snapshot) = self.system_proxy_snapshot.lock() {
             if let Some(snapshot) = snapshot.take() {
                 let _ = restore_system_proxy(&snapshot);
             }
@@ -80,7 +90,7 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
         .proxy
         .lock()
         .map_err(to_string)?
-        .start_args("mitmdump", &args)
+        .start_args_and_confirm("mitmdump", &args, proxy_startup_grace())
         .map_err(to_string)?;
 
     if let Err(error) = enable_system_proxy(&settings, &snapshot) {
@@ -91,9 +101,19 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
         return Err(to_string(error));
     }
 
+    let still_running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;
+    if !still_running {
+        let _ = restore_system_proxy(&snapshot);
+        return Err("proxy process exited during startup".to_string());
+    }
+
     match state.system_proxy_snapshot.lock() {
         Ok(mut stored_snapshot) => {
             *stored_snapshot = Some(snapshot);
+            start_proxy_monitor(
+                Arc::downgrade(&state.proxy),
+                Arc::downgrade(&state.system_proxy_snapshot),
+            );
             Ok(())
         }
         Err(error) => {
@@ -108,10 +128,8 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
 
 #[tauri::command]
 pub fn stop_proxy(state: State<AppState>) -> Result<(), String> {
-    let restore_result = restore_marked_system_proxy(&state.system_proxy_snapshot);
-    let stop_result = state.proxy.lock().map_err(to_string)?.stop().map_err(to_string);
-    restore_result?;
-    stop_result
+    restore_marked_system_proxy(&state.system_proxy_snapshot)?;
+    state.proxy.lock().map_err(to_string)?.stop().map_err(to_string)
 }
 
 #[tauri::command]
@@ -160,6 +178,42 @@ fn discover_repo_root() -> Result<PathBuf, String> {
             return Err("Cannot find repository root".to_string());
         }
     }
+}
+
+fn start_proxy_monitor(
+    proxy: Weak<Mutex<ProcessService>>,
+    snapshot: Weak<Mutex<Option<SystemProxySnapshot>>>,
+) {
+    thread::spawn(move || loop {
+        thread::sleep(proxy_monitor_interval());
+        let Some(proxy) = proxy.upgrade() else {
+            break;
+        };
+        let Some(snapshot) = snapshot.upgrade() else {
+            break;
+        };
+        let running = match proxy.lock() {
+            Ok(mut proxy) => proxy.is_running().unwrap_or(false),
+            Err(_) => false,
+        };
+        if running {
+            continue;
+        }
+        match restore_marked_system_proxy(&snapshot) {
+            Ok(()) => break,
+            Err(error) => {
+                log::error!("failed to restore system proxy after proxy process exit: {error}");
+            }
+        }
+    });
+}
+
+fn proxy_startup_grace() -> Duration {
+    Duration::from_millis(800)
+}
+
+fn proxy_monitor_interval() -> Duration {
+    Duration::from_secs(2)
 }
 
 fn restore_marked_system_proxy(snapshot: &Mutex<Option<SystemProxySnapshot>>) -> Result<(), String> {

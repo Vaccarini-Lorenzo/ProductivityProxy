@@ -1,5 +1,7 @@
 use std::io::{Error, ErrorKind, Result};
 use std::process::{Child, Command, Stdio};
+use std::thread;
+use std::time::Duration;
 
 pub struct ProcessService {
     child: Option<Child>,
@@ -23,6 +25,32 @@ impl ProcessService {
     pub fn start_args(&mut self, command: &str, args: &[String]) -> Result<()> {
         let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
         self.start(command, &borrowed)
+    }
+
+    pub fn start_and_confirm(
+        &mut self,
+        command: &str,
+        args: &[&str],
+        startup_grace: Duration,
+    ) -> Result<()> {
+        self.start(command, args)?;
+        if !startup_grace.is_zero() {
+            thread::sleep(startup_grace);
+        }
+        if self.is_running()? {
+            return Ok(());
+        }
+        Err(Error::new(ErrorKind::BrokenPipe, "process exited during startup"))
+    }
+
+    pub fn start_args_and_confirm(
+        &mut self,
+        command: &str,
+        args: &[String],
+        startup_grace: Duration,
+    ) -> Result<()> {
+        let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
+        self.start_and_confirm(command, &borrowed, startup_grace)
     }
 
     pub fn stop(&mut self) -> Result<()> {

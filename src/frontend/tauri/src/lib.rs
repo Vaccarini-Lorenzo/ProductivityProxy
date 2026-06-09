@@ -63,7 +63,10 @@ fn create_tray(app: &mut tauri::App) -> tauri::Result<()> {
         .on_menu_event(|app, event| match TrayAction::from_menu_id(event.id().as_ref()) {
             Some(TrayAction::OpenDashboard) => show_dashboard(app),
             Some(TrayAction::Quit) => {
-                let _ = stop_proxy(app.state::<AppState>());
+                if let Err(error) = stop_proxy(app.state::<AppState>()) {
+                    log::error!("refusing to quit because proxy cleanup failed: {error}");
+                    return;
+                }
                 app.exit(0);
             }
             None => {}

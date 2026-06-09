@@ -24,14 +24,13 @@ docs/             design/build docs
   - tray icon opens the dashboard,
   - close hides the dashboard instead of quitting,
   - macOS accessory activation policy.
-- Dashboard:
+- Current dashboard:
   - proxy start/stop,
-  - mode selector,
   - proxy settings,
-  - LAN/Android setup panel,
+  - mode selector,
   - visual graph editor,
-  - custom Python block editor,
-  - event viewer.
+  - custom Python operator editor,
+  - native notification dispatch from proxy events.
 - Python graph policy engine:
   - graph nodes and edges,
   - built-in nodes: `block`, `log`, `track_time`, `notify`, `redirect`, `if`, `switch`, `start`, `end`,
@@ -40,12 +39,19 @@ docs/             design/build docs
 - Default modes:
   - `Productivity`: blocks YouTube Shorts and blocks Reddit after 30 minutes/day,
   - `Chilling`: allows traffic.
-- Native notifications:
-  - `notify` graph node writes notification events,
-  - app displays those as desktop notifications.
 - macOS system proxy control:
-  - start enables HTTP and HTTPS system proxies on enabled network services,
-  - stop disables those proxy states again.
+  - start snapshots current HTTP/HTTPS proxy settings, then points enabled network services at the local proxy,
+  - stop restores the previous proxy settings.
+
+## Documentation
+
+Start with:
+
+- [docs/README.md](docs/README.md) — documentation index.
+- [docs/usage.md](docs/usage.md) — running and using the app.
+- [docs/development.md](docs/development.md) — setup, tests, and workflows.
+- [docs/software-modules.md](docs/software-modules.md) — module map and API contracts.
+- [docs/building-plan.md](docs/building-plan.md) — roadmap and readiness.
 
 ## Install prerequisites
 
@@ -126,6 +132,8 @@ src/proxy/defaults/default_config.json
 
 - Custom Python blocks run with local process permissions and mitmproxy SDK access.
 - Graph loops are allowed and currently have no loop guard.
-- Starting/stopping from the desktop app toggles macOS HTTP/HTTPS system proxy settings for enabled network services.
-- Linux system proxy automation is still postponed because desktop environments differ.
+- Starting/stopping from the desktop app snapshots and restores macOS HTTP/HTTPS system proxy settings for enabled network services.
+- If an existing macOS authenticated system proxy is detected, start is refused because macOS does not expose the saved password for safe restore.
+- Linux system proxy automation is still postponed because desktop environments differ; the current desktop start flow returns unsupported on non-macOS.
 - Bundling mitmproxy inside the app is postponed.
+- HTTPS traffic requires manual mitmproxy CA installation/trust.

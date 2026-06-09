@@ -1,4 +1,5 @@
 use productivity_proxy_app::services::proxy::process_service::ProcessService;
+use std::time::Duration;
 
 #[test]
 fn starts_and_stops_a_real_process() {
@@ -24,6 +25,17 @@ fn starts_with_owned_string_args() {
 
     assert!(service.is_running().unwrap());
     service.stop().unwrap();
+}
+
+#[test]
+fn reports_process_that_exits_during_startup() {
+    let mut service = ProcessService::new();
+
+    let error = service
+        .start_and_confirm("sh", &["-c", "exit 2"], Duration::from_millis(100))
+        .unwrap_err();
+
+    assert_eq!(error.kind(), std::io::ErrorKind::BrokenPipe);
 }
 
 #[test]

@@ -18,7 +18,7 @@ describe("graphOperations", () => {
       id: "log-1",
       type: "log",
       params: {},
-      position: { x: 280, y: 120 },
+      position: { x: 420, y: 120 },
     });
   });
 

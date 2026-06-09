@@ -90,6 +90,30 @@ fn builds_restore_commands_from_snapshot() {
 
     assert_eq!(commands[0], vec!["-setwebproxy", "Wi-Fi", "proxy.example", "3128", "off"]);
     assert_eq!(commands[1], vec!["-setwebproxystate", "Wi-Fi", "on"]);
-    assert_eq!(commands[2], vec!["-setsecurewebproxy", "Wi-Fi", "secure.example", "4443", "off"]);
-    assert_eq!(commands[3], vec!["-setsecurewebproxystate", "Wi-Fi", "off"]);
+    assert_eq!(commands[2], vec!["-setsecurewebproxystate", "Wi-Fi", "off"]);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn restores_disabled_port_zero_snapshot_without_setting_proxy_endpoint() {
+    let service = ServiceProxySnapshot {
+        service: "Wi-Fi".into(),
+        web: ProxySnapshot {
+            enabled: false,
+            server: "".into(),
+            port: "0".into(),
+            auth_enabled: false,
+        },
+        secure_web: ProxySnapshot {
+            enabled: false,
+            server: "127.0.0.1".into(),
+            port: "8080".into(),
+            auth_enabled: false,
+        },
+    };
+
+    let commands = restore_commands_for_service(&service);
+
+    assert_eq!(commands[0], vec!["-setwebproxystate", "Wi-Fi", "off"]);
+    assert_eq!(commands[1], vec!["-setsecurewebproxystate", "Wi-Fi", "off"]);
 }
