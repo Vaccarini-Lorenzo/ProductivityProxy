@@ -1,567 +1,217 @@
-# ProductivityProxy Building Plan
+# Roadmap and Readiness
 
-## Goal
+## Current state
 
-Build a cross-platform desktop app that controls a local `mitmproxy` proxy and lets users define traffic policies with modes and visual node graphs.
+ProductivityProxy has a working local development architecture:
 
-The app should work as a dockless tray/menu-bar app:
-
-- macOS: menu bar app, no Dock icon, hidden dashboard by default.
-- Linux: system tray/AppIndicator when available.
-
-## Key product decisions
-
-- Desktop stack: **Tauri v2 + React + TypeScript**.
-- Proxy engine: keep using **mitmdump/mitmproxy**.
-- Policy engine: Python code running inside the mitmproxy addon.
-- Policy editor: visual node graph.
-- Policies are stored in app config, not environment variables.
-- The desktop app toggles macOS HTTP/HTTPS system proxy settings when the proxy starts/stops.
-- Linux system proxy automation is postponed because desktop environments differ.
-- Custom Python blocks are allowed to run directly with mitmproxy SDK access.
-- No sandboxing or custom-code safeguards in the initial version.
-
-## Important security model
-
-Custom blocks run as local Python code with the same permissions as the proxy process.
-
-This means custom blocks can:
-
-- read/write local files,
-- make network requests,
-- inspect and modify proxied flows,
-- block or redirect traffic,
-- break the proxy if they contain errors or infinite loops.
-
-This is intentional for now. The user is responsible for the code they run.
-
-## Target repo structure
-
-```text
-ProductivityProxy/
-  src/
-    frontend/
-      react/
-        package.json
-        index.html
-        src/
-          main.tsx
-          App.tsx
-          components/
-          models/
-          services/
-      tauri/
-        tauri.conf.json
-        src/
-          main.rs
-          lib.rs
-          controller/
-          models/
-          services/
-
-    proxy/
-    addons/
-      graph_proxy.py
-    engine/
-      __init__.py
-      blocks.py
-      config.py
-      context.py
-      evaluator.py
-      events.py
-      state.py
-      custom_blocks.py
-    defaults/
-      default_config.json
-      blocks/
-
-  docs/
-    building-plan.md
-    android.md
-    proxy-setup.md
-
-  scripts/
-    run_mitm.sh
-
-  README.md
-  requirements.txt
-```
-
-The old legacy mitmproxy add-on was removed after the graph-based proxy engine replaced it.
-
-## Runtime architecture
-
-```text
-Tauri tray app
-  ├─ shows dashboard when requested
-  ├─ stores config/state paths
-  ├─ starts/stops mitmdump
-  ├─ toggles macOS HTTP/HTTPS system proxy settings
-  ├─ watches proxy event log
-  └─ shows OS notifications
-
-mitmdump subprocess
-  └─ loads src/proxy/addons/graph_proxy.py
-       └─ reads config.json
-       └─ evaluates active mode graph
-       └─ executes built-in and custom Python blocks
-       └─ writes state/events
-```
-
-## App responsibilities
-
-The Tauri app handles:
-
-- tray/menu-bar icon,
+- Tauri tray/menu-bar app,
 - hidden dashboard window,
-- proxy start/stop/restart,
-- macOS system proxy enable/disable,
-- LAN proxy toggle,
-- auth toggle,
-- mode selection,
-- graph editing,
-- custom block editing,
-- config persistence,
-- event/log display,
-- OS notifications triggered by proxy events,
-- copyable Android setup info.
+- Rust commands for config, proxy lifecycle, events, and network info,
+- `mitmdump` child process launch,
+- Python graph policy engine,
+- default productivity/chilling modes,
+- custom Python operator loading,
+- local state and JSONL event persistence,
+- React dashboard for settings, operators, and policy graph editing,
+- macOS HTTP/HTTPS system proxy snapshot/restore.
 
-The Tauri app does **not** implement request policy logic directly.
+Python and Rust tests pass in the current backend state. React validation should be rerun after active UI edits settle.
 
-## Proxy responsibilities
+## What is good enough now
 
-The Python mitmproxy addon handles:
+The project is good enough for:
 
-- reading current config,
-- evaluating graph nodes for each request,
-- executing custom Python blocks,
-- tracking local usage state,
-- blocking requests,
-- redirecting requests,
-- logging events,
-- emitting notification events for the desktop app.
+- local development,
+- testing graph policy behavior,
+- careful macOS trials,
+- validating custom blocks,
+- iterating on the dashboard UX.
 
-## Config files
+## Not ready for broad daily use yet
 
-Use app data directory instead of `.env`.
+The app is not yet polished enough for normal users because:
 
-macOS example:
+- mitmproxy must be installed manually,
+- mitmproxy CA installation/trust is manual,
+- packaged app runtime paths are not solved,
+- proxy process logs are discarded,
+- custom Python operators are unsandboxed,
+- graph loops have no guard,
+- config validation is incomplete,
+- Linux system proxy automation is unsupported,
+- force-kill/crash can leave macOS proxy settings enabled.
 
-```text
-~/Library/Application Support/ProductivityProxy/
-  config.json
-  state.json
-  events.jsonl
-  custom_blocks/
-```
+## Completed implementation phases
 
-Linux example:
+### 1. Repository and app scaffold
 
-```text
-~/.config/productivity-proxy/
-  config.json
-  state.json
-  events.jsonl
-  custom_blocks/
-```
+Done:
 
-## Config shape
+- `src/proxy` Python engine structure,
+- `src/frontend/tauri` Rust backend,
+- `src/frontend/react` dashboard,
+- Tauri app config,
+- tray/menu-bar behavior,
+- hidden window startup.
 
-Initial shape:
+### 2. Proxy process manager
 
-```json
-{
-  "activeModeId": "productivity",
-  "proxy": {
-    "port": 8080,
-    "allowLan": true,
-    "authEnabled": false,
-    "authUsername": "productive",
-    "authPassword": "change-me"
-  },
-  "modes": [
-    {
-      "id": "productivity",
-      "name": "Productivity",
-      "graph": {
-        "nodes": [],
-        "edges": []
-      }
-    },
-    {
-      "id": "chilling",
-      "name": "Chilling",
-      "graph": {
-        "nodes": [],
-        "edges": []
-      }
-    }
-  ],
-  "customBlocks": []
-}
-```
+Done:
 
-## Node graph model
+- builds `mitmdump` args from config,
+- starts/stops child process,
+- reports running state,
+- stops on app quit.
 
-A mode owns one graph.
+Remaining:
 
-Each graph has:
+- capture/display stderr/stdout,
+- detect missing `mitmdump` before start,
+- expose clearer startup diagnostics in UI.
 
-- nodes,
-- directed edges,
-- one request start node,
-- optional terminal nodes.
+### 3. Config and app data paths
 
-Each node receives a runtime context:
+Done:
 
-```python
-context.flow      # mitmproxy HTTPFlow
-context.state     # persistent state helper
-context.config    # active app config
-context.event_log # event writer
-context.data      # mutable per-request data bag
-```
+- app data config/state/event paths,
+- default config copy on first read,
+- custom block directory,
+- config read/write commands.
 
-Each node returns a result:
+Remaining:
 
-```json
-{
-  "output": "next",
-  "data": {
-    "someKey": "someValue"
-  }
-}
-```
+- safe custom block file-name validation,
+- config migrations/versioning,
+- stronger schema validation.
 
-Edges connect node outputs to the next node:
+### 4. Python graph engine
 
-```json
-{
-  "from": "node-a",
-  "output": "blocked",
-  "to": "node-b"
-}
-```
+Done:
 
-Loops are allowed. No loop guard is planned for the first version.
+- graph model,
+- evaluator,
+- built-in nodes,
+- custom Python block runner,
+- state store,
+- event log,
+- mitmproxy addon/controller,
+- default graph tests.
 
-## Initial built-in nodes
+Remaining:
 
-Keep the initial built-in node set small.
+- loop guard,
+- node-level error events,
+- node param validation,
+- optional hot reload or restart prompt when config changes.
 
-### Core graph nodes
+### 5. Default policies
 
-These are structural nodes, not policy-specific blocks:
+Done:
 
-- Start
-- End
-- If
-- Switch
+- Productivity mode blocks YouTube Shorts,
+- Productivity mode tracks Reddit,
+- Productivity mode blocks Reddit after 30 minutes/day,
+- Chilling mode allows traffic.
 
-### Policy/action nodes
+Remaining:
 
-- Block
-- Log
-- Track time
-- Show notification
-- Redirect
+- make defaults easier to explain in the UI,
+- add reset-to-defaults flow,
+- add imported/exported policy packs later if needed.
 
-### Custom Python node
+### 6. React dashboard
 
-A custom Python node can run arbitrary Python code using mitmproxy SDK objects.
+Done:
 
-Example block contract:
+- app shell/navigation,
+- settings view,
+- operators view,
+- policies view,
+- React Flow graph canvas,
+- Tauri command repositories,
+- notification deduplication service.
 
-```python
-def run(context, params):
-    url = context.flow.request.pretty_url
-    if "reddit.com" in url:
-        return {"output": "match", "data": {"platform": "reddit"}}
-    return {"output": "no_match"}
-```
+Remaining:
 
-The graph can route based on the returned `output`.
+- node parameter editor,
+- event/log viewer in current UI,
+- LAN/Android setup instructions in current UI,
+- custom block file-content loading while editing,
+- richer config validation feedback,
+- final responsive/polish pass.
 
-## Default policies as graphs
+### 7. System proxy support
 
-The app should ship with prebuilt modes:
+Done on macOS:
 
-### Productivity
+- snapshots enabled network services' HTTP/HTTPS proxy settings,
+- rejects existing authenticated proxies for safe restore,
+- enables HTTP/HTTPS proxy to `127.0.0.1:<port>`,
+- restores previous settings on stop/quit/proxy death detection,
+- rolls back when enable fails.
 
-Approximate graph:
+Remaining:
 
-```text
-Start
-  -> Custom: Detect YouTube Shorts
-      match -> Block
-      no_match -> Custom: Detect Reddit
-          match -> Track time
-              -> Custom: Is Reddit daily limit reached
-                  yes -> Block
-                  no -> End
-          no_match -> End
-```
+- durable crash recovery,
+- explicit manual recovery UI/help,
+- Linux desktop-environment-specific implementations,
+- tests with multiple real macOS network service configurations.
 
-### Chilling
+### 8. Documentation
 
-Approximate graph:
+Done:
 
-```text
-Start -> Log optional event -> End
-```
+- documentation index,
+- usage guide,
+- development guide,
+- architecture views,
+- module/API contracts,
+- assumptions and current limitations.
 
-These are defaults only. The user can edit or replace them.
+Remaining:
 
-## Custom block storage
+- screenshots after UI stabilizes,
+- user-facing CA installation guide per OS/browser/device,
+- packaged app installation guide when bundling exists.
 
-Custom blocks live as Python files in app data:
+## Recommended next work
 
-```text
-custom_blocks/
-  detect_youtube_shorts.py
-  classify_url.py
-  call_service_x.py
-```
+1. Finish the active React UI pass without changing backend contracts unnecessarily.
+2. Add graph node parameter editing.
+3. Add event/log viewer back into the current UI.
+4. Add a visible HTTPS CA setup/help panel.
+5. Add proxy process log capture and missing-`mitmdump` diagnostics.
+6. Add graph loop guard in the Python evaluator.
+7. Add stronger config validation shared between frontend and backend expectations.
+8. Decide packaging strategy for mitmproxy/Python/addon files.
 
-Config references them by ID/path:
+## Verification checklist
 
-```json
-{
-  "id": "detect_youtube_shorts",
-  "name": "Detect YouTube Shorts",
-  "type": "python",
-  "path": "custom_blocks/detect_youtube_shorts.py",
-  "entrypoint": "run"
-}
-```
-
-The proxy engine imports and executes them dynamically.
-
-## mitmdump launch command
-
-The app starts mitmdump roughly like this:
+Run after backend and UI settle:
 
 ```bash
-mitmdump \
-  --listen-host 0.0.0.0 \
-  --listen-port 8080 \
-  -s src/proxy/addons/graph_proxy.py \
-  --set productive_config_path=/path/to/config.json \
-  --set productive_state_path=/path/to/state.json \
-  --set productive_event_log_path=/path/to/events.jsonl
+python3 -m unittest discover -s test -t . -p 'test_*.py'
+cd src/frontend/tauri && cargo test
+cd src/frontend/react && npm test
+cd src/frontend/react && npm run build
+cd src/frontend/react && npm run tauri build -- --debug --no-bundle
 ```
 
-If auth is enabled, add:
+Manual macOS check:
 
-```bash
---proxyauth username:password
-```
+1. Record current system proxy settings.
+2. Start app from Tauri dev.
+3. Start proxy from Settings.
+4. Confirm macOS HTTP/HTTPS proxy points to `127.0.0.1:<port>`.
+5. Browse HTTP and HTTPS with trusted mitmproxy CA.
+6. Stop proxy.
+7. Confirm previous system proxy settings are restored.
 
-If LAN is disabled, use:
+## Deferred non-goals
 
-```bash
---listen-host 127.0.0.1
-```
-
-If LAN is enabled, use:
-
-```bash
---listen-host 0.0.0.0
-```
-
-## Dashboard pages
-
-Initial dashboard sections:
-
-1. Status
-   - proxy running/stopped,
-   - local address,
-   - LAN address,
-   - current mode,
-   - mitmdump availability.
-
-2. Modes
-   - select active mode,
-   - create/rename/delete modes.
-
-3. Graph editor
-   - visual graph canvas,
-   - add built-in node,
-   - add custom Python node,
-   - edit node params,
-   - connect outputs to inputs.
-
-4. Custom blocks
-   - create/edit Python code blocks,
-   - set entrypoint,
-   - maybe run a basic syntax check.
-
-5. Proxy settings
-   - port,
-   - LAN toggle,
-   - auth toggle,
-   - auth username/password.
-
-6. Logs/events
-   - recent events,
-   - blocked requests,
-   - notifications,
-   - raw log tail.
-
-## React graph library
-
-Use `@xyflow/react` unless it creates problems.
-
-Reason:
-
-- mature React graph editor,
-- supports custom nodes,
-- supports edges/handles,
-- good enough for node-based policy editing.
-
-## Dockless/tray behavior
-
-macOS requirements:
-
-- no Dock icon,
-- no normal window at startup,
-- menu bar icon visible,
-- dashboard opens only from tray/menu item,
-- closing dashboard hides it instead of quitting app.
-
-Implementation direction:
-
-- Tauri tray icon,
-- hidden main window on startup,
-- `skipTaskbar` where supported,
-- macOS accessory/LSUIElement configuration for packaged app.
-
-Linux requirements:
-
-- use tray/AppIndicator support where available,
-- dashboard hidden by default,
-- closing dashboard hides it.
-
-## Notifications
-
-The proxy should not directly show desktop notifications.
-
-Instead:
-
-1. proxy writes event:
-
-```json
-{"type": "notification", "title": "...", "body": "..."}
-```
-
-2. Tauri watches events,
-3. Tauri shows native notification.
-
-This keeps notification behavior in the app layer.
-
-## Implementation phases
-
-### Phase 1: Rework repo and scaffold app
-
-- Create new folder structure.
-- Scaffold Tauri + React app.
-- Add tray/menu bar setup.
-- Make dashboard hidden by default.
-- Add no-Dock macOS behavior.
-- Add basic dashboard shell.
-
-### Phase 2: Proxy process manager
-
-- Detect `mitmdump`.
-- Start proxy.
-- Stop proxy.
-- Restart proxy.
-- Capture logs.
-- Show running/stopped state in dashboard and tray.
-
-### Phase 3: Config/state migration
-
-- Replace policy env vars with config file.
-- Add default config generator.
-- Store config/state/events in app data.
-- Pass config/state/event paths into mitmdump.
-
-### Phase 4: Python graph engine
-
-- Create `src/proxy/addons/graph_proxy.py`.
-- Create graph evaluator.
-- Implement context object.
-- Implement built-in nodes:
-  - Block,
-  - Log,
-  - Track time,
-  - Show notification event,
-  - Redirect.
-- Implement core routing nodes:
-  - Start,
-  - End,
-  - If,
-  - Switch.
-- Implement custom Python node loader.
-
-### Phase 5: Default modes
-
-- Recreate current behavior as editable default graphs:
-  - block YouTube Shorts,
-  - track Reddit,
-  - block Reddit after 30 minutes.
-- Add Chilling mode with permissive defaults.
-
-### Phase 6: React dashboard
-
-- Add status page.
-- Add proxy settings page.
-- Add mode selector.
-- Add graph editor with `@xyflow/react`.
-- Add node parameter editor.
-- Add custom block editor.
-- Add event/log viewer.
-
-### Phase 7: LAN/Android support
-
-- Show LAN IP.
-- Copy Android setup instructions.
-- Keep auth toggle.
-- Keep CA install instructions.
-
-### Phase 8: Cleanup and docs
-
-- Update README.
-- Add Android setup docs.
-- Add proxy setup docs.
-- Add development docs.
-
-## Non-goals for first version
-
-- Linux system proxy automation.
-- Bundling mitmproxy inside the app.
-- Sandboxing custom Python blocks.
-- Plugin marketplace.
 - Cloud sync.
-- User authentication/accounts.
-- Polished installer/signing/notarization.
-
-## Open implementation risks
-
-- Tauri dockless behavior may differ between dev and packaged macOS app.
-- Linux tray support depends on desktop environment.
-- Arbitrary Python custom blocks can hang or crash the proxy.
-- Infinite graph loops can hang request processing.
-- Custom code with mitmproxy SDK access can alter traffic in unexpected ways.
-- Bundling mitmproxy later will require separate packaging work.
-
-## Immediate next step
-
-Install Rust/Cargo, then scaffold the Tauri + React app and migrate the repo structure.
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
-rustc --version
-cargo --version
-```
+- Accounts/authentication.
+- Enterprise management.
+- Plugin marketplace.
+- Full sandbox for custom Python code.
+- Polished installer/signing/notarization before runtime packaging is solved.

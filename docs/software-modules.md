@@ -2,305 +2,112 @@
 
 ## Scope
 
-This document defines the first implementation units for the Tauri + React app and the Python mitmproxy policy engine.
+This is the current module map and cross-layer command/API reference.
 
-The first build target is the Python graph policy engine. The desktop app will call it through `mitmdump`.
+Detailed internals live in:
 
-## Folder rules
+- [Tauri backend](architecture/2_component/tauri-desktop-backend.md)
+- [React dashboard](architecture/2_component/react-dashboard.md)
+- [Python proxy engine](architecture/2_component/python-proxy-engine.md)
+- [Data layer](architecture/4_data_layer/config-state-events.md)
 
-Code is grouped by layer and domain:
+## Python proxy engine
+
+Location: `src/proxy/`
+
+### Addon and controller
+
+| Module | Contract | Notes |
+| --- | --- | --- |
+| `proxy.addons.graph_proxy` | `addons = [GraphProxyAddon()]` | mitmproxy entrypoint. Registers `productive_config_path`, `productive_state_path`, `productive_event_log_path`. |
+| `proxy.controller.mitmproxy.graph_controller` | `configure(config_path, state_path, event_log_path)`, `request(flow)` | Loads config/state/event services and evaluates one graph per request. |
+
+### Models
+
+| Module | Contract | Rules |
+| --- | --- | --- |
+| `proxy.models.graph.policy_graph` | `AppConfig.from_dict`, `active_mode`, `custom_block`, `PolicyGraph.start_node`, `next_node_id`, `node_by_id` | Active mode must exist. Each graph must have exactly one `start`. Exact output edge wins over `*`. |
+| `proxy.models.runtime.context` | `RequestContext(...)`, `merge_data(values)` | Carries flow, config, state, event log, mutable request data, and clock. |
+| `proxy.models.runtime.result` | `NodeResult.from_value(value)` | Accepts `None`, `str`, `dict`, or `NodeResult`. |
+
+### Services
+
+| Module | Contract | Notes |
+| --- | --- | --- |
+| `services.config.config_service` | `ConfigService(path).load()` | Loads JSON into `AppConfig`. |
+| `services.events.event_log` | `append(event)`, `read_recent(limit)` | JSONL event file. Creates parent dirs on append. |
+| `services.state.state_store` | `load`, `save`, `track_usage`, `usage_today` | Tracks usage by UTC day and request gaps. |
+| `services.graph.builtin_nodes` | `BuiltinNodeRunner.run(node, context)` | Supports `start`, `end`, `if`, `switch`, `block`, `log`, `track_time`, `notify`, `redirect`. |
+| `services.graph.custom_blocks` | `CustomBlockRunner(config).run(node, context)` | Imports trusted Python files and calls their entrypoint. No sandbox. |
+| `services.graph.evaluator` | `GraphEvaluator(config).evaluate(context)` | Starts at active graph start node and routes by output. No loop guard. |
+
+## Tauri desktop backend
+
+Location: `src/frontend/tauri/`
+
+### Commands exposed to React
+
+| Command | Request | Response | Behavior |
+| --- | --- | --- | --- |
+| `read_app_config` | none | config JSON | Copies default config to app data if missing. |
+| `write_app_config` | `{ config }` | void | Writes pretty JSON to app data. |
+| `write_custom_block` | `{ fileName, code }` | path string | Writes under app data `custom_blocks/`. |
+| `start_proxy` | `{ config }` | void | Saves config, starts `mitmdump`, enables macOS system proxy. |
+| `stop_proxy` | none | void | Restores system proxy snapshot and stops `mitmdump`. |
+| `proxy_status` | none | `{ running }` | Also restores system proxy if the child process died. |
+| `read_recent_events` | `{ limit }` | JSON array | Reads last N JSONL entries. |
+| `network_info` | none | `{ localHost, lanHost }` | Best-effort LAN IP detection. |
+
+### Rust modules
+
+| Module | Contract | Notes |
+| --- | --- | --- |
+| `controller.commands` | Tauri command functions | Owns app state, start/stop rollback, config path discovery. |
+| `controller.tray.actions` | `TrayAction::from_menu_id(id)` | Maps menu IDs to actions. |
+| `models.proxy.settings` | `ProxySettings::from_app_config(value)` | Reads `config.proxy`. |
+| `services.config.file_store` | `read_json`, `write_json` | JSON file helper. |
+| `services.config.runtime_paths` | `RuntimePaths::new(app_data_dir, repo_root)` | Builds config/state/event/custom block paths. |
+| `services.proxy.mitmdump_args` | `build_mitmdump_args(settings, paths)` | Builds `mitmdump` CLI args. |
+| `services.proxy.process_service` | `start`, `start_args`, `stop`, `is_running` | Child process lifecycle. |
+| `services.system_proxy` | `capture_system_proxy_snapshot`, `enable_system_proxy`, `restore_system_proxy` | macOS `networksetup`; non-macOS enable is unsupported. |
+| `services.events.event_log` | `read_recent_events(path, limit)` | Reads recent JSONL events. |
+| `services.network.network_info` | `detect_network_info()` | Returns local and LAN host info. |
+
+## React dashboard
+
+Location: `src/frontend/react/src/`
+
+| Module | Responsibility |
+| --- | --- |
+| `App.tsx` | Top-level state, startup loading, view routing, proxy start/stop handlers. |
+| `views/SettingsView.tsx` | Proxy status and proxy settings form. |
+| `views/OperatorsView.tsx` | Custom Python operator list/editor. |
+| `views/PoliciesView.tsx` | Mode management and graph editor host. |
+| `components/GraphEditor.tsx` | React Flow graph canvas and node/edge conversion. |
+| `components/TerminalNav.tsx` | Main navigation. |
+| `models/config/types.ts` | TypeScript config schema. |
+| `models/config/defaultConfig.ts` | Browser-side fallback default config. |
+| `services/config/configRepository.ts` | Tauri config command wrapper. |
+| `services/config/configValidation.ts` | Minimal active mode/start node validation. |
+| `services/graph/graphOperations.ts` | Pure graph editing helpers. |
+| `services/proxy/proxyRepository.ts` | Tauri proxy command wrapper. |
+| `services/notifications/notificationService.ts` | Notification event deduplication. |
+| `services/notifications/tauriNotifier.ts` | Native notification adapter. |
+| `services/tauri/tauriClient.ts` | Tauri `invoke` client. |
+
+## Test layout
 
 ```text
-src/
-  proxy/
-    models/
-      graph/
-      runtime/
-    services/
-      config/
-      events/
-      graph/
-      state/
-    controller/
-      mitmproxy/
-  frontend/
-    react/src/
-      models/
-      services/
-      controller/
-    tauri/src/
-      models/
-      services/
-      controller/
+test/unit/                         Python engine unit tests
+test/integration/                  Python graph flow/default tests
+test/unit/frontend/tauri/          Rust/Tauri tests
+test/unit/frontend/react/          React/Vitest tests
 ```
 
-Tests are grouped by test type first, then by tested unit or flow:
-
-```text
-test/
-  unit/
-    config_service/
-    state_store/
-    frontend/
-      react/
-      tauri/
-  integration/
-    default_policy_graph/
-    graph_policy_flow/
-```
-
-## Python proxy engine modules
-
-### `proxy.models.graph.policy_graph`
-
-Responsibility:
-
-- Represent app config, modes, graphs, nodes, edges, and custom block definitions.
-- Convert raw config dictionaries into typed model objects.
-
-API contract:
-
-```python
-AppConfig.from_dict(raw: dict) -> AppConfig
-AppConfig.active_mode() -> Mode
-PolicyGraph.start_node() -> GraphNode
-PolicyGraph.next_node_id(current_id: str, output: str) -> str | None
-```
-
-Rules:
-
-- `activeModeId` must match an existing mode.
-- A graph must have exactly one start node.
-- Edge routing first matches exact output, then `*` fallback.
-
-### `proxy.models.runtime.context`
-
-Responsibility:
-
-- Provide the runtime object passed to built-in and custom nodes.
-
-API contract:
-
-```python
-RequestContext(
-  flow,
-  config,
-  state,
-  event_log,
-  data=None,
-  now=None,
-)
-```
-
-Fields:
-
-- `flow`: mitmproxy `HTTPFlow` or compatible object.
-- `config`: active `AppConfig`.
-- `state`: `StateStore`.
-- `event_log`: `EventLog`.
-- `data`: mutable per-request dictionary.
-- `now`: callable returning UNIX seconds.
-
-### `proxy.models.runtime.result`
-
-Responsibility:
-
-- Normalize node execution results.
-
-API contract:
-
-```python
-NodeResult(output: str = "next", data: dict | None = None)
-NodeResult.from_value(value) -> NodeResult
-```
-
-Rules:
-
-- `None` means `output="next"`.
-- A string means `output=<string>`.
-- A dict can contain `output` and `data`.
-
-### `proxy.services.events.event_log`
-
-Responsibility:
-
-- Append JSONL events to disk.
-
-API contract:
-
-```python
-EventLog(path: Path)
-EventLog.append(event: dict) -> None
-EventLog.read_recent(limit: int) -> list[dict]
-```
-
-Rules:
-
-- Parent directories are created automatically.
-- Events are one JSON object per line.
-
-### `proxy.services.state.state_store`
-
-Responsibility:
-
-- Persist proxy state.
-- Track request-gap-based platform usage.
-
-API contract:
-
-```python
-StateStore(path: Path)
-StateStore.load() -> dict
-StateStore.save(state: dict) -> None
-StateStore.track_usage(platform: str, idle_seconds: int, now: float) -> dict
-StateStore.usage_today(platform: str, now: float) -> float
-```
-
-Rules:
-
-- Daily buckets use UTC date.
-- If the last seen timestamp is within `idle_seconds`, the elapsed gap is counted.
-- If the gap exceeds `idle_seconds`, a new session starts and elapsed time is not counted.
-
-### `proxy.services.graph.builtin_nodes`
-
-Responsibility:
-
-- Execute the initial built-in graph nodes.
-
-API contract:
-
-```python
-BuiltinNodeRunner.run(node, context) -> NodeResult
-```
-
-Supported node types:
-
-- `start`
-- `end`
-- `if`
-- `switch`
-- `block`
-- `log`
-- `track_time`
-- `notify`
-- `redirect`
-
-Rules:
-
-- `block` creates a `403` response by default and returns `blocked`.
-- `redirect` updates the request URL and returns `redirected`.
-- `notify` writes a `notification` event. Native display is handled by the app later.
-
-### `proxy.services.graph.custom_blocks`
-
-Responsibility:
-
-- Load and run arbitrary Python blocks from files.
-
-API contract:
-
-```python
-CustomBlockRunner(config: AppConfig)
-CustomBlockRunner.run(node, context) -> NodeResult
-```
-
-Rules:
-
-- A custom block config references `id`, `path`, and `entrypoint`.
-- The entrypoint receives `(context, params)`.
-- No sandboxing is applied.
-
-### `proxy.services.graph.evaluator`
-
-Responsibility:
-
-- Evaluate the active mode graph for one request.
-
-API contract:
-
-```python
-GraphEvaluator(config: AppConfig, builtins=None, custom_blocks=None)
-GraphEvaluator.evaluate(context: RequestContext) -> None
-```
-
-Rules:
-
-- Evaluation starts at the graph start node.
-- Each node returns an output.
-- The graph selects the next edge by output.
-- No loop guard is applied in the first version.
-
-### `proxy.controller.mitmproxy.graph_addon`
-
-Responsibility:
-
-- Bridge mitmproxy hooks to the graph evaluator.
-
-API contract:
-
-```python
-addons = [GraphProxyAddon()]
-```
-
-Mitmproxy options:
-
-- `productive_config_path`
-- `productive_state_path`
-- `productive_event_log_path`
-
-Request hook:
-
-```python
-GraphProxyAddon.request(flow) -> None
-```
-
-Rules:
-
-- Load config/state/event paths from mitmproxy options.
-- Evaluate one graph per request.
-
-## App modules planned next
-
-### `src/frontend/react/src/models/config`
-
-Responsibility:
-
-- TypeScript types for config, modes, graph nodes, edges, and custom blocks.
-
-### `src/frontend/react/src/services/proxy/processService`
-
-Responsibility:
-
-- Start, stop, and restart `mitmdump`.
-
-### `src/frontend/react/src/services/network/networkRepository`
-
-Responsibility:
-
-- Read local/LAN proxy setup details from Tauri commands.
-
-### `src/frontend/react/src/services/notifications/notificationService`
-
-Responsibility:
-
-- Convert proxy `notification` events into desktop notification calls.
-- Deduplicate already-seen notification events.
-
-### `src/frontend/react/src/services/config/configService`
-
-Responsibility:
-
-- Read/write app config through Tauri commands.
-
-### `src/frontend/react/src/controller/tray`
-
-Responsibility:
-
-- Control tray/menu interactions.
-
-### `src/frontend/react/src/controller/dashboard`
-
-Responsibility:
-
-- Handle dashboard page state and commands.
+## Important cross-module constraints
+
+- Config schema must stay compatible across React TypeScript, Rust `ProxySettings`, and Python `AppConfig`.
+- `mitmdump` option names must match between Rust arg generation and the Python addon.
+- Event JSON written by Python must stay readable by Tauri and meaningful to React notification handling.
+- Custom block paths written by Tauri must be importable by Python.
+- System proxy state is in memory only; crash recovery is not durable yet.
