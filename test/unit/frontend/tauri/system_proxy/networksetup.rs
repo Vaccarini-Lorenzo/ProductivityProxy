@@ -2,7 +2,8 @@
 use productivity_proxy_app::models::proxy::settings::ProxySettings;
 #[cfg(target_os = "macos")]
 use productivity_proxy_app::services::system_proxy::{
-    active_network_services_from_text, disable_commands_for_service, enable_commands_for_service,
+    active_network_services_from_text, enable_commands_for_service, proxy_snapshot_from_text,
+    restore_commands_for_service, ProxySnapshot, ServiceProxySnapshot,
 };
 
 #[cfg(target_os = "macos")]
@@ -13,6 +14,19 @@ fn parses_enabled_network_services() {
     let services = active_network_services_from_text(text);
 
     assert_eq!(services, vec!["Wi-Fi", "USB 10/100/1000 LAN"]);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn parses_proxy_snapshot() {
+    let text = "Enabled: Yes\nServer: proxy.example\nPort: 3128\nAuthenticated Proxy Enabled: 0\n";
+
+    let snapshot = proxy_snapshot_from_text(text);
+
+    assert!(snapshot.enabled);
+    assert_eq!(snapshot.server, "proxy.example");
+    assert_eq!(snapshot.port, "3128");
+    assert!(!snapshot.auth_enabled);
 }
 
 #[cfg(target_os = "macos")]
@@ -55,9 +69,27 @@ fn includes_auth_when_enabled() {
 
 #[cfg(target_os = "macos")]
 #[test]
-fn builds_disable_commands() {
-    let commands = disable_commands_for_service("Wi-Fi");
+fn builds_restore_commands_from_snapshot() {
+    let service = ServiceProxySnapshot {
+        service: "Wi-Fi".into(),
+        web: ProxySnapshot {
+            enabled: true,
+            server: "proxy.example".into(),
+            port: "3128".into(),
+            auth_enabled: false,
+        },
+        secure_web: ProxySnapshot {
+            enabled: false,
+            server: "secure.example".into(),
+            port: "4443".into(),
+            auth_enabled: false,
+        },
+    };
 
-    assert_eq!(commands[0], vec!["-setwebproxystate", "Wi-Fi", "off"]);
-    assert_eq!(commands[1], vec!["-setsecurewebproxystate", "Wi-Fi", "off"]);
+    let commands = restore_commands_for_service(&service);
+
+    assert_eq!(commands[0], vec!["-setwebproxy", "Wi-Fi", "proxy.example", "3128", "off"]);
+    assert_eq!(commands[1], vec!["-setwebproxystate", "Wi-Fi", "on"]);
+    assert_eq!(commands[2], vec!["-setsecurewebproxy", "Wi-Fi", "secure.example", "4443", "off"]);
+    assert_eq!(commands[3], vec!["-setsecurewebproxystate", "Wi-Fi", "off"]);
 }

@@ -5,7 +5,9 @@ use crate::services::events::event_log::read_recent_events as read_events;
 use crate::services::network::network_info::{detect_network_info, NetworkInfo};
 use crate::services::proxy::mitmdump_args::build_mitmdump_args;
 use crate::services::proxy::process_service::ProcessService;
-use crate::services::system_proxy::{disable_system_proxy, enable_system_proxy};
+use crate::services::system_proxy::{
+    capture_system_proxy_snapshot, enable_system_proxy, restore_system_proxy, SystemProxySnapshot,
+};
 use serde::Serialize;
 use serde_json::Value;
 use std::fs;
@@ -16,15 +18,14 @@ use tauri::{AppHandle, Manager, State};
 #[derive(Default)]
 pub struct AppState {
     pub proxy: Mutex<ProcessService>,
-    pub system_proxy_enabled: Mutex<bool>,
+    pub system_proxy_snapshot: Mutex<Option<SystemProxySnapshot>>,
 }
 
 impl Drop for AppState {
     fn drop(&mut self) {
-        if let Ok(enabled) = self.system_proxy_enabled.get_mut() {
-            if *enabled {
-                let _ = disable_system_proxy();
-                *enabled = false;
+        if let Ok(snapshot) = self.system_proxy_snapshot.get_mut() {
+            if let Some(snapshot) = snapshot.take() {
+                let _ = restore_system_proxy(&snapshot);
             }
         }
     }
@@ -62,10 +63,17 @@ pub fn write_custom_block(app: AppHandle, file_name: String, code: String) -> Re
 #[tauri::command]
 pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Result<(), String> {
     let paths = paths_for_app(&app)?;
+    let running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;
+    if running {
+        return Err("process already running".to_string());
+    }
+    restore_marked_system_proxy(&state.system_proxy_snapshot)?;
+
     FileStore::new(paths.proxy.config_path.clone())
         .write_json(&config)
         .map_err(to_string)?;
     let settings = ProxySettings::from_app_config(&config).map_err(to_string)?;
+    let snapshot = capture_system_proxy_snapshot().map_err(to_string)?;
     let args = build_mitmdump_args(&settings, &paths.proxy);
 
     state
@@ -75,36 +83,42 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
         .start_args("mitmdump", &args)
         .map_err(to_string)?;
 
-    if let Err(error) = enable_system_proxy(&settings) {
-        let _ = disable_system_proxy();
+    if let Err(error) = enable_system_proxy(&settings, &snapshot) {
+        let _ = restore_system_proxy(&snapshot);
         if let Ok(mut proxy) = state.proxy.lock() {
             let _ = proxy.stop();
         }
         return Err(to_string(error));
     }
 
-    if let Err(error) = mark_system_proxy(&state.system_proxy_enabled, true) {
-        let _ = disable_system_proxy();
-        if let Ok(mut proxy) = state.proxy.lock() {
-            let _ = proxy.stop();
+    match state.system_proxy_snapshot.lock() {
+        Ok(mut stored_snapshot) => {
+            *stored_snapshot = Some(snapshot);
+            Ok(())
         }
-        return Err(error);
+        Err(error) => {
+            let _ = restore_system_proxy(&snapshot);
+            if let Ok(mut proxy) = state.proxy.lock() {
+                let _ = proxy.stop();
+            }
+            Err(to_string(error))
+        }
     }
-
-    Ok(())
 }
 
 #[tauri::command]
 pub fn stop_proxy(state: State<AppState>) -> Result<(), String> {
-    disable_marked_system_proxy(&state.system_proxy_enabled)?;
-    state.proxy.lock().map_err(to_string)?.stop().map_err(to_string)
+    let restore_result = restore_marked_system_proxy(&state.system_proxy_snapshot);
+    let stop_result = state.proxy.lock().map_err(to_string)?.stop().map_err(to_string);
+    restore_result?;
+    stop_result
 }
 
 #[tauri::command]
 pub fn proxy_status(state: State<AppState>) -> Result<ProxyStatus, String> {
     let running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;
     if !running {
-        disable_marked_system_proxy(&state.system_proxy_enabled)?;
+        restore_marked_system_proxy(&state.system_proxy_snapshot)?;
     }
     Ok(ProxyStatus { running })
 }
@@ -148,17 +162,14 @@ fn discover_repo_root() -> Result<PathBuf, String> {
     }
 }
 
-fn disable_marked_system_proxy(enabled: &Mutex<bool>) -> Result<(), String> {
-    let mut marker = enabled.lock().map_err(to_string)?;
-    if *marker {
-        disable_system_proxy().map_err(to_string)?;
-        *marker = false;
+fn restore_marked_system_proxy(snapshot: &Mutex<Option<SystemProxySnapshot>>) -> Result<(), String> {
+    let captured = snapshot.lock().map_err(to_string)?.take();
+    if let Some(captured) = captured {
+        if let Err(error) = restore_system_proxy(&captured) {
+            *snapshot.lock().map_err(to_string)? = Some(captured);
+            return Err(to_string(error));
+        }
     }
-    Ok(())
-}
-
-fn mark_system_proxy(enabled: &Mutex<bool>, value: bool) -> Result<(), String> {
-    *enabled.lock().map_err(to_string)? = value;
     Ok(())
 }
 

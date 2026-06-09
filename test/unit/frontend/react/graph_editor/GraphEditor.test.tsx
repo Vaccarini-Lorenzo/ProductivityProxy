@@ -22,6 +22,7 @@ describe("GraphEditor", () => {
         paramsText="{}"
         onSelectNode={() => undefined}
         onAddNode={() => undefined}
+        onNodeMove={() => undefined}
         onParamsTextChange={() => undefined}
         onApplyParams={() => undefined}
         onEdgeOutputChange={() => undefined}
