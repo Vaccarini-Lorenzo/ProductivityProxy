@@ -12,6 +12,6 @@ export function saveConfig(client: CommandClient, config: AppConfig): Promise<vo
   return client.invoke<void>("write_app_config", { config });
 }
 
-export function writeCustomBlock(client: CommandClient, fileName: string, code: string): Promise<string> {
-  return client.invoke<string>("write_custom_block", { fileName, code });
+export function writeCustomNode(client: CommandClient, fileName: string, code: string): Promise<string> {
+  return client.invoke<string>("write_custom_node", { fileName, code });
 }

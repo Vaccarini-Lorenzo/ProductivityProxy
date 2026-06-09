@@ -15,10 +15,10 @@ describe("validateAppConfig", () => {
     expect(validateAppConfig(config)).toContain("Active mode does not exist");
   });
 
-  it("rejects a graph without exactly one start node", () => {
+  it("rejects a policy without exactly one start node", () => {
     const config = createDefaultConfig();
-    config.modes[0].graph.nodes = config.modes[0].graph.nodes.filter((node) => node.type !== "start");
+    config.modes[0].policies[0].steps = config.modes[0].policies[0].steps.filter((step) => step.type !== "start");
 
-    expect(validateAppConfig(config)).toContain("Mode Productivity must have exactly one start node");
+    expect(validateAppConfig(config)).toContain("Policy Productivity/Productivity policy must have exactly one start node");
   });
 });

@@ -8,11 +8,11 @@ ProductivityProxy has a working local development architecture:
 - hidden dashboard window,
 - Rust commands for config, proxy lifecycle, events, and network info,
 - `mitmdump` child process launch,
-- Python graph policy engine,
+- Python policy engine,
 - default productivity/chilling modes,
-- custom Python operator loading,
+- custom Python node loading,
 - local state and JSONL event persistence,
-- React dashboard for settings, operators, and policy graph editing,
+- React dashboard for settings, custom nodes, and policy editing,
 - macOS HTTP/HTTPS system proxy snapshot/restore.
 
 Python and Rust tests pass in the current backend state. React validation should be rerun after active UI edits settle.
@@ -22,9 +22,9 @@ Python and Rust tests pass in the current backend state. React validation should
 The project is good enough for:
 
 - local development,
-- testing graph policy behavior,
+- testing policy behavior,
 - careful macOS trials,
-- validating custom blocks,
+- validating custom nodes,
 - iterating on the dashboard UX.
 
 ## Not ready for broad daily use yet
@@ -35,8 +35,8 @@ The app is not yet polished enough for normal users because:
 - mitmproxy CA installation/trust is manual,
 - packaged app runtime paths are not solved,
 - proxy process logs are discarded,
-- custom Python operators are unsandboxed,
-- graph loops have no guard,
+- custom Python nodes are unsandboxed,
+- policy loops are guarded by POLICY_MAX_STEPS,
 - config validation is incomplete,
 - Linux system proxy automation is unsupported,
 - force-kill/crash can leave macOS proxy settings enabled.
@@ -75,27 +75,27 @@ Done:
 
 - app data config/state/event paths,
 - default config copy on first read,
-- custom block directory,
+- custom node directory,
 - config read/write commands.
 
 Remaining:
 
-- safe custom block file-name validation,
+- safe custom node file-name validation,
 - config migrations/versioning,
 - stronger schema validation.
 
-### 4. Python graph engine
+### 4. Python policy engine
 
 Done:
 
-- graph model,
+- policy flow model,
 - evaluator,
 - built-in nodes,
 - custom Python block runner,
 - state store,
 - event log,
 - mitmproxy addon/controller,
-- default graph tests.
+- default policy tests.
 
 Remaining:
 
@@ -125,7 +125,7 @@ Done:
 
 - app shell/navigation,
 - settings view,
-- operators view,
+- custom nodes view,
 - policies view,
 - React Flow graph canvas,
 - Tauri command repositories,
@@ -136,7 +136,7 @@ Remaining:
 - node parameter editor,
 - event/log viewer in current UI,
 - LAN/Android setup instructions in current UI,
-- custom block file-content loading while editing,
+- custom node file-content loading while editing,
 - richer config validation feedback,
 - final responsive/polish pass.
 
@@ -177,11 +177,11 @@ Remaining:
 ## Recommended next work
 
 1. Finish the active React UI pass without changing backend contracts unnecessarily.
-2. Add graph node parameter editing.
+2. Add policy step parameter editing.
 3. Add event/log viewer back into the current UI.
 4. Add a visible HTTPS CA setup/help panel.
 5. Add proxy process log capture and missing-`mitmdump` diagnostics.
-6. Add graph loop guard in the Python evaluator.
+6. Tune POLICY_MAX_STEPS defaults/documentation.
 7. Add stronger config validation shared between frontend and backend expectations.
 8. Decide packaging strategy for mitmproxy/Python/addon files.
 

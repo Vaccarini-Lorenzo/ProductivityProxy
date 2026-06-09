@@ -25,8 +25,8 @@ It lets the user:
 - edit proxy settings,
 - start and stop the proxy,
 - select and manage modes,
-- edit policy graphs,
-- register custom Python operators.
+- edit policy flows,
+- register custom Python nodes.
 
 The dashboard does not evaluate web traffic itself.
 
@@ -38,7 +38,7 @@ It owns:
 
 - app data paths,
 - config file reads/writes,
-- custom block file writes,
+- custom node file writes,
 - proxy process lifecycle,
 - recent event reads,
 - local/LAN address detection,
@@ -53,7 +53,7 @@ It receives traffic from the system, browser, or another device and forwards eac
 
 ### Policy engine
 
-The policy engine decides what to do with each request by evaluating the active mode graph.
+The policy engine decides what to do with each request by evaluating the active mode policies.
 
 It can:
 
@@ -62,7 +62,7 @@ It can:
 - log events,
 - track usage time,
 - emit notification events,
-- run custom Python operators.
+- run custom Python nodes.
 
 ### Local persistence
 

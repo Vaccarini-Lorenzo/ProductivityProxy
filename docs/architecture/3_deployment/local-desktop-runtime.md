@@ -46,7 +46,7 @@ macOS shape:
   config.json
   state.json
   events.jsonl
-  custom_blocks/
+  custom_nodes/
 ```
 
 Linux shape intended by Tauri:
@@ -56,7 +56,7 @@ Linux shape intended by Tauri:
   config.json
   state.json
   events.jsonl
-  custom_blocks/
+  custom_nodes/
 ```
 
 Linux system proxy automation is not implemented, so the full desktop start flow currently fails on Linux.
@@ -143,6 +143,6 @@ This is a single-user local app. Scaling is about local robustness, not horizont
 The main bottlenecks are:
 
 - mitmproxy request throughput,
-- custom Python operator latency,
-- graph loops or slow custom code,
+- custom Python node latency,
+- policy loops or slow custom code,
 - local disk writes for state/events.

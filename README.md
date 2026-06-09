@@ -11,7 +11,7 @@ src/
   frontend/
     react/        React dashboard, Vite, npm scripts
     tauri/        Tauri v2 Rust shell and native commands
-  proxy/          Python mitmproxy graph policy engine
+  proxy/          Python mitmproxy policy engine
 scripts/          dev helper scripts
 test/             Unit and integration tests
 docs/             design/build docs
@@ -28,13 +28,15 @@ docs/             design/build docs
   - proxy start/stop,
   - proxy settings,
   - mode selector,
-  - visual graph editor,
-  - custom Python operator editor,
+  - ordered policy editor,
+  - custom Python node editor,
   - native notification dispatch from proxy events.
-- Python graph policy engine:
-  - graph nodes and edges,
-  - built-in nodes: `block`, `log`, `track_time`, `notify`, `redirect`, `if`, `switch`, `start`, `end`,
-  - arbitrary custom Python blocks loaded from files,
+- Python policy engine:
+  - modes contain ordered policies,
+  - policies contain nodes, operators, and edges,
+  - built-in nodes: `start`, `end`,
+  - built-in operators: `if`, `switch`,
+  - arbitrary custom Python nodes loaded from absolute file paths,
   - no custom-code sandboxing.
 - Default modes:
   - `Productivity`: blocks YouTube Shorts and blocks Reddit after 30 minutes/day,
@@ -106,6 +108,7 @@ npm run tauri build -- --debug --no-bundle
 ## Run the desktop app
 
 ```bash
+export POLICY_MAX_STEPS="1000"
 cd src/frontend/react
 npm run tauri dev
 ```
@@ -122,16 +125,18 @@ set +a
 ./scripts/run_mitm.sh
 ```
 
-Default graph config:
+Default policy config template:
 
 ```text
 src/proxy/defaults/default_config.json
 ```
 
+The desktop app and `scripts/run_mitm.sh` materialize this template with absolute custom node paths before runtime.
+
 ## Notes
 
-- Custom Python blocks run with local process permissions and mitmproxy SDK access.
-- Graph loops are allowed and currently have no loop guard.
+- Custom Python nodes run with local process permissions and mitmproxy SDK access.
+- Policy loops are allowed and guarded by required `POLICY_MAX_STEPS`.
 - Starting/stopping from the desktop app snapshots and restores macOS HTTP/HTTPS system proxy settings for enabled network services.
 - If an existing macOS authenticated system proxy is detected, start is refused because macOS does not expose the saved password for safe restore.
 - Linux system proxy automation is still postponed because desktop environments differ; the current desktop start flow returns unsupported on non-macOS.

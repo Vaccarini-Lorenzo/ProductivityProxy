@@ -2,7 +2,7 @@
 
 ## What the app does
 
-ProductivityProxy starts a local `mitmdump` proxy and applies the active policy graph to proxied traffic.
+ProductivityProxy starts a local `mitmdump` proxy and applies the active mode policies to proxied traffic.
 
 On macOS, starting the proxy also points system HTTP/HTTPS proxy settings at the local proxy. Stopping restores the previous proxy settings.
 
@@ -86,25 +86,25 @@ Notes:
 
 Policies live in named modes. Only the active mode is evaluated.
 
-A policy graph starts at one `start` node and follows edges by node output.
+A mode contains ordered policies. Each policy starts at one `start` node and follows edges. Nodes do work, operators route.
 
 Default modes:
 
 - `Productivity`: blocks YouTube Shorts and blocks Reddit after 30 minutes of daily tracked use.
 - `Chilling`: allows traffic.
 
-## Custom operators
+## Custom nodes
 
-Custom operators are Python files with an entrypoint function, usually:
+Custom nodes are Python files with this entrypoint:
 
 ```python
-def run(context, params):
-    return {"output": "next"}
+def run(input, context, params):
+    return input
 ```
 
-They can inspect and modify the mitmproxy flow. They run with local process permissions.
+They can inspect and modify the mitmproxy flow. They run with local process permissions. Only use nodes you trust.
 
-Only use operators you trust.
+Operators are built-in routing steps: `if` and `switch`.
 
 ## Recovery if macOS proxy stays enabled
 
@@ -132,5 +132,5 @@ Replace `Wi-Fi` with your active service name.
 - mitmproxy is not bundled.
 - HTTPS CA setup is manual.
 - App crash recovery for system proxy settings is manual.
-- Custom Python operators are unsandboxed.
-- Graph loops have no guard.
+- Custom Python nodes are unsandboxed.
+- Policy loops are stopped by required `POLICY_MAX_STEPS`.

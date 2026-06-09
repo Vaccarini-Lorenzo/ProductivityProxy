@@ -18,10 +18,17 @@ class ConfigServiceTest(unittest.TestCase):
                             {
                                 "id": "mode",
                                 "name": "Mode",
-                                "graph": {"nodes": [{"id": "start", "type": "start"}], "edges": []},
+                                "policies": [
+                                    {
+                                        "id": "policy",
+                                        "name": "Policy",
+                                        "steps": [{"id": "start", "kind": "node", "type": "start"}],
+                                        "edges": [],
+                                    }
+                                ],
                             }
                         ],
-                        "customBlocks": [],
+                        "customNodes": [],
                     }
                 ),
                 encoding="utf-8",

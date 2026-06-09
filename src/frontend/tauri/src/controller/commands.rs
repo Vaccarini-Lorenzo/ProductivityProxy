@@ -11,7 +11,7 @@ use crate::services::system_proxy::{
 use serde::Serialize;
 use serde_json::Value;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::Duration;
@@ -62,16 +62,17 @@ pub fn write_app_config(app: AppHandle, config: Value) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn write_custom_block(app: AppHandle, file_name: String, code: String) -> Result<String, String> {
+pub fn write_custom_node(app: AppHandle, file_name: String, code: String) -> Result<String, String> {
     let paths = paths_for_app(&app)?;
-    fs::create_dir_all(&paths.custom_blocks_dir).map_err(to_string)?;
-    let path = paths.custom_blocks_dir.join(file_name);
+    fs::create_dir_all(&paths.custom_nodes_dir).map_err(to_string)?;
+    let path = paths.custom_nodes_dir.join(file_name);
     fs::write(&path, code).map_err(to_string)?;
     Ok(path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
 pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Result<(), String> {
+    require_env("POLICY_MAX_STEPS")?;
     let paths = paths_for_app(&app)?;
     let running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;
     if running {
@@ -161,23 +162,46 @@ fn ensure_config_exists(paths: &RuntimePaths) -> Result<(), String> {
     if paths.proxy.config_path.exists() {
         return Ok(());
     }
-    let default_path = discover_repo_root()?.join("src/proxy/defaults/default_config.json");
-    let config = FileStore::new(default_path).read_json().map_err(to_string)?;
+    let repo_root = discover_repo_root()?;
+    let default_path = repo_root.join("src/proxy/defaults/default_config.json");
+    let mut config = FileStore::new(default_path).read_json().map_err(to_string)?;
+    materialize_custom_node_paths(&mut config, &repo_root);
     FileStore::new(paths.proxy.config_path.clone())
         .write_json(&config)
         .map_err(to_string)
 }
 
+fn materialize_custom_node_paths(config: &mut Value, repo_root: &Path) {
+    let Some(nodes) = config["customNodes"].as_array_mut() else {
+        return;
+    };
+    for node in nodes {
+        let Some(path) = node["path"].as_str() else {
+            continue;
+        };
+        if Path::new(path).is_absolute() {
+            continue;
+        }
+        node["path"] = Value::String(repo_root.join(path).to_string_lossy().to_string());
+    }
+}
+
 fn discover_repo_root() -> Result<PathBuf, String> {
     let mut dir = std::env::current_dir().map_err(to_string)?;
     loop {
-        if dir.join("src/proxy/addons/graph_proxy.py").exists() {
+        if dir.join("src/proxy/addons/policy_proxy.py").exists() {
             return Ok(dir);
         }
         if !dir.pop() {
             return Err("Cannot find repository root".to_string());
         }
     }
+}
+
+fn require_env(name: &str) -> Result<(), String> {
+    std::env::var(name)
+        .map(|_| ())
+        .map_err(|_| format!("Missing {name}"))
 }
 
 fn start_proxy_monitor(

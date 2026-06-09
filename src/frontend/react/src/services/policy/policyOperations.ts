@@ -1,0 +1,37 @@
+import type { PolicyConfig, PolicyEdge, PolicyStep, PolicyStepKind, StepParams } from "../../models/config/types";
+
+export function addStep(policy: PolicyConfig, kind: PolicyStepKind, type: string): PolicyConfig {
+  const count = policy.steps.length;
+  const col = count % 3;
+  const row = Math.floor(count / 3);
+  const step: PolicyStep = {
+    id: `${type}-${count}`,
+    kind,
+    type,
+    params: {},
+    position: {
+      x: 80 + col * 340,
+      y: 120 + row * 160,
+    },
+  };
+  return { ...policy, steps: [...policy.steps, step] };
+}
+
+export function addEdge(policy: PolicyConfig, from: string, output: string, to: string): PolicyConfig {
+  const edge: PolicyEdge = { from, output, to };
+  return { ...policy, edges: [...policy.edges, edge] };
+}
+
+export function updateStepParams(policy: PolicyConfig, stepId: string, params: StepParams): PolicyConfig {
+  return {
+    ...policy,
+    steps: policy.steps.map((step) => (step.id === stepId ? { ...step, params } : step)),
+  };
+}
+
+export function updateEdgeOutput(policy: PolicyConfig, index: number, output: string): PolicyConfig {
+  return {
+    ...policy,
+    edges: policy.edges.map((edge, edgeIndex) => (edgeIndex === index ? { ...edge, output } : edge)),
+  };
+}

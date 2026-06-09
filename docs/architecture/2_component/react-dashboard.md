@@ -47,18 +47,18 @@ Current responsibilities:
 - proxy authentication toggle,
 - username/password fields.
 
-### Operators
+### Nodes
 
-`views/OperatorsView.tsx`
+`views/NodesView.tsx`
 
 Current responsibilities:
 
-- list registered custom Python operators,
-- add/edit operator metadata,
-- write operator code through the backend,
-- delete operator entries from config state.
+- list registered custom Python nodes,
+- add/edit node metadata,
+- write node code through the backend,
+- delete node entries from config state.
 
-Important current behavior: editing an existing operator updates form fields but does not load the existing file contents from disk.
+Important current behavior: editing an existing node updates form fields but does not load the existing file contents from disk.
 
 ### Policies
 
@@ -69,19 +69,20 @@ Current responsibilities:
 - list modes,
 - select active mode,
 - create/delete modes,
-- show the graph editor for the active mode,
-- add nodes to the active mode graph.
+- list ordered policies inside the active mode,
+- show the graph editor for the selected policy,
+- add nodes/operators to the selected policy.
 
 ## Graph editor
 
 `components/GraphEditor.tsx` uses `@xyflow/react`.
 
-It converts app graph nodes/edges to React Flow nodes/edges and back.
+It converts policy steps/edges to React Flow nodes/edges and back.
 
-Current built-in add buttons:
+Current add buttons:
 
 ```text
-block, log, track_time, notify, redirect, if, switch, python, end
+start, end, if, switch, registered custom nodes
 ```
 
 Current limitations:
@@ -89,8 +90,8 @@ Current limitations:
 - nodes can be moved,
 - edges can be added/removed,
 - edge labels default to `next`,
-- node parameters are not editable in the current GraphEditor UI,
-- adding a `python` node creates empty params, so the user still needs a way to set `blockId` before it can execute.
+- edge output labels can be edited in the Policies view,
+- step params can be edited as JSON in the Policies view.
 
 ## Frontend services
 
@@ -102,7 +103,7 @@ Thin wrapper around Tauri commands:
 
 - `read_app_config`,
 - `write_app_config`,
-- `write_custom_block`.
+- `write_custom_node`.
 
 ### Config validation
 
@@ -111,7 +112,8 @@ Thin wrapper around Tauri commands:
 Current checks:
 
 - active mode exists,
-- each mode has exactly one start node.
+- each policy has exactly one start node,
+- policy edges point to existing steps.
 
 The Python backend enforces more behavior at runtime; frontend validation is intentionally small today.
 

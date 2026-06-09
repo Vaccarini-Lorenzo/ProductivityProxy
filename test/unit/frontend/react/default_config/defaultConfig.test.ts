@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { createDefaultConfig } from "@app/models/config/defaultConfig";
 
-function startNodes(modeId: string) {
+function startSteps(modeId: string) {
   const config = createDefaultConfig();
   const mode = config.modes.find((item) => item.id === modeId);
-  return mode?.graph.nodes.filter((node) => node.type === "start") ?? [];
+  return mode?.policies[0].steps.filter((step) => step.kind === "node" && step.type === "start") ?? [];
 }
 
 describe("createDefaultConfig", () => {
@@ -16,9 +16,9 @@ describe("createDefaultConfig", () => {
     expect(config.modes.map((mode) => mode.id)).toEqual(["productivity", "chilling"]);
   });
 
-  it("creates one start node per default mode", () => {
-    expect(startNodes("productivity")).toHaveLength(1);
-    expect(startNodes("chilling")).toHaveLength(1);
+  it("creates one start node per default mode policy", () => {
+    expect(startSteps("productivity")).toHaveLength(1);
+    expect(startSteps("chilling")).toHaveLength(1);
   });
 
   it("uses local-only unauthenticated proxy by default", () => {

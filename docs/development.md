@@ -115,18 +115,18 @@ When changing proxy start/stop behavior, check:
 
 ## Python engine development notes
 
-When adding node behavior, update:
+When adding built-in flow behavior, update:
 
-- `src/proxy/services/graph/builtin_nodes.py`,
-- default config if the node is used by default,
+- `src/proxy/services/policy/operators.py` for routing operators,
+- `src/proxy/models/policy/flow.py` for config validation,
 - Python unit tests,
 - data/config docs if params or event schemas change.
 
-For custom block behavior, check:
+For custom node behavior, check:
 
-- `src/proxy/services/graph/custom_blocks.py`,
-- default blocks under `src/proxy/defaults/blocks/`,
-- custom block tests.
+- `src/proxy/services/policy/custom_nodes.py`,
+- default nodes under `src/proxy/defaults/nodes/`,
+- custom node tests.
 
 ## React development notes
 

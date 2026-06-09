@@ -24,19 +24,21 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import type { ModeConfig, PolicyGraph } from "../models/config/types";
+import type { CustomNodeConfig, PolicyConfig } from "../models/config/types";
 
-const BUILT_INS = ["block", "log", "track_time", "notify", "redirect", "if", "switch", "python", "end"];
+const BUILT_IN_NODES = ["start", "end"];
+const OPERATORS = ["if", "switch"];
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 88;
 
 interface Props {
-  mode: ModeConfig;
-  onGraphChange: (graph: PolicyGraph) => void;
-  onAddNode: (type: string) => void;
+  policy: PolicyConfig;
+  customNodes: CustomNodeConfig[];
+  onPolicyChange: (policy: PolicyConfig) => void;
+  onAddStep: (kind: "node" | "operator", type: string) => void;
 }
 
-export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
+export function GraphEditor({ policy, customNodes, onPolicyChange, onAddStep }: Props) {
   const [panMode, setPanMode] = useState(false);
 
   useEffect(() => {
@@ -53,87 +55,82 @@ export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
   }, []);
 
   const deleteEdge = useCallback((id: string) => {
-    const graphEdges = mode.graph.edges.filter((e, i) => edgeId(e, i) !== id);
-    onGraphChange({ ...mode.graph, edges: graphEdges });
-  }, [mode.graph, onGraphChange]);
-
-  useEffect(() => {
-    const handleDelete = (event: Event) => deleteEdge((event as CustomEvent<string>).detail);
-    window.addEventListener("policy-edge-delete", handleDelete);
-    return () => window.removeEventListener("policy-edge-delete", handleDelete);
-  }, [deleteEdge]);
+    const policyEdges = policy.edges.filter((edge, index) => edgeId(edge, index) !== id);
+    onPolicyChange({ ...policy, edges: policyEdges });
+  }, [policy, onPolicyChange]);
 
   const nodes: Node[] = useMemo(() =>
-    mode.graph.nodes.map((n, i) => ({
-      id: n.id,
+    policy.steps.map((step, index) => ({
+      id: step.id,
       type: "policyNode",
-      position: n.position ?? { x: 80 + i * 180, y: 120 },
-      data: { label: n.type, subLabel: n.id },
+      position: step.position ?? { x: 80 + index * 180, y: 120 },
+      data: { label: stepLabel(step.kind, step.type), subLabel: step.id },
       width: NODE_WIDTH,
       height: NODE_HEIGHT,
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
-      handles: policyHandles(n.type),
+      handles: policyHandles(step.kind, step.type),
     })),
-    [mode.graph.nodes],
+    [policy.steps],
   );
 
   const edges: Edge[] = useMemo(() =>
-    mode.graph.edges.map((e, i) => ({
-      id: edgeId(e, i),
+    policy.edges.map((edge, index) => ({
+      id: edgeId(edge, index),
       type: "deletable",
-      source: e.from,
+      source: edge.from,
       sourceHandle: "out",
-      target: e.to,
+      target: edge.to,
       targetHandle: "in",
-      label: e.output !== "next" ? e.output : undefined,
+      label: edge.output !== "next" ? edge.output : undefined,
       markerEnd: { type: MarkerType.ArrowClosed },
-      animated: e.output === "next",
+      animated: edge.output === "next",
       selectable: true,
+      data: { onDelete: deleteEdge },
     })),
-    [mode.graph.edges],
+    [policy.edges, deleteEdge],
   );
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
     const updated = applyNodeChanges(changes, nodes);
-    const graphNodes = mode.graph.nodes.map((n) => {
-      const found = updated.find((u) => u.id === n.id);
-      return found ? { ...n, position: found.position } : n;
+    const policySteps = policy.steps.map((step) => {
+      const found = updated.find((item) => item.id === step.id);
+      return found ? { ...step, position: found.position } : step;
     });
-    onGraphChange({ ...mode.graph, nodes: graphNodes });
-  }, [nodes, mode.graph, onGraphChange]);
+    onPolicyChange({ ...policy, steps: policySteps });
+  }, [nodes, policy, onPolicyChange]);
 
   const onEdgesChange: OnEdgesChange = useCallback((changes) => {
     const updated = applyEdgeChanges(changes, edges);
-    const graphEdges = updated.map((e) => ({
-      from: e.source,
-      output: (e.label as string) || "next",
-      to: e.target,
+    const policyEdges = updated.map((edge) => ({
+      from: edge.source,
+      output: (edge.label as string) || "next",
+      to: edge.target,
     }));
-    onGraphChange({ ...mode.graph, edges: graphEdges });
-  }, [edges, mode.graph, onGraphChange]);
+    onPolicyChange({ ...policy, edges: policyEdges });
+  }, [edges, policy, onPolicyChange]);
 
   const onConnect: OnConnect = useCallback((params) => {
-    const updated = addEdge({ ...params, type: "deletable", markerEnd: { type: MarkerType.ArrowClosed }, animated: true, selectable: true }, edges);
-    const graphEdges = updated.map((e) => ({
-      from: e.source,
-      output: (e.label as string) || "next",
-      to: e.target,
+    const updated = addEdge({ ...params, type: "deletable", markerEnd: { type: MarkerType.ArrowClosed }, animated: true, selectable: true, data: { onDelete: deleteEdge } }, edges);
+    const policyEdges = updated.map((edge) => ({
+      from: edge.source,
+      output: (edge.label as string) || "next",
+      to: edge.target,
     }));
-    onGraphChange({ ...mode.graph, edges: graphEdges });
-  }, [edges, mode.graph, onGraphChange]);
+    onPolicyChange({ ...policy, edges: policyEdges });
+  }, [edges, policy, onPolicyChange, deleteEdge]);
 
   return (
     <section className="panel graph-panel" aria-labelledby="graph-heading">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Policy graph</p>
-          <h2 id="graph-heading">{mode.name} graph</h2>
+          <p className="eyebrow">Policy flow</p>
+          <h2 id="graph-heading">{policy.name}</h2>
         </div>
         <div className="button-row">
-          {BUILT_INS.map((type) => (
-            <button key={type} type="button" onClick={() => onAddNode(type)}>[+] {type}</button>
-          ))}
+          {BUILT_IN_NODES.map((type) => <button key={type} type="button" onClick={() => onAddStep("node", type)}>[+] {type}</button>)}
+          {OPERATORS.map((type) => <button key={type} type="button" onClick={() => onAddStep("operator", type)}>[+] {type}</button>)}
+          {customNodes.map((node) => <button key={node.id} type="button" onClick={() => onAddStep("node", node.id)}>[+] {node.name}</button>)}
         </div>
       </div>
       <div className={panMode ? "flow-canvas pan-mode" : "flow-canvas"}>
@@ -172,15 +169,15 @@ export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
           <MiniMap pannable zoomable />
         </ReactFlow>
       </div>
-      <p className="muted graph-hint">Drag blocks to move • Drag from green dots to connect • Option/Alt + drag to pan • Scroll to zoom</p>
+      <p className="muted graph-hint">Drag steps to move • Drag from green dots to connect • Option/Alt + drag to pan • Scroll to zoom</p>
     </section>
   );
 }
 
 function PolicyNode({ data }: NodeProps) {
   const nodeData = data as { label: string; subLabel: string };
-  const receivesInput = nodeData.label !== "start";
-  const sendsOutput = nodeData.label !== "end";
+  const receivesInput = !nodeData.label.endsWith(":start");
+  const sendsOutput = !nodeData.label.endsWith(":end");
   return (
     <div className="policy-node">
       {receivesInput && <Handle id="in" type="target" position={Position.Left} isConnectableStart={false} title="Input port" />}
@@ -192,7 +189,9 @@ function PolicyNode({ data }: NodeProps) {
 }
 
 function DeletableEdge(props: EdgeProps) {
+  const [hovered, setHovered] = useState(false);
   const [path, labelX, labelY] = getSmoothStepPath(props);
+  const data = props.data as { onDelete?: (id: string) => void } | undefined;
   const zoneWidth = Math.max(Math.abs(props.targetX - props.sourceX), 64);
   const zoneHeight = Math.max(Math.abs(props.targetY - props.sourceY), 44);
 
@@ -202,13 +201,15 @@ function DeletableEdge(props: EdgeProps) {
       <EdgeLabelRenderer>
         <div
           className="edge-action-zone nodrag nopan"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           style={{ height: zoneHeight, transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, width: zoneWidth }}
         >
           <button
             aria-label="Delete edge"
-            className="edge-delete"
+            className={hovered ? "edge-delete visible" : "edge-delete"}
             onClick={(event) => event.stopPropagation()}
-            onMouseDown={(event) => { event.stopPropagation(); window.dispatchEvent(new CustomEvent("policy-edge-delete", { detail: props.id })); }}
+            onPointerDown={(event) => { event.stopPropagation(); data?.onDelete?.(props.id); }}
             type="button"
           >
             🗑
@@ -222,19 +223,25 @@ function DeletableEdge(props: EdgeProps) {
 const nodeTypes = { policyNode: PolicyNode };
 const edgeTypes = { deletable: DeletableEdge };
 
-function edgeId(edge: PolicyGraph["edges"][number], index: number): string {
+type PolicyEdge = PolicyConfig["edges"][number];
+
+function edgeId(edge: PolicyEdge, index: number): string {
   return `${edge.from}-${edge.output}-${edge.to}-${index}`;
 }
 
-function policyHandles(type: string): NodeHandle[] {
+function policyHandles(kind: string, type: string): NodeHandle[] {
   const handles: NodeHandle[] = [];
-  if (type !== "end") {
+  if (!(kind === "node" && type === "end")) {
     handles.push({ id: "out", type: "source", position: Position.Right, x: NODE_WIDTH - 11, y: NODE_HEIGHT / 2 - 11, width: 22, height: 22 });
   }
-  if (type !== "start") {
+  if (!(kind === "node" && type === "start")) {
     handles.push({ id: "in", type: "target", position: Position.Left, x: -11, y: NODE_HEIGHT / 2 - 11, width: 22, height: 22 });
   }
   return handles;
+}
+
+function stepLabel(kind: string, type: string): string {
+  return `${kind}:${type}`;
 }
 
 export function paramsToText(params: Record<string, unknown> | undefined): string {

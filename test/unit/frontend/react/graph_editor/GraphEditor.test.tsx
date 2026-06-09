@@ -5,17 +5,17 @@ import { createDefaultConfig } from "@app/models/config/defaultConfig";
 import { GraphEditor, paramsToText } from "@app/components/GraphEditor";
 
 describe("GraphEditor", () => {
-  it("renders graph panel with mode name", () => {
+  it("renders policy panel with nodes and operators", () => {
     const config = createDefaultConfig();
-    const mode = config.modes[0];
+    const policy = config.modes[0].policies[0];
 
     const markup = renderToStaticMarkup(
-      <GraphEditor mode={mode} onGraphChange={() => undefined} onAddNode={() => undefined} />,
+      <GraphEditor policy={policy} customNodes={[]} onPolicyChange={() => undefined} onAddStep={() => undefined} />,
     );
 
-    expect(markup).toContain("Productivity graph");
-    expect(markup).toContain("[+] block");
-    expect(markup).toContain("[+] log");
+    expect(markup).toContain("Productivity policy");
+    expect(markup).toContain("[+] start");
+    expect(markup).toContain("[+] if");
   });
 
   it("formats params as editable JSON", () => {

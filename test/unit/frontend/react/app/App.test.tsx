@@ -11,6 +11,6 @@ describe("App", () => {
     expect(markup).toContain("Proxy");
     expect(markup).toContain("Save config");
     expect(markup).toContain("Policies");
-    expect(markup).toContain("Operators");
+    expect(markup).toContain("Nodes");
   });
 });

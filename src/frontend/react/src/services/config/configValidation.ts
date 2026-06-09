@@ -1,4 +1,4 @@
-import type { AppConfig, ModeConfig } from "../../models/config/types";
+import type { AppConfig, ModeConfig, PolicyConfig } from "../../models/config/types";
 
 export function validateAppConfig(config: AppConfig): string[] {
   const errors: string[] = [];
@@ -15,9 +15,20 @@ export function validateAppConfig(config: AppConfig): string[] {
 }
 
 function validateMode(mode: ModeConfig): string[] {
-  const startCount = mode.graph.nodes.filter((node) => node.type === "start").length;
+  return mode.policies.flatMap((policy) => validatePolicy(mode, policy));
+}
+
+function validatePolicy(mode: ModeConfig, policy: PolicyConfig): string[] {
+  const errors: string[] = [];
+  const startCount = policy.steps.filter((step) => step.kind === "node" && step.type === "start").length;
   if (startCount !== 1) {
-    return [`Mode ${mode.name} must have exactly one start node`];
+    errors.push(`Policy ${mode.name}/${policy.name} must have exactly one start node`);
   }
-  return [];
+
+  const stepIds = new Set(policy.steps.map((step) => step.id));
+  for (const edge of policy.edges) {
+    if (!stepIds.has(edge.from)) errors.push(`Policy ${policy.name} has unknown edge source ${edge.from}`);
+    if (!stepIds.has(edge.to)) errors.push(`Policy ${policy.name} has unknown edge target ${edge.to}`);
+  }
+  return errors;
 }

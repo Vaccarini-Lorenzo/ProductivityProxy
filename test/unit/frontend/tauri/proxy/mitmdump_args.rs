@@ -65,7 +65,7 @@ fn reads_settings_from_app_config_json() {
 
 fn paths() -> ProxyPaths {
     ProxyPaths {
-        addon_path: PathBuf::from("src/proxy/addons/graph_proxy.py"),
+        addon_path: PathBuf::from("src/proxy/addons/policy_proxy.py"),
         config_path: PathBuf::from("data/config.json"),
         state_path: PathBuf::from("data/state.json"),
         event_log_path: PathBuf::from("data/events.jsonl"),

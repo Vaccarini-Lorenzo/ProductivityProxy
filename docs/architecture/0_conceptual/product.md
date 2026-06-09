@@ -17,9 +17,9 @@ The product is meant for personal productivity control, not enterprise network a
 
 - Start and stop a local web proxy.
 - Switch between named policy modes.
-- Represent each mode as a directed node graph.
-- Block, redirect, log, track, or notify based on graph decisions.
-- Run user-authored Python operators inside the proxy process.
+- Represent each policy as a directed flow of nodes and operators.
+- Block, redirect, log, track, or notify through custom nodes.
+- Run user-authored Python nodes inside the proxy process.
 - Persist policy configuration, usage state, and event logs locally.
 - On macOS, temporarily point system HTTP/HTTPS proxy settings at the local proxy and restore prior settings when stopping.
 
@@ -46,9 +46,9 @@ The default configuration has two modes:
 
 ## Safety boundaries
 
-The app is intentionally powerful. It can inspect and modify proxied traffic, and custom Python operators run with local process permissions.
+The app is intentionally powerful. It can inspect and modify proxied traffic, and custom Python nodes run with local process permissions.
 
-A user should only run custom operators they trust.
+A user should only run custom nodes they trust.
 
 ## Current readiness summary
 
@@ -58,7 +58,7 @@ It is not yet a polished daily-use app because:
 
 - mitmproxy must be installed separately,
 - HTTPS interception requires installing/trusting the mitmproxy CA certificate,
-- custom Python operators are unsandboxed,
-- graph loops have no guard,
+- custom Python nodes are unsandboxed,
+- policy loops are guarded by POLICY_MAX_STEPS,
 - app-process crashes can leave system proxy settings enabled until manually fixed,
 - Linux start currently fails because system proxy automation is unsupported.

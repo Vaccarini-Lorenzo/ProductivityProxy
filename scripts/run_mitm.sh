@@ -7,16 +7,36 @@ set -euo pipefail
 : "${PRODUCTIVE_PROXY_CONFIG_PATH:?Missing PRODUCTIVE_PROXY_CONFIG_PATH}"
 : "${PRODUCTIVE_PROXY_STATE_PATH:?Missing PRODUCTIVE_PROXY_STATE_PATH}"
 : "${PRODUCTIVE_PROXY_EVENT_LOG_PATH:?Missing PRODUCTIVE_PROXY_EVENT_LOG_PATH}"
+: "${POLICY_MAX_STEPS:?Missing POLICY_MAX_STEPS}"
 
 if [[ "$PRODUCTIVE_PROXY_AUTH_ENABLED" != "true" && "$PRODUCTIVE_PROXY_AUTH_ENABLED" != "false" ]]; then
   echo "PRODUCTIVE_PROXY_AUTH_ENABLED must be 'true' or 'false'" >&2
   exit 1
 fi
 
+if [[ ! -f "$PRODUCTIVE_PROXY_CONFIG_PATH" ]]; then
+  mkdir -p "$(dirname "$PRODUCTIVE_PROXY_CONFIG_PATH")"
+  python3 - "$PRODUCTIVE_PROXY_CONFIG_PATH" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+config_path = Path(sys.argv[1])
+repo_root = Path.cwd()
+default_path = repo_root / "src/proxy/defaults/default_config.json"
+config = json.loads(default_path.read_text(encoding="utf-8"))
+for node in config["customNodes"]:
+    path = Path(node["path"])
+    if not path.is_absolute():
+        node["path"] = str(repo_root / path)
+config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+PY
+fi
+
 args=(
   --listen-host "$PRODUCTIVE_PROXY_LISTEN_HOST"
   --listen-port "$PRODUCTIVE_PROXY_LISTEN_PORT"
-  -s src/proxy/addons/graph_proxy.py
+  -s src/proxy/addons/policy_proxy.py
   --set "productive_config_path=$PRODUCTIVE_PROXY_CONFIG_PATH"
   --set "productive_state_path=$PRODUCTIVE_PROXY_STATE_PATH"
   --set "productive_event_log_path=$PRODUCTIVE_PROXY_EVENT_LOG_PATH"

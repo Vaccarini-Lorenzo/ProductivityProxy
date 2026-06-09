@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable
 
-from proxy.models.graph.policy_graph import AppConfig
+from proxy.models.policy.flow import AppConfig
 from proxy.services.events.event_log import EventLog
 from proxy.services.state.state_store import StateStore
 
@@ -21,7 +21,3 @@ class RequestContext:
     def __post_init__(self) -> None:
         if self.data is None:
             self.data = {}
-
-    def merge_data(self, values: dict[str, Any]) -> None:
-        if values:
-            self.data.update(values)

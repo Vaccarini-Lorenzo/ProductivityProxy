@@ -1,4 +1,4 @@
-export type View = "operators" | "policies" | "settings";
+export type View = "nodes" | "policies" | "settings";
 
 interface Props {
   active: View;
@@ -7,7 +7,7 @@ interface Props {
 }
 
 const LINKS: { view: View; code: string; label: string }[] = [
-  { view: "operators", code: "OPS", label: "Operators" },
+  { view: "nodes", code: "NOD", label: "Nodes" },
   { view: "policies", code: "POL", label: "Policies" },
   { view: "settings", code: "SET", label: "Settings" },
 ];

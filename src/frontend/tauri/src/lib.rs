@@ -4,7 +4,7 @@ pub mod services;
 
 use controller::commands::{
     network_info, proxy_status, read_app_config, read_recent_events, start_proxy, stop_proxy,
-    write_app_config, write_custom_block, AppState,
+    write_app_config, write_custom_node, AppState,
 };
 use controller::tray::actions::TrayAction;
 use tauri::menu::{Menu, MenuItem};
@@ -19,7 +19,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_app_config,
             write_app_config,
-            write_custom_block,
+            write_custom_node,
             start_proxy,
             stop_proxy,
             proxy_status,

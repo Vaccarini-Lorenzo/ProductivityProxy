@@ -1,32 +1,37 @@
-export type NodeParams = Record<string, unknown>;
+export type StepParams = Record<string, unknown>;
 
 export interface GraphPosition {
   x: number;
   y: number;
 }
 
-export interface GraphNode {
+export type PolicyStepKind = "node" | "operator";
+
+export interface PolicyStep {
   id: string;
+  kind: PolicyStepKind;
   type: string;
-  params?: NodeParams;
+  params?: StepParams;
   position?: GraphPosition;
 }
 
-export interface GraphEdge {
+export interface PolicyEdge {
   from: string;
   output: string;
   to: string;
 }
 
-export interface PolicyGraph {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
+export interface PolicyConfig {
+  id: string;
+  name: string;
+  steps: PolicyStep[];
+  edges: PolicyEdge[];
 }
 
 export interface ModeConfig {
   id: string;
   name: string;
-  graph: PolicyGraph;
+  policies: PolicyConfig[];
 }
 
 export interface ProxyConfig {
@@ -37,16 +42,15 @@ export interface ProxyConfig {
   authPassword: string;
 }
 
-export interface CustomBlockConfig {
+export interface CustomNodeConfig {
   id: string;
   name: string;
   path: string;
-  entrypoint: string;
 }
 
 export interface AppConfig {
   activeModeId: string;
   proxy: ProxyConfig;
   modes: ModeConfig[];
-  customBlocks: CustomBlockConfig[];
+  customNodes: CustomNodeConfig[];
 }

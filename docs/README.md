@@ -15,9 +15,9 @@ This folder documents the current project, not only the original plan.
 - [Logical architecture](architecture/1_logical/system-overview.md) — black-box services and their relationships.
 - [Tauri desktop backend](architecture/2_component/tauri-desktop-backend.md) — Rust shell, commands, tray, process control, system proxy handling.
 - [React dashboard](architecture/2_component/react-dashboard.md) — current UI structure and frontend service layer.
-- [Python proxy engine](architecture/2_component/python-proxy-engine.md) — mitmproxy addon, graph evaluator, nodes, custom blocks.
+- [Python proxy engine](architecture/2_component/python-proxy-engine.md) — mitmproxy addon, policy evaluator, nodes, custom nodes.
 - [Local deployment runtime](architecture/3_deployment/local-desktop-runtime.md) — runtime topology, prerequisites, paths, packaging gaps.
-- [Data layer](architecture/4_data_layer/config-state-events.md) — config, graph, state, events, and custom block storage.
+- [Data layer](architecture/4_data_layer/config-state-events.md) — config, policies, state, events, and custom node storage.
 
 ## Assumptions
 

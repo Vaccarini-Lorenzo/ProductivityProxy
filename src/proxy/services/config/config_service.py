@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from proxy.models.graph.policy_graph import AppConfig
+from proxy.models.policy.flow import AppConfig
 
 
 class ConfigService:

@@ -32,7 +32,7 @@
 
 **Impact if wrong:** users behind authenticated corporate proxies cannot use the system proxy automation.
 
-## Custom Python operators are trusted
+## Custom Python nodes are trusted
 
 **Assumption:** the user owns and trusts custom Python code.
 
@@ -40,13 +40,13 @@
 
 **Impact if wrong:** malicious or broken custom code can read files, make network calls, alter traffic, hang requests, or crash the proxy.
 
-## Graph authors avoid infinite loops
+## Policy authors configure a loop guard
 
-**Assumption:** policy graph loops are intentional and will not be infinite.
+**Assumption:** `POLICY_MAX_STEPS` is set to a sane value.
 
-**Why:** no loop guard exists in the evaluator.
+**Why:** loops are allowed, but the evaluator stops after the configured step count.
 
-**Impact if wrong:** request handling can hang.
+**Impact if wrong:** valid long-running policies may stop early, or bad loops may waste request time.
 
 ## App process exits normally most of the time
 
@@ -60,7 +60,7 @@
 
 **Assumption:** running from the repo is acceptable for development and early use.
 
-**Why:** the backend discovers the repo root and launches the addon from `src/proxy/addons/graph_proxy.py`.
+**Why:** the backend discovers the repo root and launches the addon from `src/proxy/addons/policy_proxy.py`.
 
 **Impact if wrong:** packaged app behavior will fail until addon/runtime bundling is redesigned.
 

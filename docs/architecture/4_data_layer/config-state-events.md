@@ -1,4 +1,4 @@
-# Data Layer: Config, State, Events, and Blocks
+# Data Layer: Config, State, Events, and Nodes
 
 ## Storage overview
 
@@ -9,7 +9,7 @@ All persistent data is stored locally.
 | App config | JSON | Tauri app + Python proxy | app data `config.json` |
 | Usage state | JSON | Python proxy | app data `state.json` |
 | Event log | JSONL | Python proxy writes, Tauri reads | app data `events.jsonl` |
-| Custom blocks | Python files | Tauri writes, Python imports | app data `custom_blocks/` |
+| Custom nodes | Python files | Tauri writes, Python imports | app data `custom_nodes/` |
 | Default config | JSON | repo source | `src/proxy/defaults/default_config.json` |
 
 ## App config schema
@@ -20,8 +20,8 @@ Top-level shape:
 {
   "activeModeId": "productivity",
   "proxy": {},
-  "modes": [],
-  "customBlocks": []
+  "customNodes": [],
+  "modes": []
 }
 ```
 
@@ -45,21 +45,30 @@ Used by the Tauri backend to build `mitmdump` arguments and system proxy setting
 {
   "id": "productivity",
   "name": "Productivity",
-  "graph": {
-    "nodes": [],
-    "edges": []
-  }
+  "policies": []
 }
 ```
 
 `activeModeId` must match one mode `id`.
 
-### Graph node
+### Policy config
+
+```json
+{
+  "id": "reddit-limit",
+  "name": "Reddit limit",
+  "steps": [],
+  "edges": []
+}
+```
+
+### Policy step
 
 ```json
 {
   "id": "track-reddit",
-  "type": "track_time",
+  "kind": "node",
+  "type": "track-time",
   "position": { "x": 800, "y": 180 },
   "params": {
     "platform": "reddit",
@@ -68,11 +77,11 @@ Used by the Tauri backend to build `mitmdump` arguments and system proxy setting
 }
 ```
 
-The Python model uses `id`, `type`, and `params`.
+The Python model uses `id`, `kind`, `type`, and `params`.
 
 `position` is used by the React graph editor and ignored by the Python model.
 
-### Graph edge
+### Policy edge
 
 ```json
 {
@@ -84,28 +93,21 @@ The Python model uses `id`, `type`, and `params`.
 
 Routing rule:
 
-- exact `output` match wins,
-- `*` is fallback,
-- no match stops evaluation.
+- exact `output` match is used,
+- `switch` may fall back to an explicit `default` edge,
+- no match stops policy evaluation.
 
-### Custom block config
+### Custom node config
 
 ```json
 {
   "id": "detect-platform",
   "name": "Detect Platform",
-  "path": "src/proxy/defaults/blocks/detect_platform.py",
-  "entrypoint": "run"
+  "path": "/absolute/path/src/proxy/defaults/nodes/detect_platform.py"
 }
 ```
 
-A `python` graph node references a block with:
-
-```json
-{
-  "blockId": "detect-platform"
-}
-```
+A custom node step uses the custom node `id` as its `type`. Paths must be absolute in runtime config.
 
 ## State schema
 
@@ -173,7 +175,7 @@ The Tauri/React layer reads recent events and displays native notifications for 
 
 ### First config read
 
-If app data `config.json` does not exist, Tauri copies `src/proxy/defaults/default_config.json` into app data.
+If app data `config.json` does not exist, Tauri reads `src/proxy/defaults/default_config.json`, materializes custom node paths as absolute paths, and writes the result into app data.
 
 ### Save config
 
@@ -187,9 +189,9 @@ Tauri writes the latest config before launching `mitmdump`. The Python addon loa
 
 The Python proxy may update `state.json` and append to `events.jsonl` while evaluating requests.
 
-### Custom block creation
+### Custom node creation
 
-The React dashboard sends file name and code to Tauri. Tauri writes the file under app data `custom_blocks/` and returns the path for config registration.
+The React dashboard sends file name and code to Tauri. Tauri writes the file under app data `custom_nodes/` and returns the absolute path for config registration.
 
 ## Validation boundaries
 
@@ -197,9 +199,6 @@ Frontend validation is minimal. Python model parsing and runtime node execution 
 
 Current missing validations include:
 
-- duplicate IDs,
-- edges pointing to missing nodes before runtime,
-- required params for each node type,
-- valid custom block paths before execution,
-- graph loop detection,
-- safe file names for custom block writes.
+- full frontend parity with Python validation,
+- required params for each custom node,
+- safe file names for custom node writes.

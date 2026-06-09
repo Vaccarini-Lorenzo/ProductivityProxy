@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
 import { TerminalNav, type View } from "./components/TerminalNav";
-import { OperatorsView } from "./views/OperatorsView";
+import { NodesView } from "./views/NodesView";
 import { PoliciesView } from "./views/PoliciesView";
 import { SettingsView } from "./views/SettingsView";
 import { createDefaultConfig } from "./models/config/defaultConfig";
 import type { AppConfig } from "./models/config/types";
-import { loadConfig, saveConfig, writeCustomBlock, type CommandClient } from "./services/config/configRepository";
+import { loadConfig, saveConfig, writeCustomNode, type CommandClient } from "./services/config/configRepository";
 import { validateAppConfig } from "./services/config/configValidation";
 import { showNotificationEvents, type Notifier } from "./services/notifications/notificationService";
 import { tauriNotifier } from "./services/notifications/tauriNotifier";
@@ -58,24 +58,24 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     await stopProxy(client).then(() => setStatus({ running: false })).catch(showError);
   }
 
-  async function handleSaveBlock(name: string, fileName: string, entrypoint: string, code: string) {
-    const path = await writeCustomBlock(client, fileName, code).catch((e) => { showError(e); return ""; });
+  async function handleSaveNode(name: string, fileName: string, code: string) {
+    const path = await writeCustomNode(client, fileName, code).catch((e) => { showError(e); return ""; });
     if (!path) return;
-    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "block";
-    setConfig({ ...config, customBlocks: [...config.customBlocks, { id, name, path, entrypoint }] });
-    setMessage("Operator saved");
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "node";
+    setConfig({ ...config, customNodes: [...config.customNodes, { id, name, path }] });
+    setMessage("Node saved");
   }
 
-  function handleDeleteBlock(id: string) {
-    setConfig({ ...config, customBlocks: config.customBlocks.filter((b) => b.id !== id) });
+  function handleDeleteNode(id: string) {
+    setConfig({ ...config, customNodes: config.customNodes.filter((node) => node.id !== id) });
   }
 
   function renderView() {
     switch (view) {
       case "settings":
         return <SettingsView proxy={config.proxy} running={status.running} onChange={(proxy) => setConfig({ ...config, proxy })} onStart={handleStart} onStop={handleStop} />;
-      case "operators":
-        return <OperatorsView blocks={config.customBlocks} onSave={handleSaveBlock} onDelete={handleDeleteBlock} />;
+      case "nodes":
+        return <NodesView nodes={config.customNodes} onSave={handleSaveNode} onDelete={handleDeleteNode} />;
       case "policies":
         return <PoliciesView config={config} onConfigChange={setConfig} />;
     }

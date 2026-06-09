@@ -28,7 +28,7 @@ Both fields are protected with `Mutex` because Tauri commands can run concurrent
 | --- | --- |
 | `read_app_config` | Ensure config exists, then read app config JSON. |
 | `write_app_config` | Persist app config JSON. |
-| `write_custom_block` | Write a Python custom block file under app data. |
+| `write_custom_node` | Write a Python custom node file under app data. |
 | `start_proxy` | Save config, start `mitmdump`, enable macOS system proxy. |
 | `stop_proxy` | Restore macOS system proxy and stop `mitmdump`. |
 | `proxy_status` | Report whether `mitmdump` is still running; restore proxy settings if it died. |
@@ -43,16 +43,16 @@ Both fields are protected with `Mutex` because Tauri commands can run concurrent
 config.json
 state.json
 events.jsonl
-custom_blocks/
+custom_nodes/
 ```
 
 It also stores the repo-local addon path:
 
 ```text
-src/proxy/addons/graph_proxy.py
+src/proxy/addons/policy_proxy.py
 ```
 
-The repo root is discovered by walking upward from the current directory until `src/proxy/addons/graph_proxy.py` is found. This works for development but is a packaging risk.
+The repo root is discovered by walking upward from the current directory until `src/proxy/addons/policy_proxy.py` is found. This works for development but is a packaging risk.
 
 ## Proxy process launch
 
@@ -61,7 +61,7 @@ The repo root is discovered by walking upward from the current directory until `
 ```text
 --listen-host 127.0.0.1|0.0.0.0
 --listen-port <port>
--s <repo>/src/proxy/addons/graph_proxy.py
+-s <repo>/src/proxy/addons/policy_proxy.py
 --set productive_config_path=<app-data>/config.json
 --set productive_state_path=<app-data>/state.json
 --set productive_event_log_path=<app-data>/events.jsonl
