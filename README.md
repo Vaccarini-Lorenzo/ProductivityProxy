@@ -43,6 +43,9 @@ docs/             design/build docs
 - Native notifications:
   - `notify` graph node writes notification events,
   - app displays those as desktop notifications.
+- macOS system proxy control:
+  - start enables HTTP and HTTPS system proxies on enabled network services,
+  - stop disables those proxy states again.
 
 ## Install prerequisites
 
@@ -123,5 +126,6 @@ src/proxy/defaults/default_config.json
 
 - Custom Python blocks run with local process permissions and mitmproxy SDK access.
 - Graph loops are allowed and currently have no loop guard.
-- Auto-changing macOS/Linux system proxy settings is postponed.
+- Starting/stopping from the desktop app toggles macOS HTTP/HTTPS system proxy settings for enabled network services.
+- Linux system proxy automation is still postponed because desktop environments differ.
 - Bundling mitmproxy inside the app is postponed.

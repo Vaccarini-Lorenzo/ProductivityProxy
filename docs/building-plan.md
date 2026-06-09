@@ -16,7 +16,8 @@ The app should work as a dockless tray/menu-bar app:
 - Policy engine: Python code running inside the mitmproxy addon.
 - Policy editor: visual node graph.
 - Policies are stored in app config, not environment variables.
-- Auto-changing system proxy settings is postponed.
+- The desktop app toggles macOS HTTP/HTTPS system proxy settings when the proxy starts/stops.
+- Linux system proxy automation is postponed because desktop environments differ.
 - Custom Python blocks are allowed to run directly with mitmproxy SDK access.
 - No sandboxing or custom-code safeguards in the initial version.
 
@@ -95,6 +96,7 @@ Tauri tray app
   ├─ shows dashboard when requested
   ├─ stores config/state paths
   ├─ starts/stops mitmdump
+  ├─ toggles macOS HTTP/HTTPS system proxy settings
   ├─ watches proxy event log
   └─ shows OS notifications
 
@@ -113,6 +115,7 @@ The Tauri app handles:
 - tray/menu-bar icon,
 - hidden dashboard window,
 - proxy start/stop/restart,
+- macOS system proxy enable/disable,
 - LAN proxy toggle,
 - auth toggle,
 - mode selection,
@@ -535,7 +538,7 @@ This keeps notification behavior in the app layer.
 
 ## Non-goals for first version
 
-- Auto-changing macOS/Linux system proxy settings.
+- Linux system proxy automation.
 - Bundling mitmproxy inside the app.
 - Sandboxing custom Python blocks.
 - Plugin marketplace.

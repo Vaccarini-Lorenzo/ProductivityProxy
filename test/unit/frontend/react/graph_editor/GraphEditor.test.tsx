@@ -32,9 +32,9 @@ describe("GraphEditor", () => {
     );
 
     expect(markup).toContain("Productivity graph");
-    expect(markup).toContain("Add block");
     expect(markup).toContain("block-2");
     expect(markup).toContain("Params JSON");
+    expect(markup).toContain("Operators");
   });
 
   it("formats params as editable JSON", () => {
