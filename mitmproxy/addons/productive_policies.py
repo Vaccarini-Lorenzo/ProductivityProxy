@@ -3,7 +3,7 @@ import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from mitmproxy import http
 
@@ -71,13 +71,44 @@ def utc_day(timestamp: float) -> str:
     return datetime.fromtimestamp(timestamp, tz=timezone.utc).date().isoformat()
 
 
+def path_matches_marker(path: str) -> bool:
+    normalized = path.lower()
+    return any(
+        normalized == marker or normalized.startswith(f"{marker}/")
+        for marker in YOUTUBE_SHORTS_PATH_MARKERS
+    )
+
+
+def url_matches_shorts(url: str) -> bool:
+    if not url:
+        return False
+
+    parsed = urlsplit(url)
+    if parsed.hostname and not host_matches(parsed.hostname, YOUTUBE_HOST_SUFFIXES):
+        return False
+
+    return path_matches_marker(parsed.path)
+
+
+def request_body_mentions_shorts(flow: http.HTTPFlow) -> bool:
+    body = flow.request.get_text(strict=False).lower()
+    decoded_body = unquote(body)
+    return any(marker in body or marker in decoded_body for marker in YOUTUBE_SHORTS_PATH_MARKERS)
+
+
 def is_youtube_shorts(flow: http.HTTPFlow) -> bool:
     host = flow.request.pretty_host
     if not host_matches(host, YOUTUBE_HOST_SUFFIXES):
         return False
 
-    path = urlsplit(flow.request.pretty_url).path.lower()
-    return any(path == marker or path.startswith(f"{marker}/") for marker in YOUTUBE_SHORTS_PATH_MARKERS)
+    if url_matches_shorts(flow.request.pretty_url):
+        return True
+
+    referer = flow.request.headers.get("referer", "")
+    if url_matches_shorts(referer):
+        return True
+
+    return request_body_mentions_shorts(flow)
 
 
 def block_youtube_shorts(flow: http.HTTPFlow) -> None:

@@ -5,7 +5,7 @@ This repo contains a small `mitmproxy` addon for local explicit-proxy use on mac
 ## Policies currently implemented
 
 1. **Block YouTube Shorts**
-   - Blocks requests to configured YouTube hosts when the path matches configured Shorts markers.
+   - Blocks requests to configured YouTube hosts when the request path, referrer, or request body matches configured Shorts markers.
    - Default example markers: `/shorts`, `/youtubei/v1/reel`, `/api/stats/shorts`.
 
 2. **Track Reddit time**
