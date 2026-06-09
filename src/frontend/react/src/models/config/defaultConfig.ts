@@ -12,10 +12,11 @@ function policy(id: string, name: string): PolicyConfig {
   };
 }
 
-function mode(id: string, name: string): ModeConfig {
+function mode(id: string, name: string, description: string): ModeConfig {
   return {
     id,
     name,
+    description,
     policies: [policy(`${id}-policy`, `${name} policy`)],
   };
 }
@@ -30,7 +31,7 @@ export function createDefaultConfig(): AppConfig {
       authUsername: "productive",
       authPassword: "change-me",
     },
-    modes: [mode("productivity", "Productivity"), mode("chilling", "Chilling")],
+    modes: [mode("productivity", "Productivity", "Focused work mode"), mode("chilling", "Chilling", "Low restriction mode")],
     customNodes: [],
   };
 }

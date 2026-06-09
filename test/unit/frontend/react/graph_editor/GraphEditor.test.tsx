@@ -14,8 +14,8 @@ describe("GraphEditor", () => {
     );
 
     expect(markup).toContain("Productivity policy");
-    expect(markup).toContain("[+] start");
-    expect(markup).toContain("[+] if");
+    expect(markup).toContain("$ add start");
+    expect(markup).toContain("$ add if");
   });
 
   it("formats params as editable JSON", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createDefaultConfig } from "@app/models/config/defaultConfig";
-import { readRecentEvents, startProxy, stopProxy, getProxyStatus, queryEvents } from "@app/services/proxy/proxyRepository";
+import { readRecentEvents, startProxy, stopProxy, getProxyStatus, queryEvents, getNetworkInfo } from "@app/services/proxy/proxyRepository";
 
 class FakeClient {
   calls: Array<{ command: string; args?: Record<string, unknown> }> = [];
@@ -10,6 +10,9 @@ class FakeClient {
     this.calls.push({ command, args });
     if (command === "proxy_status") {
       return { running: true } as T;
+    }
+    if (command === "network_info") {
+      return { localHost: "127.0.0.1", lanHost: "192.168.1.10" } as T;
     }
     if (command === "read_recent_events") {
       return [{ type: "log" }] as T;
@@ -43,6 +46,7 @@ describe("proxyRepository", () => {
     const client = new FakeClient();
 
     await expect(getProxyStatus(client)).resolves.toEqual({ running: true });
+    await expect(getNetworkInfo(client)).resolves.toEqual({ localHost: "127.0.0.1", lanHost: "192.168.1.10" });
     await expect(readRecentEvents(client, 10)).resolves.toEqual([{ type: "log" }]);
   });
 

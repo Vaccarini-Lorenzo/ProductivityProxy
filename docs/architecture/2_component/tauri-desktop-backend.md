@@ -28,7 +28,8 @@ Both fields are protected with `Mutex` because Tauri commands can run concurrent
 | --- | --- |
 | `read_app_config` | Ensure config exists, then read app config JSON. |
 | `write_app_config` | Persist app config JSON. |
-| `write_custom_node` | Write a Python custom node file under app data. |
+| `write_custom_node` | Write a Python custom node file under app data. Path traversal is stripped from the file name. |
+| `read_custom_node` | Read a Python custom node from app data or bundled default node paths. |
 | `start_proxy` | Save config, start `mitmdump`, enable macOS system proxy. |
 | `stop_proxy` | Restore macOS system proxy and stop `mitmdump`. |
 | `proxy_status` | Report whether `mitmdump` is still running; restore proxy settings if it died. |

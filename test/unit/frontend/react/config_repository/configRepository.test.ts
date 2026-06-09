@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createDefaultConfig } from "@app/models/config/defaultConfig";
-import { loadConfig, saveConfig, writeCustomNode } from "@app/services/config/configRepository";
+import { loadConfig, readCustomNode, saveConfig, writeCustomNode } from "@app/services/config/configRepository";
 
 class FakeClient {
   calls: Array<{ command: string; args?: Record<string, unknown> }> = [];
@@ -13,6 +13,9 @@ class FakeClient {
     }
     if (command === "write_custom_node") {
       return "custom_nodes/test.py" as T;
+    }
+    if (command === "read_custom_node") {
+      return "def run(input, context, params): return input" as T;
     }
     return undefined as T;
   }
@@ -44,5 +47,14 @@ describe("configRepository", () => {
 
     expect(path).toBe("custom_nodes/test.py");
     expect(client.calls[0].command).toBe("write_custom_node");
+  });
+
+  it("reads custom node code through command client", async () => {
+    const client = new FakeClient();
+
+    const code = await readCustomNode(client, "custom_nodes/test.py");
+
+    expect(code).toContain("def run");
+    expect(client.calls[0]).toEqual({ command: "read_custom_node", args: { path: "custom_nodes/test.py" } });
   });
 });

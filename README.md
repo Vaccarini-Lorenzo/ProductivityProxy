@@ -34,6 +34,7 @@ docs/             design/build docs
 - Python policy engine:
   - modes contain ordered policies,
   - policies contain nodes, operators, and edges,
+  - filterable observability events for config, requests, policies, steps, errors, and custom node logs,
   - built-in nodes: `start`, `end`,
   - built-in operators: `if`, `switch`,
   - arbitrary custom Python nodes loaded from absolute file paths,

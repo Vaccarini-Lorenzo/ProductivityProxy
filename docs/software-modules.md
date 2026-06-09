@@ -51,7 +51,8 @@ Location: `src/frontend/tauri/`
 | --- | --- | --- | --- |
 | `read_app_config` | none | config JSON | Copies default config to app data if missing. |
 | `write_app_config` | `{ config }` | void | Writes pretty JSON to app data. |
-| `write_custom_node` | `{ fileName, code }` | path string | Writes under app data `custom_nodes/`. |
+| `write_custom_node` | `{ fileName, code }` | path string | Writes under app data `custom_nodes/`; strips path traversal from file name. |
+| `read_custom_node` | `{ path }` | source string | Reads app-data custom nodes and bundled default nodes. |
 | `start_proxy` | `{ config }` | void | Saves config, starts `mitmdump`, enables macOS system proxy. |
 | `stop_proxy` | none | void | Restores system proxy snapshot and stops `mitmdump`. |
 | `proxy_status` | none | `{ running }` | Also restores system proxy if the child process died. |
@@ -82,12 +83,15 @@ Location: `src/frontend/react/src/`
 | --- | --- |
 | `App.tsx` | Top-level state, startup loading, view routing, proxy start/stop handlers. |
 | `views/SettingsView.tsx` | Proxy status and proxy settings form. |
+| `views/ModesView.tsx` | Active mode selection and mode create/edit/delete. |
 | `views/NodesView.tsx` | Custom Python node list/editor. |
-| `views/PoliciesView.tsx` | Mode/policy management and graph editor host. |
+| `views/PolicyView.tsx` | Ordered policy management and graph editor host. |
+| `views/ObservabilityView.tsx` | Filterable event log and request timeline. |
 | `components/GraphEditor.tsx` | React Flow policy canvas and step/edge conversion. |
 | `components/TerminalNav.tsx` | Main navigation. |
 | `models/config/types.ts` | TypeScript config schema. |
 | `models/config/defaultConfig.ts` | Browser-side fallback default config. |
+| `services/config/configEditing.ts` | Browser-side mode/policy ID and factory helpers. |
 | `services/config/configRepository.ts` | Tauri config command wrapper. |
 | `services/config/configValidation.ts` | Minimal active mode/policy validation. |
 | `services/policy/policyOperations.ts` | Pure policy editing helpers. |

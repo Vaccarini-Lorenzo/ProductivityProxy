@@ -19,10 +19,11 @@ This document describes the current source tree. The UI is actively changing, so
 
 `App` stores:
 
-- active view: `settings`, `operators`, or `policies`,
+- active view: `settings`, `modes`, `policy`, `nodes`, or `observability`,
 - full app config,
 - proxy running status,
-- recent proxy events,
+- detected local/LAN network info,
+- recent proxy events for notifications,
 - user-facing message string,
 - a set of notification events already shown.
 
@@ -30,7 +31,8 @@ On mount it asks the Tauri backend for:
 
 - app config,
 - proxy status,
-- recent events.
+- recent events,
+- network info.
 
 ## Views
 
@@ -54,24 +56,44 @@ Current responsibilities:
 Current responsibilities:
 
 - list registered custom Python nodes,
-- add/edit node metadata,
+- load node source through `read_custom_node`,
+- add/edit node metadata and code,
 - write node code through the backend,
-- delete node entries from config state.
+- delete unused node entries from config state.
 
-Important current behavior: editing an existing node updates form fields but does not load the existing file contents from disk.
+### Modes
 
-### Policies
-
-`views/PoliciesView.tsx`
+`views/ModesView.tsx`
 
 Current responsibilities:
 
-- list modes,
-- select active mode,
+- select the active mode,
 - create/delete modes,
-- list ordered policies inside the active mode,
+- edit mode name and description,
+- show policy/step counts.
+
+### Policy
+
+`views/PolicyView.tsx`
+
+Current responsibilities:
+
+- list ordered policies for the active mode,
+- create/rename/delete/reorder policies,
 - show the graph editor for the selected policy,
-- add nodes/operators to the selected policy.
+- add/delete nodes and operators,
+- edit route outputs and step params.
+
+### Observability
+
+`views/ObservabilityView.tsx`
+
+Current responsibilities:
+
+- query JSONL events through `query_events`,
+- filter by category, type, level, policy, request ID, time window, and search text,
+- inspect selected event JSON,
+- show a request timeline when `requestId` is present.
 
 ## Graph editor
 
@@ -103,7 +125,8 @@ Thin wrapper around Tauri commands:
 
 - `read_app_config`,
 - `write_app_config`,
-- `write_custom_node`.
+- `write_custom_node`,
+- `read_custom_node`.
 
 ### Config validation
 
@@ -126,6 +149,7 @@ Thin wrapper around Tauri commands:
 - `start_proxy`,
 - `stop_proxy`,
 - `proxy_status`,
+- `network_info`,
 - `read_recent_events`,
 - `query_events`.
 

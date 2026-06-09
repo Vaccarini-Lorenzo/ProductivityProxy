@@ -15,3 +15,7 @@ export function saveConfig(client: CommandClient, config: AppConfig): Promise<vo
 export function writeCustomNode(client: CommandClient, fileName: string, code: string): Promise<string> {
   return client.invoke<string>("write_custom_node", { fileName, code });
 }
+
+export function readCustomNode(client: CommandClient, path: string): Promise<string> {
+  return client.invoke<string>("read_custom_node", { path });
+}

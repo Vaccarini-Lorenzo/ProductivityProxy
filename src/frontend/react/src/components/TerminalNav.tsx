@@ -1,4 +1,4 @@
-export type View = "nodes" | "policies" | "settings";
+export type View = "settings" | "modes" | "policy" | "nodes" | "observability";
 
 interface Props {
   active: View;
@@ -7,36 +7,38 @@ interface Props {
 }
 
 const LINKS: { view: View; code: string; label: string }[] = [
-  { view: "nodes", code: "NOD", label: "Nodes" },
-  { view: "policies", code: "POL", label: "Policies" },
   { view: "settings", code: "SET", label: "Settings" },
+  { view: "modes", code: "MOD", label: "Modes" },
+  { view: "policy", code: "POL", label: "Policy" },
+  { view: "nodes", code: "NOD", label: "Nodes" },
+  { view: "observability", code: "OBS", label: "Observability" },
 ];
 
 export function TerminalNav({ active, running, onNavigate }: Props) {
   return (
-    <aside className="terminal-nav" aria-label="Main navigation">
-      <button className="brand-mark" type="button" onClick={() => onNavigate("policies")} aria-label="ProductivityProxy home">
-        PX
-      </button>
-      <nav className="nav-list">
+    <header className="terminal-head">
+      <div className="title-row">
+        <button className="brand-button" type="button" onClick={() => onNavigate("settings")}>ProductivityProxy</button>
+        <span className={running ? "run-state on" : "run-state"} aria-live="polite">
+          <span className="led" aria-hidden="true" /> Proxy: {running ? "RUNNING" : "STOPPED"}
+        </span>
+        <span className="version">v0.1.0-local</span>
+        <span className="window-dots" aria-hidden="true">— □ ×</span>
+      </div>
+      <nav className="tab-row" aria-label="Main navigation">
         {LINKS.map((link) => (
           <button
-            className={active === link.view ? "nav-link active" : "nav-link"}
+            className={active === link.view ? "tab active" : "tab"}
             key={link.view}
             type="button"
             onClick={() => onNavigate(link.view)}
             aria-current={active === link.view ? "page" : undefined}
           >
-            <strong>{link.code}</strong>
-            <span>{link.label}</span>
+            <span>{link.code}</span>
+            {link.label}
           </button>
         ))}
       </nav>
-      <div className="nav-status" aria-live="polite">
-        <span className={running ? "status-led on" : "status-led"} aria-hidden="true" />
-        <span>{running ? "Running" : "Idle"}</span>
-        <small>v0.1.0</small>
-      </div>
-    </aside>
+    </header>
   );
 }

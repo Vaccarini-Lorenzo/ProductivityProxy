@@ -1,62 +1,93 @@
 import { useState } from "react";
 import type { CustomNodeConfig } from "../models/config/types";
 
+export interface SaveNodeInput {
+  id?: string;
+  name: string;
+  fileName: string;
+  code: string;
+}
+
 interface Props {
   nodes: CustomNodeConfig[];
-  onSave: (name: string, fileName: string, code: string) => void;
+  onSave: (input: SaveNodeInput) => Promise<void>;
+  onRead: (path: string) => Promise<string>;
   onDelete: (id: string) => void;
 }
 
-const DEFAULT_CODE = "def run(input, context, params):\n    return input\n";
+const DEFAULT_CODE = `def run(input, context, params):
+    context.log.info("custom node executed")
+    return input
+`;
 
-export function NodesView({ nodes, onSave, onDelete }: Props) {
+export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
+  const [editingId, setEditingId] = useState<string | undefined>();
   const [name, setName] = useState("Custom node");
   const [fileName, setFileName] = useState("custom_node.py");
   const [code, setCode] = useState(DEFAULT_CODE);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const [search, setSearch] = useState("");
+  const visibleNodes = nodes.filter((node) => `${node.name} ${node.path}`.toLowerCase().includes(search.toLowerCase()));
 
-  function handleEdit(node: CustomNodeConfig) {
-    setEditing(node.id);
+  async function editNode(node: CustomNodeConfig) {
+    setEditingId(node.id);
     setName(node.name);
-    setFileName(node.path.split("/").pop() ?? "custom_node.py");
+    setFileName(node.path.split("/").pop() ?? `${node.id}.py`);
+    setMessage("Loading node source…");
+    try {
+      setCode(await onRead(node.path));
+      setMessage("");
+    } catch (error) {
+      setCode(DEFAULT_CODE);
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
   }
 
-  function handleSubmit() {
-    onSave(name, fileName, code);
-    setEditing(null);
+  async function saveNode() {
+    await onSave({ id: editingId, name, fileName, code });
+    resetForm();
+  }
+
+  function resetForm() {
+    setEditingId(undefined);
     setName("Custom node");
     setFileName("custom_node.py");
     setCode(DEFAULT_CODE);
+    setMessage("");
   }
 
   return (
-    <div className="view-stack">
-      <header className="view-header">
-        <p className="eyebrow">Custom Python nodes</p>
-        <h1>Nodes</h1>
-      </header>
-
-      <section className="panel" aria-labelledby="node-list-heading">
-        <h2 id="node-list-heading">Registered nodes</h2>
-        {nodes.length === 0 ? <p className="muted">No custom nodes yet.</p> : null}
-        <div className="block-list">
-          {nodes.map((node) => (
-            <div className="block-row" key={node.id}>
-              <div>
+    <div className="nodes-layout">
+      <section className="terminal-card node-list-card" aria-labelledby="node-list-heading">
+        <div className="section-head">
+          <div>
+            <p className="command">$ ppx node list</p>
+            <h1 id="node-list-heading">Custom nodes</h1>
+          </div>
+          <button type="button" onClick={resetForm}>$ ppx node new</button>
+        </div>
+        <label className="search-box">
+          <span className="sr-only">Search nodes</span>
+          <input placeholder="Search nodes…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </label>
+        <div className="table-list" role="list">
+          {visibleNodes.map((node) => (
+            <article className={node.id === editingId ? "table-row selected" : "table-row"} key={node.id} role="listitem">
+              <button className="row-main" type="button" onClick={() => editNode(node)}>
                 <strong>{node.name}</strong>
-                <span>{node.path}</span>
-              </div>
-              <div className="button-row">
-                <button type="button" onClick={() => handleEdit(node)}>Edit</button>
-                <button className="danger" type="button" onClick={() => onDelete(node.id)}>Delete</button>
-              </div>
-            </div>
+                <small>{node.path}</small>
+              </button>
+              <span className="tag">{node.path.includes("/defaults/") ? "default" : "custom"}</span>
+              <button className="danger small" type="button" onClick={() => onDelete(node.id)}>delete</button>
+            </article>
           ))}
+          {visibleNodes.length === 0 && <p className="muted">No matching nodes.</p>}
         </div>
       </section>
 
-      <section className="panel" aria-labelledby="new-node-heading">
-        <h2 id="new-node-heading">{editing ? `Editing: ${name}` : "New node"}</h2>
+      <section className="terminal-card code-card" aria-labelledby="node-editor-heading">
+        <div className="editor-tab">{fileName}<span>×</span></div>
+        <h2 id="node-editor-heading">{editingId ? `Editing ${name}` : "New node"}</h2>
         <div className="form-grid">
           <label className="field">
             <span>Name</span>
@@ -69,11 +100,13 @@ export function NodesView({ nodes, onSave, onDelete }: Props) {
         </div>
         <label className="field">
           <span>Python code</span>
-          <textarea className="code-input" value={code} onChange={(e) => setCode(e.target.value)} />
+          <textarea className="code-input node-code" value={code} spellCheck={false} onChange={(e) => setCode(e.target.value)} />
         </label>
-        <button className="primary" type="button" style={{ marginTop: 16 }} onClick={handleSubmit}>
-          {editing ? "Update node" : "Save node"}
-        </button>
+        <div className="actions">
+          <button className="primary" type="button" onClick={saveNode}>{editingId ? "$ ppx node update" : "$ ppx node save"}</button>
+          <button type="button" onClick={resetForm}>clear</button>
+          {message && <span className="message">{message}</span>}
+        </div>
       </section>
     </div>
   );

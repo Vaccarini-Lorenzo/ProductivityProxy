@@ -5,6 +5,11 @@ export interface ProxyStatus {
   running: boolean;
 }
 
+export interface NetworkInfo {
+  localHost: string;
+  lanHost?: string;
+}
+
 export type ProxyEvent = Record<string, unknown>;
 
 export interface EventQuery {
@@ -32,6 +37,10 @@ export function stopProxy(client: CommandClient): Promise<void> {
 
 export function getProxyStatus(client: CommandClient): Promise<ProxyStatus> {
   return client.invoke<ProxyStatus>("proxy_status");
+}
+
+export function getNetworkInfo(client: CommandClient): Promise<NetworkInfo> {
+  return client.invoke<NetworkInfo>("network_info");
 }
 
 export function readRecentEvents(client: CommandClient, limit: number): Promise<ProxyEvent[]> {

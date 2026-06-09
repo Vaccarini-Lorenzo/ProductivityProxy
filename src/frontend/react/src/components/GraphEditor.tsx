@@ -40,6 +40,7 @@ interface Props {
 
 export function GraphEditor({ policy, customNodes, onPolicyChange, onAddStep }: Props) {
   const [panMode, setPanMode] = useState(false);
+  const hasStart = policy.steps.some((step) => step.kind === "node" && step.type === "start");
 
   useEffect(() => {
     const updatePanMode = (event: KeyboardEvent) => setPanMode(event.altKey);
@@ -64,7 +65,7 @@ export function GraphEditor({ policy, customNodes, onPolicyChange, onAddStep }: 
       id: step.id,
       type: "policyNode",
       position: step.position ?? { x: 80 + index * 180, y: 120 },
-      data: { label: stepLabel(step.kind, step.type), subLabel: step.id },
+      data: { label: stepLabel(step.kind, step.type), subLabel: step.id, kind: step.kind, type: step.type },
       width: NODE_WIDTH,
       height: NODE_HEIGHT,
       sourcePosition: Position.Right,
@@ -128,9 +129,9 @@ export function GraphEditor({ policy, customNodes, onPolicyChange, onAddStep }: 
           <h2 id="graph-heading">{policy.name}</h2>
         </div>
         <div className="button-row">
-          {BUILT_IN_NODES.map((type) => <button key={type} type="button" onClick={() => onAddStep("node", type)}>[+] {type}</button>)}
-          {OPERATORS.map((type) => <button key={type} type="button" onClick={() => onAddStep("operator", type)}>[+] {type}</button>)}
-          {customNodes.map((node) => <button key={node.id} type="button" onClick={() => onAddStep("node", node.id)}>[+] {node.name}</button>)}
+          {BUILT_IN_NODES.map((type) => <button key={type} type="button" disabled={type === "start" && hasStart} onClick={() => onAddStep("node", type)}>$ add {type}</button>)}
+          {OPERATORS.map((type) => <button key={type} type="button" onClick={() => onAddStep("operator", type)}>$ add {type}</button>)}
+          {customNodes.map((node) => <button key={node.id} type="button" onClick={() => onAddStep("node", node.id)}>$ add {node.name}</button>)}
         </div>
       </div>
       <div className={panMode ? "flow-canvas pan-mode" : "flow-canvas"}>
@@ -175,11 +176,11 @@ export function GraphEditor({ policy, customNodes, onPolicyChange, onAddStep }: 
 }
 
 function PolicyNode({ data }: NodeProps) {
-  const nodeData = data as { label: string; subLabel: string };
-  const receivesInput = !nodeData.label.endsWith(":start");
-  const sendsOutput = !nodeData.label.endsWith(":end");
+  const nodeData = data as { label: string; subLabel: string; kind: string; type: string };
+  const receivesInput = !(nodeData.kind === "node" && nodeData.type === "start");
+  const sendsOutput = !(nodeData.kind === "node" && nodeData.type === "end");
   return (
-    <div className="policy-node">
+    <div className={`policy-node ${nodeData.kind}`}>
       {receivesInput && <Handle id="in" type="target" position={Position.Left} isConnectableStart={false} title="Input port" />}
       <strong>{nodeData.label}</strong>
       <span>{nodeData.subLabel}</span>
@@ -212,7 +213,7 @@ function DeletableEdge(props: EdgeProps) {
             onPointerDown={(event) => { event.stopPropagation(); data?.onDelete?.(props.id); }}
             type="button"
           >
-            🗑
+            del
           </button>
         </div>
       </EdgeLabelRenderer>

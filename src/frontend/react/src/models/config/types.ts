@@ -31,6 +31,7 @@ export interface PolicyConfig {
 export interface ModeConfig {
   id: string;
   name: string;
+  description?: string;
   policies: PolicyConfig[];
 }
 

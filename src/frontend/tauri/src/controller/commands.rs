@@ -65,9 +65,33 @@ pub fn write_app_config(app: AppHandle, config: Value) -> Result<(), String> {
 pub fn write_custom_node(app: AppHandle, file_name: String, code: String) -> Result<String, String> {
     let paths = paths_for_app(&app)?;
     fs::create_dir_all(&paths.custom_nodes_dir).map_err(to_string)?;
-    let path = paths.custom_nodes_dir.join(file_name);
+    let safe_name = Path::new(&file_name)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "invalid custom node file name".to_string())?;
+    if safe_name.is_empty() || safe_name == "." || safe_name == ".." {
+        return Err("invalid custom node file name".to_string());
+    }
+    let path = paths.custom_nodes_dir.join(safe_name);
     fs::write(&path, code).map_err(to_string)?;
     Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn read_custom_node(app: AppHandle, path: String) -> Result<String, String> {
+    let paths = paths_for_app(&app)?;
+    let requested = PathBuf::from(path).canonicalize().map_err(to_string)?;
+    let custom_dir = paths.custom_nodes_dir.canonicalize().ok();
+    let defaults_dir = discover_repo_root()?
+        .join("src/proxy/defaults/nodes")
+        .canonicalize()
+        .map_err(to_string)?;
+    let allowed = requested.starts_with(defaults_dir)
+        || custom_dir.as_ref().is_some_and(|dir| requested.starts_with(dir));
+    if !allowed {
+        return Err("custom node path is outside allowed directories".to_string());
+    }
+    fs::read_to_string(requested).map_err(to_string)
 }
 
 #[tauri::command]
