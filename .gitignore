@@ -1,0 +1,31 @@
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Runtime output
+/data/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# Editor temp files
+*.swp
+*.swo
