@@ -49,3 +49,7 @@ path = "../../../test/unit/frontend/tauri/proxy/proxy_process.rs"
 [[test]]
 name = "tauri_tray_actions"
 path = "../../../test/unit/frontend/tauri/tray/tray_actions.rs"
+
+[[test]]
+name = "tauri_system_proxy"
+path = "../../../test/unit/frontend/tauri/system_proxy/networksetup.rs"

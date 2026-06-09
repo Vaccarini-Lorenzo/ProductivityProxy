@@ -62,7 +62,10 @@ fn create_tray(app: &mut tauri::App) -> tauri::Result<()> {
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match TrayAction::from_menu_id(event.id().as_ref()) {
             Some(TrayAction::OpenDashboard) => show_dashboard(app),
-            Some(TrayAction::Quit) => app.exit(0),
+            Some(TrayAction::Quit) => {
+                let _ = stop_proxy(app.state::<AppState>());
+                app.exit(0);
+            }
             None => {}
         });
 
