@@ -252,8 +252,8 @@ button + button, .field + button { margin-top: 0; }
   letter-spacing: 0.08em;
   pointer-events: none;
 }
-.react-flow__handle-left::after { content: "IN"; right: 28px; }
-.react-flow__handle-right::after { content: "OUT"; left: 28px; }
+.react-flow__handle-left::after { content: "IN"; left: 28px; }
+.react-flow__handle-right::after { content: "OUT"; right: 28px; }
 .graph-hint { margin-top: 10px; font-size: 0.75rem; text-align: center; }
 
 /* Operators */

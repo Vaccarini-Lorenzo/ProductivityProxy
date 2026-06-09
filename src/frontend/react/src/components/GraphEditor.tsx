@@ -17,6 +17,7 @@ import {
   type OnEdgesChange,
   type OnConnect,
   type NodeProps,
+  type NodeHandle,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { ModeConfig, PolicyGraph } from "../models/config/types";
@@ -57,10 +58,7 @@ export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
       height: NODE_HEIGHT,
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
-      handles: [
-        { id: "out", type: "source", position: Position.Right, x: NODE_WIDTH - 11, y: NODE_HEIGHT / 2 - 11, width: 22, height: 22 },
-        { id: "in", type: "target", position: Position.Left, x: -11, y: NODE_HEIGHT / 2 - 11, width: 22, height: 22 },
-      ],
+      handles: policyHandles(n.type),
     })),
     [mode.graph.nodes],
   );
@@ -162,17 +160,31 @@ export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
 }
 
 function PolicyNode({ data }: NodeProps) {
+  const nodeData = data as { label: string; subLabel: string };
+  const receivesInput = nodeData.label !== "start";
+  const sendsOutput = nodeData.label !== "end";
   return (
     <div className="policy-node">
-      <Handle id="in" type="target" position={Position.Left} title="Input port" />
-      <strong>{(data as { label: string }).label}</strong>
-      <span>{(data as { subLabel: string }).subLabel}</span>
-      <Handle id="out" type="source" position={Position.Right} title="Output port" />
+      {receivesInput && <Handle id="in" type="target" position={Position.Left} isConnectableStart={false} title="Input port" />}
+      <strong>{nodeData.label}</strong>
+      <span>{nodeData.subLabel}</span>
+      {sendsOutput && <Handle id="out" type="source" position={Position.Right} isConnectableEnd={false} title="Output port" />}
     </div>
   );
 }
 
 const nodeTypes = { policyNode: PolicyNode };
+
+function policyHandles(type: string): NodeHandle[] {
+  const handles: NodeHandle[] = [];
+  if (type !== "end") {
+    handles.push({ id: "out", type: "source", position: Position.Right, x: NODE_WIDTH - 11, y: NODE_HEIGHT / 2 - 11, width: 22, height: 22 });
+  }
+  if (type !== "start") {
+    handles.push({ id: "in", type: "target", position: Position.Left, x: -11, y: NODE_HEIGHT / 2 - 11, width: 22, height: 22 });
+  }
+  return handles;
+}
 
 export function paramsToText(params: Record<string, unknown> | undefined): string {
   return JSON.stringify(params ?? {}, null, 2);
