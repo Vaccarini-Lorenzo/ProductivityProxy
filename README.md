@@ -41,6 +41,20 @@ source .env
 set +a
 ```
 
+Set proxy authentication in `.env`:
+
+```bash
+export PRODUCTIVE_PROXY_AUTH_ENABLED="true"
+export PRODUCTIVE_PROXY_AUTH_USERNAME="productive"
+export PRODUCTIVE_PROXY_AUTH_PASSWORD="use-a-real-password-here"
+```
+
+For clients that do not support proxy auth, disable it:
+
+```bash
+export PRODUCTIVE_PROXY_AUTH_ENABLED="false"
+```
+
 All runtime settings are required environment variables. The addon fails fast if one is missing.
 
 ## Run
@@ -54,7 +68,11 @@ Then configure your client device/browser to use:
 ```text
 HTTP proxy:  <Mac IP>:8080
 HTTPS proxy: <Mac IP>:8080
+Username:    PRODUCTIVE_PROXY_AUTH_USERNAME  # only when auth is enabled
+Password:    PRODUCTIVE_PROXY_AUTH_PASSWORD  # only when auth is enabled
 ```
+
+Most browsers will prompt for the username and password when auth is enabled. On macOS proxy settings, enable the password/authentication option for both HTTP and HTTPS proxies if available.
 
 For local Mac-only testing, use:
 
@@ -87,6 +105,8 @@ Configured by `.env.example`:
 
 ## Notes
 
+- Proxy authentication uses HTTP Basic auth. Use this on trusted networks only.
+- If `PRODUCTIVE_PROXY_AUTH_ENABLED="false"`, anyone on the same network who can reach the proxy can use it.
 - Android apps may not trust user-installed CAs.
 - Some apps use certificate pinning and will not work through TLS interception.
 - YouTube app traffic may not be fully controllable if the app rejects the mitmproxy CA.
