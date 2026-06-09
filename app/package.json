@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 1420",
     "build": "tsc && vite build",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
