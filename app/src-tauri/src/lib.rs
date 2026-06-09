@@ -1,0 +1,67 @@
+pub mod controller;
+pub mod models;
+pub mod services;
+
+use controller::tray::actions::TrayAction;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
+use tauri::{Manager, WindowEvent};
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .setup(|app| {
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
+            if cfg!(debug_assertions) {
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                )?;
+            }
+
+            create_tray(app)?;
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running ProductivityProxy");
+}
+
+fn create_tray(app: &mut tauri::App) -> tauri::Result<()> {
+    let open = MenuItem::with_id(app, "open_dashboard", "Open Dashboard", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&open, &quit])?;
+
+    let mut tray = TrayIconBuilder::with_id("main")
+        .menu(&menu)
+        .tooltip("ProductivityProxy")
+        .show_menu_on_left_click(true)
+        .on_menu_event(|app, event| match TrayAction::from_menu_id(event.id().as_ref()) {
+            Some(TrayAction::OpenDashboard) => show_dashboard(app),
+            Some(TrayAction::Quit) => app.exit(0),
+            None => {}
+        });
+
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone()).icon_as_template(true);
+    }
+
+    tray.build(app)?;
+
+    Ok(())
+}
+
+fn show_dashboard(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}

@@ -7,6 +7,12 @@
 /data/
 *.log
 
+# App build output
+app/node_modules/
+app/dist/
+app/src-tauri/target/
+app/src-tauri/gen/
+
 # Python
 __pycache__/
 *.py[cod]

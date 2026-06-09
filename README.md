@@ -1,122 +1,107 @@
-# ProductiveProxy mitmproxy policies
+# ProductivityProxy
 
-This repo contains a small `mitmproxy` addon for local explicit-proxy use on macOS.
+ProductivityProxy is becoming a dockless Tauri + React tray app that controls a local `mitmproxy` proxy.
 
-## Policies currently implemented
+The long-term goal is a visual policy graph editor where modes like `Productivity` and `Chilling` are built from blocks.
 
-1. **Block YouTube Shorts**
-   - Blocks requests to configured YouTube hosts when the request path, referrer, or request body matches configured Shorts markers.
-   - Default example markers: `/shorts`, `/youtubei/v1/reel`, `/api/stats/shorts`.
+## Current architecture
 
-2. **Track and limit Reddit time**
-   - Tracks Reddit activity by measuring gaps between Reddit requests.
-   - If two Reddit requests are less than `PRODUCTIVE_PROXY_REDDIT_IDLE_SECONDS` apart, the gap is counted as active time.
-   - Blocks Reddit after `PRODUCTIVE_PROXY_REDDIT_DAILY_LIMIT_SECONDS` has been reached.
-   - Default daily limit: `1800` seconds, or 30 minutes.
-   - This is an approximation. It does not know true foreground/app focus time.
+```text
+app/                 Tauri v2 + React desktop app
+proxy/               Python mitmproxy graph policy engine
+scripts/             dev helper scripts
+tests/               Python proxy engine tests
+docs/                design/build docs
+```
 
-## Install
+The app is the controller. The proxy logic stays in Python and runs inside `mitmdump`.
+
+## Implemented so far
+
+- Dockless Tauri shell:
+  - hidden dashboard at startup,
+  - tray/menu-bar icon,
+  - close hides the dashboard instead of quitting,
+  - macOS accessory activation policy.
+- React dashboard shell.
+- Python graph policy engine:
+  - graph nodes and edges,
+  - built-in nodes: `block`, `log`, `track_time`, `notify`, `redirect`, `if`, `switch`, `start`, `end`,
+  - arbitrary custom Python blocks loaded from files,
+  - no custom-code sandboxing.
+- Rust proxy command helpers:
+  - build `mitmdump` arguments,
+  - process start/stop service.
+- Dev `mitmdump` script using graph config files instead of policy env vars.
+
+## Install prerequisites
 
 ```bash
 brew install mitmproxy
 ```
 
-or:
+Rust, Node, and npm are also required for the desktop app.
+
+## Run tests
+
+Python proxy engine:
 
 ```bash
-python3 -m pip install -r requirements.txt
+python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-## Configure
-
-Copy the example env file:
+React app:
 
 ```bash
-cp .env.example .env
+cd app
+npm test
+npm run build
 ```
 
-Then load it in your shell:
+Rust/Tauri backend:
+
+```bash
+cd app/src-tauri
+cargo test
+```
+
+Tauri compile check:
+
+```bash
+cd app
+npx tauri build --debug --no-bundle
+```
+
+## Run the dev proxy directly
 
 ```bash
 set -a
-source .env
+source .env.example
 set +a
-```
 
-Set proxy authentication in `.env`:
-
-```bash
-export PRODUCTIVE_PROXY_AUTH_ENABLED="true"
-export PRODUCTIVE_PROXY_AUTH_USERNAME="productive"
-export PRODUCTIVE_PROXY_AUTH_PASSWORD="use-a-real-password-here"
-```
-
-For clients that do not support proxy auth, disable it:
-
-```bash
-export PRODUCTIVE_PROXY_AUTH_ENABLED="false"
-```
-
-Set the Reddit daily limit in `.env`:
-
-```bash
-export PRODUCTIVE_PROXY_REDDIT_DAILY_LIMIT_SECONDS="1800"
-```
-
-All runtime settings are required environment variables. The addon fails fast if one is missing.
-
-## Run
-
-```bash
 ./scripts/run_mitm.sh
 ```
 
-Then configure your client device/browser to use:
+Default config:
 
 ```text
-HTTP proxy:  <Mac IP>:8080
-HTTPS proxy: <Mac IP>:8080
-Username:    PRODUCTIVE_PROXY_AUTH_USERNAME  # only when auth is enabled
-Password:    PRODUCTIVE_PROXY_AUTH_PASSWORD  # only when auth is enabled
+proxy/defaults/default_config.json
 ```
 
-Most browsers will prompt for the username and password when auth is enabled. On macOS proxy settings, enable the password/authentication option for both HTTP and HTTPS proxies if available.
+The default config is intentionally minimal for now.
 
-For local Mac-only testing, use:
+## Run the desktop app
 
-```text
-127.0.0.1:8080
+```bash
+cd app
+npm run tauri dev
 ```
 
-## Install the mitmproxy CA
-
-With the proxy configured, open this on the client device:
-
-```text
-http://mitm.it
-```
-
-Install and trust the mitmproxy CA certificate.
-
-## Output files
-
-Configured by `.env.example`:
-
-```text
-./data/productive_proxy_state.json
-./data/productive_proxy_events.jsonl
-```
-
-`productive_proxy_state.json` contains Reddit totals.
-
-`productive_proxy_events.jsonl` contains policy events, including blocked Shorts requests, Reddit activity events, and Reddit daily-limit blocks.
+The dashboard starts hidden. Use the tray/menu-bar icon to open it.
 
 ## Notes
 
-- Proxy authentication uses HTTP Basic auth. Use this on trusted networks only.
-- If `PRODUCTIVE_PROXY_AUTH_ENABLED="false"`, anyone on the same network who can reach the proxy can use it.
-- Android apps may not trust user-installed CAs.
-- Some apps use certificate pinning and will not work through TLS interception.
-- YouTube app traffic may not be fully controllable if the app rejects the mitmproxy CA.
-- The Reddit timer is request-based, not a true screen-time tracker.
-- Reddit daily totals are currently grouped by UTC date.
+- Custom Python blocks run with local process permissions and mitmproxy SDK access.
+- Graph loops are allowed and currently have no loop guard.
+- Auto-changing macOS/Linux system proxy settings is postponed.
+- Bundling mitmproxy inside the app is postponed.

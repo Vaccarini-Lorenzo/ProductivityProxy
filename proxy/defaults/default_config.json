@@ -1,0 +1,39 @@
+{
+  "activeModeId": "productivity",
+  "proxy": {
+    "port": 8080,
+    "allowLan": false,
+    "authEnabled": false,
+    "authUsername": "productive",
+    "authPassword": "change-me"
+  },
+  "modes": [
+    {
+      "id": "productivity",
+      "name": "Productivity",
+      "graph": {
+        "nodes": [
+          { "id": "productivity-start", "type": "start" },
+          { "id": "productivity-end", "type": "end" }
+        ],
+        "edges": [
+          { "from": "productivity-start", "output": "next", "to": "productivity-end" }
+        ]
+      }
+    },
+    {
+      "id": "chilling",
+      "name": "Chilling",
+      "graph": {
+        "nodes": [
+          { "id": "chilling-start", "type": "start" },
+          { "id": "chilling-end", "type": "end" }
+        ],
+        "edges": [
+          { "from": "chilling-start", "output": "next", "to": "chilling-end" }
+        ]
+      }
+    }
+  ],
+  "customBlocks": []
+}
