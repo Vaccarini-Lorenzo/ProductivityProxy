@@ -3,31 +3,40 @@ import { describe, expect, it } from "vitest";
 
 import { createDefaultConfig } from "@app/models/config/defaultConfig";
 import { GraphEditor, paramsToText } from "@app/components/GraphEditor";
+import { NodeLibrary } from "@app/components/NodeLibrary";
 
 describe("GraphEditor", () => {
-  it("renders policy panel with nodes and operators", () => {
+  it("renders the policy steps as graph nodes", () => {
     const config = createDefaultConfig();
     const policy = config.modes[0].policies[0];
 
     const markup = renderToStaticMarkup(
       <GraphEditor
         policy={policy}
-        customNodes={[]}
-        selectedStepId={null}
+        openStepId={null}
         onPolicyChange={() => undefined}
-        onAddStep={() => undefined}
-        onSelectStep={() => undefined}
+        onOpenStep={() => undefined}
         onDeleteStep={() => undefined}
       />,
     );
 
-    expect(markup).toContain("Block YouTube Shorts");
     expect(markup).toContain("start");
-    expect(markup).toContain("Library");
-    expect(markup).toContain("If / Then / Else");
+    expect(markup).toContain("end");
   });
 
   it("formats params as editable JSON", () => {
     expect(paramsToText({ message: "Blocked" })).toContain("Blocked");
+  });
+});
+
+describe("NodeLibrary", () => {
+  it("lists flow, logic, and custom nodes", () => {
+    const markup = renderToStaticMarkup(
+      <NodeLibrary customNodes={[]} hasStart={false} onAddStep={() => undefined} />,
+    );
+
+    expect(markup).toContain("Flow");
+    expect(markup).toContain("If / Then / Else");
+    expect(markup).toContain("Switch");
   });
 });

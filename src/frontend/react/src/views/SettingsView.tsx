@@ -1,5 +1,6 @@
 import type { ProxyConfig } from "../models/config/types";
 import type { NetworkInfo } from "../services/proxy/proxyRepository";
+import { Card, CheckRow, Field, PageHeader } from "../components/ui";
 
 interface Props {
   proxy: ProxyConfig;
@@ -15,62 +16,49 @@ export function SettingsView({ proxy, running, network, onChange, onStart, onSto
 
   return (
     <div className="page-stack">
-      <section className="page-title">
-        <p className="eyebrow">Configuration</p>
-        <h1>Settings</h1>
-      </section>
+      <PageHeader eyebrow="Configuration" title="Settings" subtitle="Control the local proxy and how it accepts connections." />
 
-      <section className="terminal-card" aria-labelledby="proxy-heading">
-        <p className="command">$ ppx status</p>
-        <h2 id="proxy-heading">Proxy control</h2>
-        <div className="settings-summary">
-          <dl className="status-list">
-            <div><dt>State</dt><dd className={running ? "hot" : undefined}>{running ? "RUNNING" : "STOPPED"}</dd></div>
-            <div><dt>Listening</dt><dd>{host}:{proxy.port}</dd></div>
-            <div><dt>Auth</dt><dd>{proxy.authEnabled ? "enabled" : "disabled"}</dd></div>
-            <div><dt>LAN</dt><dd>{proxy.allowLan ? "enabled" : "local only"}</dd></div>
-          </dl>
-          <div className="actions">
-            <button className="primary" type="button" onClick={onStart} disabled={running}>$ ppx start</button>
-            <button type="button" onClick={onStop} disabled={!running}>$ ppx stop</button>
-          </div>
+      <Card title="Proxy control">
+        <div className="status-grid">
+          <div><dt>State</dt><dd className={running ? "ok" : undefined}>{running ? "Running" : "Stopped"}</dd></div>
+          <div><dt>Address</dt><dd>{host}:{proxy.port}</dd></div>
+          <div><dt>Authentication</dt><dd>{proxy.authEnabled ? "Enabled" : "Disabled"}</dd></div>
+          <div><dt>LAN access</dt><dd>{proxy.allowLan ? "Enabled" : "Local only"}</dd></div>
         </div>
-      </section>
+        <div className="actions">
+          <button className="primary" type="button" onClick={onStart} disabled={running}>Start proxy</button>
+          <button type="button" onClick={onStop} disabled={!running}>Stop proxy</button>
+        </div>
+      </Card>
 
-      <section className="terminal-card" aria-labelledby="network-heading">
-        <p className="eyebrow">Network</p>
-        <h2 id="network-heading">Connection</h2>
-        <div className="form-grid">
-          <label className="field">
-            <span>Listen port</span>
-            <input type="number" min="1" max="65535" value={proxy.port} onChange={(e) => onChange({ ...proxy, port: Number(e.target.value) })} />
-          </label>
-          <label className="switch-field">
-            <input type="checkbox" checked={proxy.allowLan} onChange={(e) => onChange({ ...proxy, allowLan: e.target.checked })} />
-            <span>Allow LAN connections</span>
-          </label>
-        </div>
-        <p className="inline-note">Bound to: {host}:{proxy.port}</p>
-      </section>
+      <Card title="Connection">
+        <Field label="Listen port" className="field-narrow">
+          <input type="number" min="1" max="65535" value={proxy.port} onChange={(e) => onChange({ ...proxy, port: Number(e.target.value) })} />
+        </Field>
+        <CheckRow
+          checked={proxy.allowLan}
+          onChange={(allowLan) => onChange({ ...proxy, allowLan })}
+          label="Allow LAN connections"
+          hint={`Other devices on your network can use the proxy at ${host}:${proxy.port}.`}
+        />
+      </Card>
 
-      <section className="terminal-card" aria-labelledby="auth-heading">
-        <p className="eyebrow">Access</p>
-        <h2 id="auth-heading">Authentication</h2>
-        <div className="form-grid">
-          <label className="switch-field">
-            <input type="checkbox" checked={proxy.authEnabled} onChange={(e) => onChange({ ...proxy, authEnabled: e.target.checked })} />
-            <span>Require token auth</span>
-          </label>
-          <label className="field">
-            <span>Username</span>
-            <input value={proxy.authUsername} onChange={(e) => onChange({ ...proxy, authUsername: e.target.value })} />
-          </label>
-          <label className="field">
-            <span>Password</span>
-            <input type="password" value={proxy.authPassword} onChange={(e) => onChange({ ...proxy, authPassword: e.target.value })} />
-          </label>
-        </div>
-      </section>
+      <Card title="Authentication">
+        <CheckRow
+          checked={proxy.authEnabled}
+          onChange={(authEnabled) => onChange({ ...proxy, authEnabled })}
+          label="Require username and password"
+          hint="Clients must authenticate before the proxy forwards their traffic."
+        />
+        <fieldset className="form-grid credentials" disabled={!proxy.authEnabled}>
+          <Field label="Username">
+            <input autoComplete="off" value={proxy.authUsername} onChange={(e) => onChange({ ...proxy, authUsername: e.target.value })} />
+          </Field>
+          <Field label="Password">
+            <input type="password" autoComplete="new-password" value={proxy.authPassword} onChange={(e) => onChange({ ...proxy, authPassword: e.target.value })} />
+          </Field>
+        </fieldset>
+      </Card>
     </div>
   );
 }

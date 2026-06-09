@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppConfig } from "../models/config/types";
 import type { CommandClient } from "../services/config/configRepository";
 import { queryEvents, type EventQuery, type ProxyEvent } from "../services/proxy/proxyRepository";
+import { Card, Field, Modal, PageHeader, Toggle, count } from "../components/ui";
 
 interface Props {
   client: CommandClient;
@@ -25,11 +26,11 @@ const EVENT_TYPES = ["", "config_loaded", "config_rejected", "request_started", 
 export function ObservabilityView({ client, config }: Props) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [events, setEvents] = useState<ProxyEvent[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [message, setMessage] = useState("");
   const policies = useMemo(() => config.modes.flatMap((mode) => mode.policies), [config.modes]);
-  const selected = events[selectedIndex];
+  const selected = openIndex === null ? undefined : events[openIndex];
   const requestId = text(selected, "requestId");
   const timeline = requestId ? events.filter((e) => text(e, "requestId") === requestId) : [];
 
@@ -37,8 +38,7 @@ export function ObservabilityView({ client, config }: Props) {
     try {
       const result = await queryEvents(client, toQuery(filters));
       setEvents(result);
-      setSelectedIndex((i) => Math.min(i, Math.max(result.length - 1, 0)));
-      setMessage(`${result.length} events`);
+      setMessage("");
     } catch (error) {
       const value = error instanceof Error ? error.message : String(error);
       setMessage(value.includes("invoke") ? "Browser preview — Tauri unavailable" : value);
@@ -56,73 +56,72 @@ export function ObservabilityView({ client, config }: Props) {
     setFilters((f) => ({ ...f, [key]: value }));
   }
 
+  const toolbar = (
+    <>
+      <span className="count-pill">{count(events.length, "event")}</span>
+      <Toggle checked={autoRefresh} onChange={setAutoRefresh} label="Auto-refresh" />
+      <button type="button" onClick={load}>Refresh</button>
+    </>
+  );
+
   return (
     <div className="page-stack">
-      <section className="page-title">
-        <p className="eyebrow">Observability</p>
-        <h1>Policy trace</h1>
-      </section>
+      <PageHeader eyebrow="Observability" title="Policy trace" subtitle="Inspect requests, policy steps, and custom-node logs." />
 
-      <section className="terminal-card" aria-labelledby="filters-heading">
-        <div className="section-head">
-          <h2 id="filters-heading">Filters</h2>
-          <div className="actions compact">
-            <label className="switch-field inline"><input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} /><span>Auto</span></label>
-            <button type="button" onClick={load}>refresh</button>
-            <span className="message">{message}</span>
-          </div>
-        </div>
+      <Card title="Filters" actions={toolbar}>
         <div className="form-grid dense-grid">
-          <F label="Limit"><input type="number" min="1" max="1000" value={filters.limit} onChange={(e) => update("limit", Number(e.target.value))} /></F>
-          <F label="Category"><select value={filters.category} onChange={(e) => update("category", e.target.value)}><option value="">any</option><option value="observability">observability</option><option value="custom_node">custom_node</option></select></F>
-          <F label="Type"><select value={filters.type} onChange={(e) => update("type", e.target.value)}>{EVENT_TYPES.map((t) => <option key={t} value={t}>{t || "any"}</option>)}</select></F>
-          <F label="Level"><select value={filters.level} onChange={(e) => update("level", e.target.value)}><option value="">any</option><option value="debug">debug</option><option value="info">info</option><option value="warning">warning</option><option value="error">error</option></select></F>
-          <F label="Policy"><select value={filters.policyId} onChange={(e) => update("policyId", e.target.value)}><option value="">any</option>{policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></F>
-          <F label="Request ID"><input value={filters.requestId} onChange={(e) => update("requestId", e.target.value)} placeholder="hex" /></F>
-          <F label="Minutes"><input value={filters.windowMinutes} onChange={(e) => update("windowMinutes", e.target.value)} placeholder="15" /></F>
-          <F label="Search"><input value={filters.search} onChange={(e) => update("search", e.target.value)} placeholder="keyword" /></F>
+          <Field label="Limit"><input type="number" min="1" max="1000" value={filters.limit} onChange={(e) => update("limit", Number(e.target.value))} /></Field>
+          <Field label="Category"><select value={filters.category} onChange={(e) => update("category", e.target.value)}><option value="">any</option><option value="observability">observability</option><option value="custom_node">custom_node</option></select></Field>
+          <Field label="Type"><select value={filters.type} onChange={(e) => update("type", e.target.value)}>{EVENT_TYPES.map((t) => <option key={t} value={t}>{t || "any"}</option>)}</select></Field>
+          <Field label="Level"><select value={filters.level} onChange={(e) => update("level", e.target.value)}><option value="">any</option><option value="debug">debug</option><option value="info">info</option><option value="warning">warning</option><option value="error">error</option></select></Field>
+          <Field label="Policy"><select value={filters.policyId} onChange={(e) => update("policyId", e.target.value)}><option value="">any</option>{policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
+          <Field label="Request ID"><input value={filters.requestId} onChange={(e) => update("requestId", e.target.value)} placeholder="hex" /></Field>
+          <Field label="Minutes"><input value={filters.windowMinutes} onChange={(e) => update("windowMinutes", e.target.value)} placeholder="15" /></Field>
+          <Field label="Search"><input value={filters.search} onChange={(e) => update("search", e.target.value)} placeholder="keyword" /></Field>
         </div>
-      </section>
+        {message && <p className="inline-note">{message}</p>}
+      </Card>
 
-      <section className="observability-grid">
-        <div className="terminal-card" aria-labelledby="events-heading">
-          <h2 id="events-heading">Events</h2>
-          <div className="event-table" role="list">
-            {events.map((event, index) => (
-              <button className={index === selectedIndex ? "event-row selected" : "event-row"} key={eventKey(event, index)} type="button" onClick={() => setSelectedIndex(index)} role="listitem">
-                <span>{formatTime(event)}</span>
-                <strong>{text(event, "type") || "event"}</strong>
-                <small>{text(event, "policyName") || text(event, "source")}</small>
-                <em>{text(event, "level")}</em>
-              </button>
-            ))}
-            {events.length === 0 && <p className="muted">No events match filters.</p>}
+      <Card title="Events" actions={<span className="count-pill">{count(events.length, "event")}</span>}>
+        <div className="event-table" role="list">
+          {events.map((event, index) => (
+            <button className="event-row" key={eventKey(event, index)} type="button" onClick={() => setOpenIndex(index)} role="listitem">
+              <span>{formatTime(event)}</span>
+              <strong>{text(event, "type") || "event"}</strong>
+              <small>{text(event, "policyName") || text(event, "source")}</small>
+              <em>{text(event, "level")}</em>
+            </button>
+          ))}
+          {events.length === 0 && <p className="muted">No events match these filters. Start the proxy and browse to generate activity.</p>}
+        </div>
+      </Card>
+
+      {selected && (
+        <Modal
+          title={text(selected, "type") || "Event"}
+          subtitle={<span className="inspector-badge node">{text(selected, "level") || "info"}</span>}
+          onClose={() => setOpenIndex(null)}
+          wide
+        >
+          {timeline.length > 1 && (
+            <div className="timeline-block">
+              <h3>Request timeline · {count(timeline.length, "event")}</h3>
+              {timeline.map((event, index) => (
+                <div className="timeline-row" key={eventKey(event, index)}>
+                  <span>{index + 1}</span>
+                  <div><strong>{text(event, "type")}</strong> <small>{text(event, "message")}</small></div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="code-readonly">
+            <div className="code-readonly-head">Payload</div>
+            <pre>{JSON.stringify(selected, null, 2)}</pre>
           </div>
-        </div>
-
-        <div className="terminal-card detail-card" aria-labelledby="detail-heading">
-          <h2 id="detail-heading">Detail</h2>
-          {selected ? <pre>{JSON.stringify(selected, null, 2)}</pre> : <p className="muted">Select an event.</p>}
-        </div>
-
-        {timeline.length > 0 && (
-          <div className="terminal-card timeline-card" aria-labelledby="timeline-heading">
-            <h2 id="timeline-heading">Request timeline ({timeline.length} events)</h2>
-            {timeline.map((event, index) => (
-              <div className="timeline-row" key={eventKey(event, index)}>
-                <span>{index + 1}</span>
-                <div><strong>{text(event, "type")}</strong> <small>{text(event, "message")}</small></div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+        </Modal>
+      )}
     </div>
   );
-}
-
-function F({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="field"><span>{label}</span>{children}</label>;
 }
 
 function toQuery(filters: Filters): EventQuery {

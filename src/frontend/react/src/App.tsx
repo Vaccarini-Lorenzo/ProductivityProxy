@@ -94,7 +94,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
       case "modes":
         return <ModesView config={config} onConfigChange={setConfig} />;
       case "policy":
-        return <PolicyView config={config} onConfigChange={setConfig} />;
+        return <PolicyView config={config} onConfigChange={setConfig} onReadNode={(path) => readCustomNode(client, path)} />;
       case "nodes":
         return <NodesView nodes={config.customNodes} onSave={handleSaveNode} onRead={(path) => readCustomNode(client, path)} onDelete={handleDeleteNode} />;
       case "observability":
@@ -107,7 +107,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
       <TerminalNav active={view} running={status.running} onNavigate={setView} />
       <main className="app-shell">
         <div className="top-bar">
-          <button className="primary" type="button" onClick={handleSave}>$ ppx save</button>
+          <button className="primary" type="button" onClick={handleSave}>Save config</button>
           {message && <span className="message" role="status">{message}</span>}
         </div>
         {renderView()}

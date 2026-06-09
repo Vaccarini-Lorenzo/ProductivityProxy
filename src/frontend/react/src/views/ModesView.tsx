@@ -1,6 +1,7 @@
+import { useState } from "react";
 import type { AppConfig, ModeConfig } from "../models/config/types";
 import { createMode } from "../services/config/configEditing";
-import { useState } from "react";
+import { Card, Field, Modal, PageHeader, count } from "../components/ui";
 
 interface Props {
   config: AppConfig;
@@ -8,8 +9,9 @@ interface Props {
 }
 
 export function ModesView({ config, onConfigChange }: Props) {
-  const activeMode = config.modes.find((mode) => mode.id === config.activeModeId) ?? config.modes[0];
   const [newName, setNewName] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const editMode = config.modes.find((mode) => mode.id === editId) ?? null;
 
   function updateMode(nextMode: ModeConfig) {
     onConfigChange({ ...config, modes: config.modes.map((mode) => (mode.id === nextMode.id ? nextMode : mode)) });
@@ -30,51 +32,51 @@ export function ModesView({ config, onConfigChange }: Props) {
     onConfigChange({ ...config, activeModeId, modes });
   }
 
+  const addControl = (
+    <div className="add-control">
+      <input aria-label="New mode name" placeholder="New mode name" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addMode()} />
+      <button type="button" onClick={addMode} disabled={!newName.trim()}>Add mode</button>
+    </div>
+  );
+
   return (
     <div className="page-stack">
-      <section className="page-title">
-        <p className="eyebrow">Modes</p>
-        <h1>Runtime modes</h1>
-        <p className="muted">Modes group ordered policies. Only the active mode is evaluated.</p>
-      </section>
+      <PageHeader eyebrow="Modes" title="Runtime modes" subtitle="A mode groups ordered policies. Only the active mode is evaluated. Click a mode to make it active." />
 
-      <section className="terminal-card" aria-labelledby="mode-list-heading">
-        <div className="section-head">
-          <h2 id="mode-list-heading">Available modes</h2>
-          <div className="actions compact">
-            <input aria-label="New mode name" placeholder="New mode name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            <button type="button" onClick={addMode}>create</button>
-          </div>
+      <Card title="Modes" actions={addControl}>
+        <div className="list">
+          {config.modes.map((mode) => {
+            const isActive = mode.id === config.activeModeId;
+            const steps = mode.policies.reduce((c, p) => c + p.steps.length, 0);
+            return (
+              <div className={isActive ? "list-row active" : "list-row"} key={mode.id}>
+                <button className="list-main" type="button" onClick={() => onConfigChange({ ...config, activeModeId: mode.id })}>
+                  <span className="list-title">{mode.name}{isActive && <span className="badge">active</span>}</span>
+                  <small>{mode.description || "No description"}</small>
+                </button>
+                <span className="list-meta">{count(mode.policies.length, "policy", "policies")} · {count(steps, "step")}</span>
+                <button className="small" type="button" onClick={() => setEditId(mode.id)}>Edit</button>
+                <button className="danger small" type="button" onClick={() => deleteMode(mode.id)} disabled={config.modes.length <= 1}>Delete</button>
+              </div>
+            );
+          })}
         </div>
-        <div className="mode-list">
-          {config.modes.map((mode) => (
-            <div className={mode.id === config.activeModeId ? "mode-row active" : "mode-row"} key={mode.id}>
-              <span className="dot" aria-hidden="true" />
-              <button className="row-main" type="button" onClick={() => onConfigChange({ ...config, activeModeId: mode.id })}>
-                <strong>{mode.name} {mode.id === config.activeModeId && <span className="tag">active</span>}</strong>
-                <small>{mode.description || "No description"}</small>
-              </button>
-              <span className="row-meta">{mode.policies.length} pol · {mode.policies.reduce((c, p) => c + p.steps.length, 0)} steps</span>
-              <button className="danger small" type="button" onClick={() => deleteMode(mode.id)} disabled={config.modes.length <= 1}>del</button>
-            </div>
-          ))}
-        </div>
-      </section>
+      </Card>
 
-      {activeMode && (
-        <section className="terminal-card" aria-labelledby="mode-edit-heading">
-          <h2 id="mode-edit-heading">Edit: {activeMode.name}</h2>
-          <div className="form-grid">
-            <label className="field">
-              <span>Name</span>
-              <input value={activeMode.name} onChange={(e) => updateMode({ ...activeMode, name: e.target.value })} />
-            </label>
-            <label className="field">
-              <span>Description</span>
-              <input value={activeMode.description ?? ""} onChange={(e) => updateMode({ ...activeMode, description: e.target.value })} />
-            </label>
-          </div>
-        </section>
+      {editMode && (
+        <Modal
+          title={`Edit “${editMode.name}”`}
+          onClose={() => setEditId(null)}
+          footer={<button className="primary" type="button" onClick={() => setEditId(null)}>Done</button>}
+        >
+          <Field label="Name">
+            <input autoFocus value={editMode.name} onChange={(e) => updateMode({ ...editMode, name: e.target.value })} />
+          </Field>
+          <Field label="Description">
+            <input value={editMode.description ?? ""} onChange={(e) => updateMode({ ...editMode, description: e.target.value })} />
+          </Field>
+          <p className="inline-note">Changes are saved automatically. Use “Save config” to persist them to disk.</p>
+        </Modal>
       )}
     </div>
   );
