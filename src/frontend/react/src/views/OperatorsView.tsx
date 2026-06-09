@@ -76,7 +76,7 @@ export function OperatorsView({ blocks, onSave, onDelete }: Props) {
           <span>Python code</span>
           <textarea className="code-input" value={code} onChange={(e) => setCode(e.target.value)} />
         </label>
-        <button className="primary" type="button" onClick={handleSubmit}>
+        <button className="primary" type="button" style={{ marginTop: 16 }} onClick={handleSubmit}>
           {editing ? "Update operator" : "Save operator"}
         </button>
       </section>

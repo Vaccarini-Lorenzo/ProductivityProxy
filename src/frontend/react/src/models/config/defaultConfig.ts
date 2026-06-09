@@ -7,7 +7,7 @@ function mode(id: string, name: string): ModeConfig {
     graph: {
       nodes: [
         { id: `${id}-start`, type: "start", position: { x: 80, y: 120 } },
-        { id: `${id}-end`, type: "end", position: { x: 320, y: 120 } },
+        { id: `${id}-end`, type: "end", position: { x: 460, y: 120 } },
       ],
       edges: [{ from: `${id}-start`, output: "next", to: `${id}-end` }],
     },

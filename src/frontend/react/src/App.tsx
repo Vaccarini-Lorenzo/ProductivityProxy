@@ -20,7 +20,7 @@ interface Props {
 }
 
 export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
-  const [view, setView] = useState<View>("policies");
+  const [view, setView] = useState<View>("settings");
   const [config, setConfig] = useState<AppConfig>(() => createDefaultConfig());
   const [status, setStatus] = useState<ProxyStatus>({ running: false });
   const [events, setEvents] = useState<ProxyEvent[]>([]);

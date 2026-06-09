@@ -1,131 +1,179 @@
-import type { GraphEdge, GraphNode, ModeConfig, NodeParams } from "../models/config/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ReactFlow,
+  Background,
+  Controls,
+  MiniMap,
+  Handle,
+  Position,
+  MarkerType,
+  ConnectionMode,
+  applyNodeChanges,
+  applyEdgeChanges,
+  addEdge,
+  type Node,
+  type Edge,
+  type OnNodesChange,
+  type OnEdgesChange,
+  type OnConnect,
+  type NodeProps,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import type { ModeConfig, PolicyGraph } from "../models/config/types";
 
 const BUILT_INS = ["block", "log", "track_time", "notify", "redirect", "if", "switch", "python", "end"];
+const NODE_WIDTH = 220;
+const NODE_HEIGHT = 88;
 
 interface Props {
   mode: ModeConfig;
-  selectedNodeId: string;
-  edgeOutput: string;
-  edgeFrom: string;
-  edgeTo: string;
-  paramsText: string;
-  onSelectNode: (nodeId: string) => void;
+  onGraphChange: (graph: PolicyGraph) => void;
   onAddNode: (type: string) => void;
-  onParamsTextChange: (value: string) => void;
-  onApplyParams: () => void;
-  onEdgeOutputChange: (value: string) => void;
-  onEdgeFromChange: (value: string) => void;
-  onEdgeToChange: (value: string) => void;
-  onAddEdge: () => void;
 }
 
-export function GraphEditor(props: Props) {
-  const selectedNode = props.mode.graph.nodes.find((node) => node.id === props.selectedNodeId);
+export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
+  const [panMode, setPanMode] = useState(false);
+
+  useEffect(() => {
+    const updatePanMode = (event: KeyboardEvent) => setPanMode(event.altKey);
+    const stopPanMode = () => setPanMode(false);
+    window.addEventListener("keydown", updatePanMode);
+    window.addEventListener("keyup", updatePanMode);
+    window.addEventListener("blur", stopPanMode);
+    return () => {
+      window.removeEventListener("keydown", updatePanMode);
+      window.removeEventListener("keyup", updatePanMode);
+      window.removeEventListener("blur", stopPanMode);
+    };
+  }, []);
+
+  const nodes: Node[] = useMemo(() =>
+    mode.graph.nodes.map((n, i) => ({
+      id: n.id,
+      type: "policyNode",
+      position: n.position ?? { x: 80 + i * 180, y: 120 },
+      data: { label: n.type, subLabel: n.id },
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+      handles: [
+        { id: "out", type: "source", position: Position.Right, x: NODE_WIDTH - 11, y: NODE_HEIGHT / 2 - 11, width: 22, height: 22 },
+        { id: "in", type: "target", position: Position.Left, x: -11, y: NODE_HEIGHT / 2 - 11, width: 22, height: 22 },
+      ],
+    })),
+    [mode.graph.nodes],
+  );
+
+  const edges: Edge[] = useMemo(() =>
+    mode.graph.edges.map((e, i) => ({
+      id: `${e.from}-${e.output}-${e.to}-${i}`,
+      source: e.from,
+      sourceHandle: "out",
+      target: e.to,
+      targetHandle: "in",
+      label: e.output !== "next" ? e.output : undefined,
+      markerEnd: { type: MarkerType.ArrowClosed },
+      animated: e.output === "next",
+    })),
+    [mode.graph.edges],
+  );
+
+  const onNodesChange: OnNodesChange = useCallback((changes) => {
+    const updated = applyNodeChanges(changes, nodes);
+    const graphNodes = mode.graph.nodes.map((n) => {
+      const found = updated.find((u) => u.id === n.id);
+      return found ? { ...n, position: found.position } : n;
+    });
+    onGraphChange({ ...mode.graph, nodes: graphNodes });
+  }, [nodes, mode.graph, onGraphChange]);
+
+  const onEdgesChange: OnEdgesChange = useCallback((changes) => {
+    const updated = applyEdgeChanges(changes, edges);
+    const graphEdges = updated.map((e) => ({
+      from: e.source,
+      output: (e.label as string) || "next",
+      to: e.target,
+    }));
+    onGraphChange({ ...mode.graph, edges: graphEdges });
+  }, [edges, mode.graph, onGraphChange]);
+
+  const onConnect: OnConnect = useCallback((params) => {
+    const updated = addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed }, animated: true }, edges);
+    const graphEdges = updated.map((e) => ({
+      from: e.source,
+      output: (e.label as string) || "next",
+      to: e.target,
+    }));
+    onGraphChange({ ...mode.graph, edges: graphEdges });
+  }, [edges, mode.graph, onGraphChange]);
 
   return (
     <section className="panel graph-panel" aria-labelledby="graph-heading">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Policy graph // canvas</p>
-          <h2 id="graph-heading">{props.mode.name} graph</h2>
+          <p className="eyebrow">Policy graph</p>
+          <h2 id="graph-heading">{mode.name} graph</h2>
         </div>
-        <div className="panel-stats" aria-label="Graph summary">
-          <span>Nodes {props.mode.graph.nodes.length}</span>
-          <span>Connections {props.mode.graph.edges.length}</span>
-        </div>
-      </div>
-
-      <div className="graph-workbench">
-        <div className="graph-canvas" role="img" aria-label={`Graph for ${props.mode.name}`}>
-          <svg className="graph-edges" aria-hidden="true">
-            <defs>
-              <marker id="edge-arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-                <path d="M0,0 L0,6 L9,3 z" />
-              </marker>
-            </defs>
-            {props.mode.graph.edges.map((edge, index) => (
-              <GraphEdgeLine key={`${edge.from}-${edge.to}-${index}`} edge={edge} from={findNode(props.mode, edge.from)} to={findNode(props.mode, edge.to)} />
-            ))}
-          </svg>
-          {props.mode.graph.nodes.map((node, index) => (
-            <GraphNodeCard key={node.id} node={node} index={index} selected={node.id === props.selectedNodeId} onSelect={props.onSelectNode} />
+        <div className="button-row">
+          {BUILT_INS.map((type) => (
+            <button key={type} type="button" onClick={() => onAddNode(type)}>[+] {type}</button>
           ))}
         </div>
-
-        <aside className="operator-palette" aria-label="Add graph node">
-          <p className="eyebrow">Operators</p>
-          <h3>Drag-ready blocks</h3>
-          <p className="muted">Click an operator to add it to the canvas.</p>
-          <div className="node-toolbar">
-            {BUILT_INS.map((type) => (
-              <button className="operator-card" key={type} type="button" onClick={() => props.onAddNode(type)}>
-                <strong>[+] {type}</strong>
-                <small>Add {type}</small>
-              </button>
-            ))}
-          </div>
-        </aside>
       </div>
-
-      <div className="editor-grid graph-controls">
-        <div>
-          <h3>Node params</h3>
-          <p className="muted">Selected: {selectedNode?.id ?? "none"}</p>
-          <label className="field">
-            <span>Params JSON</span>
-            <textarea value={props.paramsText} onChange={(event) => props.onParamsTextChange(event.target.value)} />
-          </label>
-          <button type="button" onClick={props.onApplyParams} disabled={!selectedNode}>Apply params</button>
-        </div>
-        <div>
-          <h3>Add edge</h3>
-          <GraphSelect label="From" value={props.edgeFrom} nodes={props.mode.graph.nodes} onChange={props.onEdgeFromChange} />
-          <label className="field">
-            <span>Output</span>
-            <input value={props.edgeOutput} onChange={(event) => props.onEdgeOutputChange(event.target.value)} />
-          </label>
-          <GraphSelect label="To" value={props.edgeTo} nodes={props.mode.graph.nodes} onChange={props.onEdgeToChange} />
-          <button type="button" onClick={props.onAddEdge}>Add edge</button>
-        </div>
+      <div className={panMode ? "flow-canvas pan-mode" : "flow-canvas"}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ maxZoom: 1.2, padding: 0.3 }}
+          defaultEdgeOptions={{ type: "smoothstep", animated: true, markerEnd: { type: MarkerType.ArrowClosed } }}
+          connectionMode={ConnectionMode.Strict}
+          nodesDraggable={!panMode}
+          nodesConnectable={!panMode}
+          autoPanOnNodeDrag={false}
+          autoPanOnConnect={false}
+          selectNodesOnDrag={false}
+          elementsSelectable={false}
+          panOnDrag={false}
+          panActivationKeyCode="Alt"
+          selectionOnDrag={false}
+          selectionKeyCode={null}
+          nodeDragThreshold={0}
+          connectionDragThreshold={0}
+          connectOnClick={false}
+          connectionRadius={48}
+          colorMode="dark"
+          proOptions={{ hideAttribution: true }}
+          connectionLineStyle={{ stroke: "#5cff57", strokeWidth: 3 }}
+        >
+          <Background gap={20} size={1} />
+          <Controls />
+          <MiniMap pannable zoomable />
+        </ReactFlow>
       </div>
+      <p className="muted graph-hint">Drag blocks to move • Drag from green dots to connect • Option/Alt + drag to pan • Scroll to zoom</p>
     </section>
   );
 }
 
-function GraphNodeCard({ node, index, selected, onSelect }: { node: GraphNode; index: number; selected: boolean; onSelect: (id: string) => void }) {
-  const position = node.position ?? { x: 80 + index * 140, y: 120 };
-  const classes = ["graph-node", selected ? "selected" : "", node.type === "block" ? "danger" : ""].filter(Boolean).join(" ");
+function PolicyNode({ data }: NodeProps) {
   return (
-    <button className={classes} type="button" style={{ left: position.x, top: position.y }} onClick={() => onSelect(node.id)}>
-      <strong>{node.type}</strong>
-      <span>{node.id}</span>
-    </button>
+    <div className="policy-node">
+      <Handle id="in" type="target" position={Position.Left} title="Input port" />
+      <strong>{(data as { label: string }).label}</strong>
+      <span>{(data as { subLabel: string }).subLabel}</span>
+      <Handle id="out" type="source" position={Position.Right} title="Output port" />
+    </div>
   );
 }
 
-function GraphEdgeLine({ edge, from, to }: { edge: GraphEdge; from?: GraphNode; to?: GraphNode }) {
-  if (!from || !to) return null;
-  const fromPosition = from.position ?? { x: 80, y: 120 };
-  const toPosition = to.position ?? { x: 220, y: 120 };
-  const classes = edge.output === "no" || edge.output === "false" ? "edge-negative" : "";
-  return <line className={classes} x1={fromPosition.x + 150} y1={fromPosition.y + 34} x2={toPosition.x} y2={toPosition.y + 34} />;
-}
+const nodeTypes = { policyNode: PolicyNode };
 
-function GraphSelect({ label, value, nodes, onChange }: { label: string; value: string; nodes: GraphNode[]; onChange: (value: string) => void }) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
-        {nodes.map((node) => <option key={node.id} value={node.id}>{node.id}</option>)}
-      </select>
-    </label>
-  );
-}
-
-function findNode(mode: ModeConfig, nodeId: string) {
-  return mode.graph.nodes.find((node) => node.id === nodeId);
-}
-
-export function paramsToText(params: NodeParams | undefined): string {
+export function paramsToText(params: Record<string, unknown> | undefined): string {
   return JSON.stringify(params ?? {}, null, 2);
 }

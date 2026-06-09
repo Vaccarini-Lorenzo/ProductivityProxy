@@ -1,13 +1,16 @@
 import type { GraphEdge, GraphNode, NodeParams, PolicyGraph } from "../../models/config/types";
 
 export function addNode(graph: PolicyGraph, type: string): PolicyGraph {
+  const count = graph.nodes.length;
+  const col = count % 3;
+  const row = Math.floor(count / 3);
   const node: GraphNode = {
-    id: `${type}-${graph.nodes.length}`,
+    id: `${type}-${count}`,
     type,
     params: {},
     position: {
-      x: 160 + graph.nodes.length * 120,
-      y: 120,
+      x: 80 + col * 340,
+      y: 120 + row * 160,
     },
   };
   return { ...graph, nodes: [...graph.nodes, node] };
