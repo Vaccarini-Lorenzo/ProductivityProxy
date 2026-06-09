@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, memo, type CSSProperties, type ReactNode } from "react";
 import {
   ReactFlow,
   Background,
@@ -10,15 +10,12 @@ import {
   Position,
   MarkerType,
   ConnectionMode,
-  applyNodeChanges,
-  applyEdgeChanges,
-  addEdge,
+  useNodesState,
+  useEdgesState,
   getSmoothStepPath,
   type Node,
   type Edge,
-  type OnNodesChange,
-  type OnEdgesChange,
-  type OnConnect,
+  type Connection,
   type NodeProps,
   type EdgeProps,
 } from "@xyflow/react";
@@ -34,6 +31,9 @@ const OPERATORS = [
   { type: "if", label: "If / Then / Else", desc: "One input, two outputs: then / else" },
   { type: "switch", label: "Switch", desc: "One input, a labelled output per case" },
 ];
+const FIT_VIEW_OPTIONS = { maxZoom: 1.2, padding: 0.3 };
+const CONNECTION_LINE_STYLE = { stroke: "#5cff57", strokeWidth: 3 };
+const PRO_OPTIONS = { hideAttribution: true };
 
 interface Props {
   policy: PolicyConfig;
@@ -49,7 +49,27 @@ export function GraphEditor({ policy, customNodes, selectedStepId, onPolicyChang
   const [panMode, setPanMode] = useState(false);
   const [librarySearch, setLibrarySearch] = useState("");
   const hasStart = policy.steps.some((s) => s.kind === "node" && s.type === "start");
-  const stepById = useMemo(() => new Map(policy.steps.map((step) => [step.id, step])), [policy.steps]);
+
+  // Keep current policy + parent callbacks in refs so editor handlers stay stable
+  // (so the rebuild effects below never re-run mid-drag). See docs/react-flow-best-practices.md.
+  const policyRef = useRef(policy);
+  policyRef.current = policy;
+  const cbRef = useRef({ onPolicyChange, onSelectStep, onDeleteStep });
+  cbRef.current = { onPolicyChange, onSelectStep, onDeleteStep };
+
+  const handleSelect = useCallback((id: string) => cbRef.current.onSelectStep(id), []);
+  const handleDelete = useCallback((id: string) => cbRef.current.onDeleteStep(id), []);
+  const deleteEdge = useCallback((id: string) => {
+    const p = policyRef.current;
+    cbRef.current.onPolicyChange({ ...p, edges: p.edges.filter((e, i) => edgeId(e, i) !== id) });
+  }, []);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(buildNodes(policy, selectedStepId, handleSelect, handleDelete));
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(buildEdges(policy, deleteEdge));
+
+  // Rebuild from props on real structural changes only (not on every drag tick).
+  useEffect(() => { setNodes(buildNodes(policy, selectedStepId, handleSelect, handleDelete)); }, [policy, selectedStepId, handleSelect, handleDelete, setNodes]);
+  useEffect(() => { setEdges(buildEdges(policy, deleteEdge)); }, [policy, deleteEdge, setEdges]);
 
   useEffect(() => {
     const update = (e: KeyboardEvent) => setPanMode(e.altKey);
@@ -60,64 +80,17 @@ export function GraphEditor({ policy, customNodes, selectedStepId, onPolicyChang
     return () => { window.removeEventListener("keydown", update); window.removeEventListener("keyup", update); window.removeEventListener("blur", stop); };
   }, []);
 
-  const deleteEdge = useCallback((id: string) => {
-    onPolicyChange({ ...policy, edges: policy.edges.filter((_, i) => edgeId(policy.edges[i], i) !== id) });
-  }, [policy, onPolicyChange]);
+  const onNodeDragStop = useCallback((_e: unknown, node: Node) => {
+    const p = policyRef.current;
+    cbRef.current.onPolicyChange({ ...p, steps: p.steps.map((s) => (s.id === node.id ? { ...s, position: node.position } : s)) });
+  }, []);
 
-  const nodes: Node[] = useMemo(() =>
-    policy.steps.map((step, index) => {
-      const isOperator = step.kind === "operator";
-      return {
-        id: step.id,
-        type: isOperator ? "operatorNode" : "policyNode",
-        position: step.position ?? { x: 80 + index * 240, y: 120 },
-        data: { label: step.type, stepId: step.id, kind: step.kind, cases: (step.params?.cases as string[]) ?? [], isSelected: step.id === selectedStepId, onSelect: onSelectStep, onDelete: onDeleteStep },
-        width: isOperator ? 132 : 200,
-        height: isOperator ? 116 : 72,
-      };
-    }),
-    [policy.steps, selectedStepId, onSelectStep, onDeleteStep],
-  );
-
-  const edges: Edge[] = useMemo(() =>
-    policy.edges.map((edge, index) => {
-      const sourceStep = stepById.get(edge.from);
-      const sourceHandle = sourceStep?.kind === "operator" ? edge.output : "out";
-      return {
-        id: edgeId(edge, index),
-        type: "deletable",
-        source: edge.from,
-        sourceHandle,
-        target: edge.to,
-        targetHandle: "in",
-        label: edge.output !== "next" ? edge.output : undefined,
-        markerEnd: { type: MarkerType.ArrowClosed },
-        animated: true,
-        data: { onDelete: deleteEdge },
-      };
-    }),
-    [policy.edges, deleteEdge, stepById],
-  );
-
-  const onNodesChange: OnNodesChange = useCallback((changes) => {
-    const updated = applyNodeChanges(changes, nodes);
-    const steps = policy.steps.map((step) => {
-      const found = updated.find((n) => n.id === step.id);
-      return found ? { ...step, position: found.position } : step;
-    });
-    onPolicyChange({ ...policy, steps });
-  }, [nodes, policy, onPolicyChange]);
-
-  const onEdgesChange: OnEdgesChange = useCallback((changes) => {
-    const updated = applyEdgeChanges(changes, edges);
-    onPolicyChange({ ...policy, edges: updated.map((e) => ({ from: e.source, output: edgeOutput(e), to: e.target })) });
-  }, [edges, policy, onPolicyChange]);
-
-  const onConnect: OnConnect = useCallback((params) => {
-    const output = params.sourceHandle && params.sourceHandle !== "out" ? params.sourceHandle : "next";
-    const updated = addEdge({ ...params, label: output !== "next" ? output : undefined, type: "deletable", markerEnd: { type: MarkerType.ArrowClosed }, animated: true, data: { onDelete: deleteEdge } }, edges);
-    onPolicyChange({ ...policy, edges: updated.map((e) => ({ from: e.source, output: edgeOutput(e), to: e.target })) });
-  }, [edges, policy, onPolicyChange, deleteEdge]);
+  const onConnect = useCallback((conn: Connection) => {
+    if (!conn.source || !conn.target) return;
+    const output = conn.sourceHandle && conn.sourceHandle !== "out" ? conn.sourceHandle : "next";
+    const p = policyRef.current;
+    cbRef.current.onPolicyChange({ ...p, edges: [...p.edges, { from: conn.source, output, to: conn.target }] });
+  }, []);
 
   return (
     <section className="panel graph-panel" aria-labelledby="graph-heading">
@@ -133,18 +106,19 @@ export function GraphEditor({ policy, customNodes, selectedStepId, onPolicyChang
           <div className={panMode ? "flow-canvas pan-mode" : "flow-canvas"}>
             <ReactFlow
               nodes={nodes} edges={edges}
-              onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}
-              onNodeClick={(_event, node) => onSelectStep(node.id)}
+              onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+              onConnect={onConnect} onNodeDragStop={onNodeDragStop}
+              onNodeClick={(_event, node) => handleSelect(node.id)}
               nodeTypes={nodeTypes} edgeTypes={edgeTypes}
-              fitView fitViewOptions={{ maxZoom: 1.2, padding: 0.3 }}
+              fitView fitViewOptions={FIT_VIEW_OPTIONS}
               connectionMode={ConnectionMode.Strict}
               nodesDraggable={!panMode} nodesConnectable={!panMode}
-              autoPanOnNodeDrag={false} autoPanOnConnect={false} selectNodesOnDrag={false}
-              elementsSelectable={false} panOnDrag={false} panActivationKeyCode="Alt"
-              selectionOnDrag={false} selectionKeyCode={null}
-              nodeDragThreshold={0} connectionDragThreshold={0} connectOnClick={true} connectionRadius={52}
-              colorMode="dark" proOptions={{ hideAttribution: true }}
-              connectionLineStyle={{ stroke: "#5cff57", strokeWidth: 3 }}
+              elementsSelectable={false} selectNodesOnDrag={false}
+              panOnDrag={false} panActivationKeyCode="Alt"
+              selectionOnDrag={false} selectionKeyCode={null} deleteKeyCode={null}
+              connectOnClick={true} connectionRadius={30}
+              colorMode="dark" proOptions={PRO_OPTIONS}
+              connectionLineStyle={CONNECTION_LINE_STYLE}
             >
               <Background gap={20} size={1} />
               <Controls />
@@ -202,7 +176,7 @@ function LibraryButton({ title, desc, tone, disabled, onClick }: { title: string
   return <button className={`library-item ${tone}`} type="button" disabled={disabled} onClick={onClick}><strong>{title}</strong><small>{desc}</small></button>;
 }
 
-function PolicyNode({ data }: NodeProps) {
+const PolicyNode = memo(function PolicyNode({ data }: NodeProps) {
   const { label, stepId, kind, isSelected, onSelect, onDelete } = data as unknown as NodeData;
   const [hovered, setHovered] = useState(false);
   const isStart = kind === "node" && label === "start";
@@ -216,9 +190,9 @@ function PolicyNode({ data }: NodeProps) {
       {hovered && !isStart && <button className="node-delete" type="button" onPointerDown={(e) => { e.stopPropagation(); onDelete(stepId); }}>×</button>}
     </div>
   );
-}
+});
 
-function OperatorNode({ data }: NodeProps) {
+const OperatorNode = memo(function OperatorNode({ data }: NodeProps) {
   const { label, stepId, cases, isSelected, onSelect, onDelete } = data as unknown as NodeData;
   const [hovered, setHovered] = useState(false);
   const { verts, input, ports } = operatorLayout(label, cases);
@@ -232,9 +206,9 @@ function OperatorNode({ data }: NodeProps) {
       {hovered && <button className="node-delete" type="button" onPointerDown={(e) => { e.stopPropagation(); onDelete(stepId); }}>×</button>}
     </div>
   );
-}
+});
 
-function DeletableEdge(props: EdgeProps) {
+const DeletableEdge = memo(function DeletableEdge(props: EdgeProps) {
   const [hovered, setHovered] = useState(false);
   const [path, labelX, labelY] = getSmoothStepPath(props);
   const data = props.data as { onDelete?: (id: string) => void } | undefined;
@@ -242,16 +216,41 @@ function DeletableEdge(props: EdgeProps) {
     <EdgeLabelRenderer><div className="edge-action-zone nodrag nopan" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} style={{ width: 60, height: 36, transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}>
       {hovered && <button className="edge-delete visible" type="button" onPointerDown={(e) => { e.stopPropagation(); data?.onDelete?.(props.id); }}>del</button>}
     </div></EdgeLabelRenderer></>;
-}
+});
 
 interface NodeData { label: string; stepId: string; kind: string; cases: string[]; isSelected: boolean; onSelect: (id: string) => void; onDelete: (id: string) => void; }
 const nodeTypes = { policyNode: PolicyNode, operatorNode: OperatorNode };
 const edgeTypes = { deletable: DeletableEdge };
+
+function buildNodes(policy: PolicyConfig, selectedStepId: string | null, onSelect: (id: string) => void, onDelete: (id: string) => void): Node[] {
+  return policy.steps.map((step, index) => {
+    const isOperator = step.kind === "operator";
+    return {
+      id: step.id,
+      type: isOperator ? "operatorNode" : "policyNode",
+      position: step.position ?? { x: 80 + index * 240, y: 120 },
+      data: { label: step.type, stepId: step.id, kind: step.kind, cases: (step.params?.cases as string[]) ?? [], isSelected: step.id === selectedStepId, onSelect, onDelete },
+      width: isOperator ? 132 : 200,
+      height: isOperator ? 116 : 72,
+    };
+  });
+}
+
+function buildEdges(policy: PolicyConfig, onDelete: (id: string) => void): Edge[] {
+  const stepById = new Map(policy.steps.map((s) => [s.id, s]));
+  return policy.edges.map((edge, index) => {
+    const sourceStep = stepById.get(edge.from);
+    const sourceHandle = sourceStep?.kind === "operator" ? edge.output : "out";
+    return {
+      id: edgeId(edge, index), type: "deletable", source: edge.from, sourceHandle, target: edge.to, targetHandle: "in",
+      label: edge.output !== "next" ? edge.output : undefined, markerEnd: { type: MarkerType.ArrowClosed }, animated: true, data: { onDelete },
+    };
+  });
+}
 
 function varStyle(p: Vec): CSSProperties { return { "--hx": `${p.x}%`, "--hy": `${p.y}%` } as CSSProperties; }
 function labelStyle(p: Vec): CSSProperties { const l = labelPos(p); return { left: `${l.x}%`, top: `${l.y}%` }; }
 
 type PolicyEdgeType = PolicyConfig["edges"][number];
 function edgeId(edge: PolicyEdgeType, index: number): string { return `${edge.from}-${edge.output}-${edge.to}-${index}`; }
-function edgeOutput(edge: Edge): string { return edge.sourceHandle && edge.sourceHandle !== "out" ? String(edge.sourceHandle) : (edge.label as string) || "next"; }
 export function paramsToText(params: Record<string, unknown> | undefined): string { return JSON.stringify(params ?? {}, null, 2); }
