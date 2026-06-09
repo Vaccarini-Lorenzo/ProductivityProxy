@@ -26,12 +26,16 @@ def csv_env(name: str) -> list[str]:
 STATE_PATH = Path(require_env("PRODUCTIVE_PROXY_STATE_PATH"))
 EVENT_LOG_PATH = Path(require_env("PRODUCTIVE_PROXY_EVENT_LOG_PATH"))
 REDDIT_IDLE_SECONDS = int(require_env("PRODUCTIVE_PROXY_REDDIT_IDLE_SECONDS"))
+REDDIT_DAILY_LIMIT_SECONDS = int(require_env("PRODUCTIVE_PROXY_REDDIT_DAILY_LIMIT_SECONDS"))
 REDDIT_HOST_SUFFIXES = csv_env("PRODUCTIVE_PROXY_REDDIT_HOST_SUFFIXES")
 YOUTUBE_HOST_SUFFIXES = csv_env("PRODUCTIVE_PROXY_YOUTUBE_HOST_SUFFIXES")
 YOUTUBE_SHORTS_PATH_MARKERS = csv_env("PRODUCTIVE_PROXY_YOUTUBE_SHORTS_PATH_MARKERS")
 
 if REDDIT_IDLE_SECONDS <= 0:
     raise RuntimeError("PRODUCTIVE_PROXY_REDDIT_IDLE_SECONDS must be greater than 0")
+
+if REDDIT_DAILY_LIMIT_SECONDS <= 0:
+    raise RuntimeError("PRODUCTIVE_PROXY_REDDIT_DAILY_LIMIT_SECONDS must be greater than 0")
 
 
 def host_matches(host: str, suffixes: list[str]) -> bool:
@@ -138,16 +142,52 @@ def block_youtube_shorts(flow: http.HTTPFlow) -> None:
     )
 
 
+def block_reddit_daily_limit(flow: http.HTTPFlow, daily_seconds: float) -> None:
+    body = """
+<!doctype html>
+<html>
+  <head><title>Blocked</title></head>
+  <body>
+    <h1>Reddit daily limit reached</h1>
+    <p>This request was blocked by ProductiveProxy.</p>
+  </body>
+</html>
+""".strip()
+    flow.response = http.Response.make(
+        403,
+        body.encode("utf-8"),
+        {"Content-Type": "text/html; charset=utf-8"},
+    )
+    append_event(
+        {
+            "type": "reddit_daily_limit_blocked",
+            "at": utc_iso(time.time()),
+            "host": flow.request.pretty_host,
+            "path": flow.request.path,
+            "url": flow.request.pretty_url,
+            "daily_seconds": round(daily_seconds, 3),
+            "daily_limit_seconds": REDDIT_DAILY_LIMIT_SECONDS,
+        }
+    )
+
+
 def track_reddit(flow: http.HTTPFlow) -> None:
     host = flow.request.pretty_host
     if not host_matches(host, REDDIT_HOST_SUFFIXES):
         return
 
     now = time.time()
+    day = utc_day(now)
     state = load_state()
     reddit = state["reddit"]
-    last_seen = reddit.get("last_seen_at")
+    daily_seconds = reddit["daily_seconds"]
+    current_daily_seconds = float(daily_seconds.get(day, 0.0))
 
+    if current_daily_seconds >= REDDIT_DAILY_LIMIT_SECONDS:
+        block_reddit_daily_limit(flow, current_daily_seconds)
+        return
+
+    last_seen = reddit.get("last_seen_at")
     event_type = "reddit_session_start"
     delta = 0.0
 
@@ -157,21 +197,25 @@ def track_reddit(flow: http.HTTPFlow) -> None:
             delta = elapsed
             event_type = "reddit_activity"
             reddit["total_seconds"] = float(reddit["total_seconds"]) + delta
-            day = utc_day(now)
-            daily_seconds = reddit["daily_seconds"]
-            daily_seconds[day] = float(daily_seconds.get(day, 0.0)) + delta
+            current_daily_seconds += delta
+            daily_seconds[day] = current_daily_seconds
 
     reddit["last_seen_at"] = now
     reddit["last_event"] = {
         "type": event_type,
         "at": utc_iso(now),
         "delta_seconds": round(delta, 3),
+        "daily_seconds": round(current_daily_seconds, 3),
+        "daily_limit_seconds": REDDIT_DAILY_LIMIT_SECONDS,
         "host": host,
         "path": flow.request.path,
     }
 
     save_state(state)
     append_event(reddit["last_event"])
+
+    if current_daily_seconds >= REDDIT_DAILY_LIMIT_SECONDS:
+        block_reddit_daily_limit(flow, current_daily_seconds)
 
 
 def request(flow: http.HTTPFlow) -> None:

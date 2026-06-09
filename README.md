@@ -8,9 +8,11 @@ This repo contains a small `mitmproxy` addon for local explicit-proxy use on mac
    - Blocks requests to configured YouTube hosts when the request path, referrer, or request body matches configured Shorts markers.
    - Default example markers: `/shorts`, `/youtubei/v1/reel`, `/api/stats/shorts`.
 
-2. **Track Reddit time**
+2. **Track and limit Reddit time**
    - Tracks Reddit activity by measuring gaps between Reddit requests.
    - If two Reddit requests are less than `PRODUCTIVE_PROXY_REDDIT_IDLE_SECONDS` apart, the gap is counted as active time.
+   - Blocks Reddit after `PRODUCTIVE_PROXY_REDDIT_DAILY_LIMIT_SECONDS` has been reached.
+   - Default daily limit: `1800` seconds, or 30 minutes.
    - This is an approximation. It does not know true foreground/app focus time.
 
 ## Install
@@ -53,6 +55,12 @@ For clients that do not support proxy auth, disable it:
 
 ```bash
 export PRODUCTIVE_PROXY_AUTH_ENABLED="false"
+```
+
+Set the Reddit daily limit in `.env`:
+
+```bash
+export PRODUCTIVE_PROXY_REDDIT_DAILY_LIMIT_SECONDS="1800"
 ```
 
 All runtime settings are required environment variables. The addon fails fast if one is missing.
@@ -101,7 +109,7 @@ Configured by `.env.example`:
 
 `productive_proxy_state.json` contains Reddit totals.
 
-`productive_proxy_events.jsonl` contains policy events, including blocked Shorts requests and Reddit activity events.
+`productive_proxy_events.jsonl` contains policy events, including blocked Shorts requests, Reddit activity events, and Reddit daily-limit blocks.
 
 ## Notes
 
@@ -111,3 +119,4 @@ Configured by `.env.example`:
 - Some apps use certificate pinning and will not work through TLS interception.
 - YouTube app traffic may not be fully controllable if the app rejects the mitmproxy CA.
 - The Reddit timer is request-based, not a true screen-time tracker.
+- Reddit daily totals are currently grouped by UTC date.
