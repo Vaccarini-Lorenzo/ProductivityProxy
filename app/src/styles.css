@@ -1,44 +1,331 @@
 :root {
-  color: #f5f7fb;
-  background: #10131a;
+  --color-background: #0f172a;
+  --color-surface: #111827;
+  --color-surface-raised: #172033;
+  --color-muted: #94a3b8;
+  --color-border: #475569;
+  --color-foreground: #f8fafc;
+  --color-primary: #22c55e;
+  --color-primary-strong: #16a34a;
+  --color-danger: #ef4444;
+  --color-ring: #93c5fd;
+  color: var(--color-foreground);
+  background: var(--color-background);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  min-width: 360px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--color-foreground);
+  background: #1e293b;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: #273449;
+  border-color: #64748b;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+button.primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #052e16;
+  font-weight: 700;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--color-primary-strong);
 }
 
 .app-shell {
   display: grid;
-  gap: 16px;
+  gap: 20px;
+  max-width: 1280px;
   min-height: 100vh;
+  margin: 0 auto;
   padding: 24px;
-  box-sizing: border-box;
 }
 
 .hero,
 .panel {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.06);
-  padding: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.92));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  padding: 22px;
+}
+
+.hero {
+  display: grid;
+  gap: 12px;
 }
 
 .eyebrow {
-  color: #8ea7ff;
+  color: #86efac;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  margin: 0 0 4px;
   text-transform: uppercase;
 }
 
 h1,
 h2,
+h3,
 p {
-  margin: 0 0 8px;
+  margin-top: 0;
 }
 
-.status {
-  color: #ffcf70;
-  font-weight: 700;
+h1 {
+  margin-bottom: 4px;
+  font-size: clamp(2rem, 6vw, 4rem);
+  line-height: 1.05;
+}
+
+h2 {
+  margin-bottom: 12px;
+  font-size: 1.35rem;
+}
+
+h3 {
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+.message {
+  color: #bfdbfe;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.button-row,
+.node-toolbar,
+.mode-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.dashboard-grid,
+.status-grid,
+.editor-grid,
+.form-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.dashboard-grid,
+.status-grid,
+.editor-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.section-heading {
+  display: flex;
+  gap: 16px;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.mode-card {
+  display: grid;
+  min-width: 160px;
+  text-align: left;
+}
+
+.mode-card.active {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+}
+
+.field,
+.check-field {
+  display: grid;
+  gap: 7px;
+  color: var(--color-foreground);
+  font-weight: 650;
+}
+
+.check-field {
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  min-height: 44px;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--color-foreground);
+  background: #0b1220;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  min-height: 20px;
+}
+
+textarea {
+  min-height: 128px;
+  resize: vertical;
+}
+
+.code-input {
+  min-height: 220px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.graph-panel {
+  overflow: hidden;
+}
+
+.graph-canvas {
+  position: relative;
+  min-height: 360px;
+  margin: 16px 0;
+  overflow: auto;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 18px;
+  background: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.25) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.graph-edges {
+  position: absolute;
+  inset: 0;
+  width: 1200px;
+  height: 520px;
+  pointer-events: none;
+}
+
+.graph-edges line {
+  stroke: #86efac;
+  stroke-width: 2;
+}
+
+.graph-node {
+  position: absolute;
+  display: grid;
+  gap: 2px;
+  width: 150px;
+  min-height: 64px;
+  text-align: left;
+  background: #111827;
+}
+
+.graph-node.selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 24px rgba(34, 197, 94, 0.24);
+}
+
+.graph-node span,
+.block-row span {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.address-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.address-grid div {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 12px;
+}
+
+code,
+.setup-text {
+  color: #bbf7d0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.setup-text {
+  overflow: auto;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 12px;
+}
+
+.block-list,
+.event-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.block-row,
+.event-list pre {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 12px;
+}
+
+.event-list pre {
+  overflow: auto;
+  color: #dbeafe;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

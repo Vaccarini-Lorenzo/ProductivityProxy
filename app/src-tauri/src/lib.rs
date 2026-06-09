@@ -2,6 +2,10 @@ pub mod controller;
 pub mod models;
 pub mod services;
 
+use controller::commands::{
+    network_info, proxy_status, read_app_config, read_recent_events, start_proxy, stop_proxy,
+    write_app_config, write_custom_block, AppState,
+};
 use controller::tray::actions::TrayAction;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -10,6 +14,18 @@ use tauri::{Manager, WindowEvent};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
+        .manage(AppState::default())
+        .invoke_handler(tauri::generate_handler![
+            read_app_config,
+            write_app_config,
+            write_custom_block,
+            start_proxy,
+            stop_proxy,
+            proxy_status,
+            read_recent_events,
+            network_info
+        ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);

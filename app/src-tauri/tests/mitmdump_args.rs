@@ -1,3 +1,4 @@
+use serde_json::json;
 use std::path::PathBuf;
 
 use productivity_proxy_app::models::proxy::settings::{ProxyPaths, ProxySettings};
@@ -40,6 +41,26 @@ fn builds_lan_authenticated_args() {
     assert!(args.contains(&"9090".into()));
     assert!(args.contains(&"--proxyauth".into()));
     assert!(args.contains(&"user:secret".into()));
+}
+
+#[test]
+fn reads_settings_from_app_config_json() {
+    let value = json!({
+        "proxy": {
+            "port": 9090,
+            "allowLan": true,
+            "authEnabled": true,
+            "authUsername": "user",
+            "authPassword": "secret"
+        }
+    });
+
+    let settings = ProxySettings::from_app_config(&value).unwrap();
+
+    assert_eq!(settings.port, 9090);
+    assert!(settings.allow_lan);
+    assert!(settings.auth_enabled);
+    assert_eq!(settings.auth_username, "user");
 }
 
 fn paths() -> ProxyPaths {

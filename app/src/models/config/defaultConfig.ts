@@ -6,8 +6,8 @@ function mode(id: string, name: string): ModeConfig {
     name,
     graph: {
       nodes: [
-        { id: `${id}-start`, type: "start" },
-        { id: `${id}-end`, type: "end" },
+        { id: `${id}-start`, type: "start", position: { x: 80, y: 120 } },
+        { id: `${id}-end`, type: "end", position: { x: 320, y: 120 } },
       ],
       edges: [{ from: `${id}-start`, output: "next", to: `${id}-end` }],
     },

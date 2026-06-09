@@ -1,8 +1,8 @@
 # ProductivityProxy
 
-ProductivityProxy is becoming a dockless Tauri + React tray app that controls a local `mitmproxy` proxy.
+ProductivityProxy is a dockless Tauri + React tray app that controls a local `mitmproxy` proxy.
 
-The long-term goal is a visual policy graph editor where modes like `Productivity` and `Chilling` are built from blocks.
+It lets you build traffic policies as mode-specific visual graphs. The proxy logic runs in Python inside `mitmdump`.
 
 ## Current architecture
 
@@ -14,25 +14,32 @@ tests/               Python proxy engine tests
 docs/                design/build docs
 ```
 
-The app is the controller. The proxy logic stays in Python and runs inside `mitmdump`.
+## Implemented
 
-## Implemented so far
-
-- Dockless Tauri shell:
+- Dockless tray/menu-bar app:
   - hidden dashboard at startup,
-  - tray/menu-bar icon,
+  - tray icon opens the dashboard,
   - close hides the dashboard instead of quitting,
   - macOS accessory activation policy.
-- React dashboard shell.
+- Dashboard:
+  - proxy start/stop,
+  - mode selector,
+  - proxy settings,
+  - LAN/Android setup panel,
+  - visual graph editor,
+  - custom Python block editor,
+  - event viewer.
 - Python graph policy engine:
   - graph nodes and edges,
   - built-in nodes: `block`, `log`, `track_time`, `notify`, `redirect`, `if`, `switch`, `start`, `end`,
   - arbitrary custom Python blocks loaded from files,
   - no custom-code sandboxing.
-- Rust proxy command helpers:
-  - build `mitmdump` arguments,
-  - process start/stop service.
-- Dev `mitmdump` script using graph config files instead of policy env vars.
+- Default modes:
+  - `Productivity`: blocks YouTube Shorts and blocks Reddit after 30 minutes/day,
+  - `Chilling`: allows traffic.
+- Native notifications:
+  - `notify` graph node writes notification events,
+  - app displays those as desktop notifications.
 
 ## Install prerequisites
 
@@ -72,6 +79,15 @@ cd app
 npx tauri build --debug --no-bundle
 ```
 
+## Run the desktop app
+
+```bash
+cd app
+npm run tauri dev
+```
+
+The dashboard starts hidden. Use the tray/menu-bar icon to open it.
+
 ## Run the dev proxy directly
 
 ```bash
@@ -82,22 +98,11 @@ set +a
 ./scripts/run_mitm.sh
 ```
 
-Default config:
+Default graph config:
 
 ```text
 proxy/defaults/default_config.json
 ```
-
-The default config is intentionally minimal for now.
-
-## Run the desktop app
-
-```bash
-cd app
-npm run tauri dev
-```
-
-The dashboard starts hidden. Use the tray/menu-bar icon to open it.
 
 ## Notes
 

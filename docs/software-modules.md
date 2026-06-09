@@ -255,6 +255,19 @@ Responsibility:
 
 - Start, stop, and restart `mitmdump`.
 
+### `app/src/services/network/networkRepository`
+
+Responsibility:
+
+- Read local/LAN proxy setup details from Tauri commands.
+
+### `app/src/services/notifications/notificationService`
+
+Responsibility:
+
+- Convert proxy `notification` events into desktop notification calls.
+- Deduplicate already-seen notification events.
+
 ### `app/src/services/config/configService`
 
 Responsibility:

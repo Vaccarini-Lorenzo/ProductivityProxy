@@ -104,6 +104,15 @@ class BuiltinNodeRunnerTest(unittest.TestCase):
 
             self.assertEqual(result.output, "true")
 
+    def test_if_supports_greater_than_or_equal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            context = make_context(tmp, {"usage": {"daily_seconds": 1800}})
+            node = GraphNode("if", "if", {"key": "usage.daily_seconds", "greaterThanOrEqual": 1800})
+
+            result = BuiltinNodeRunner().run(node, context)
+
+            self.assertEqual(result.output, "true")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,17 @@ fn starts_and_stops_a_real_process() {
 }
 
 #[test]
+fn starts_with_owned_string_args() {
+    let mut service = ProcessService::new();
+    let args = vec!["-c".to_string(), "import time; time.sleep(10)".to_string()];
+
+    service.start_args("python3", &args).unwrap();
+
+    assert!(service.is_running().unwrap());
+    service.stop().unwrap();
+}
+
+#[test]
 fn rejects_start_when_process_is_already_running() {
     let mut service = ProcessService::new();
 

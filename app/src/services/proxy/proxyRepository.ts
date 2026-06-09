@@ -1,0 +1,24 @@
+import type { AppConfig } from "../../models/config/types";
+import type { CommandClient } from "../config/configRepository";
+
+export interface ProxyStatus {
+  running: boolean;
+}
+
+export type ProxyEvent = Record<string, unknown>;
+
+export function startProxy(client: CommandClient, config: AppConfig): Promise<void> {
+  return client.invoke<void>("start_proxy", { config });
+}
+
+export function stopProxy(client: CommandClient): Promise<void> {
+  return client.invoke<void>("stop_proxy");
+}
+
+export function getProxyStatus(client: CommandClient): Promise<ProxyStatus> {
+  return client.invoke<ProxyStatus>("proxy_status");
+}
+
+export function readRecentEvents(client: CommandClient, limit: number): Promise<ProxyEvent[]> {
+  return client.invoke<ProxyEvent[]>("read_recent_events", { limit });
+}

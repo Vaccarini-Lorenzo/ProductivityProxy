@@ -37,8 +37,8 @@ class BuiltinNodeRunner:
 
     def _if(self, node: GraphNode, context) -> NodeResult:
         value = _get_path(context.data, str(node.params["key"]))
-        expected = node.params.get("equals", True)
-        return NodeResult(output="true" if value == expected else "false")
+        matched = _matches_condition(value, node.params)
+        return NodeResult(output="true" if matched else "false")
 
     def _switch(self, node: GraphNode, context) -> NodeResult:
         value = _get_path(context.data, str(node.params["key"]))
@@ -87,6 +87,18 @@ class BuiltinNodeRunner:
         if hasattr(context.flow.request, "pretty_url"):
             context.flow.request.pretty_url = url
         return NodeResult(output="redirected")
+
+
+def _matches_condition(value: Any, params: dict[str, Any]) -> bool:
+    if "equals" in params:
+        return value == params["equals"]
+    if "greaterThanOrEqual" in params:
+        return float(value) >= float(params["greaterThanOrEqual"])
+    if "lessThan" in params:
+        return float(value) < float(params["lessThan"])
+    if "exists" in params:
+        return (value is not None) == bool(params["exists"])
+    return bool(value)
 
 
 def _make_response(status: int, content: bytes, headers: dict[str, str]):

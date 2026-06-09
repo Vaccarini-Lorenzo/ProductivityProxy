@@ -1,9 +1,15 @@
 export type NodeParams = Record<string, unknown>;
 
+export interface GraphPosition {
+  x: number;
+  y: number;
+}
+
 export interface GraphNode {
   id: string;
   type: string;
   params?: NodeParams;
+  position?: GraphPosition;
 }
 
 export interface GraphEdge {
