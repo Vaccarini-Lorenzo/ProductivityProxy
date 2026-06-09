@@ -16,7 +16,7 @@ fi
 args=(
   --listen-host "$PRODUCTIVE_PROXY_LISTEN_HOST"
   --listen-port "$PRODUCTIVE_PROXY_LISTEN_PORT"
-  -s proxy/addons/graph_proxy.py
+  -s src/proxy/addons/graph_proxy.py
   --set "productive_config_path=$PRODUCTIVE_PROXY_CONFIG_PATH"
   --set "productive_state_path=$PRODUCTIVE_PROXY_STATE_PATH"
   --set "productive_event_log_path=$PRODUCTIVE_PROXY_EVENT_LOG_PATH"

@@ -38,26 +38,27 @@ This is intentional for now. The user is responsible for the code they run.
 
 ```text
 ProductivityProxy/
-  app/
-    package.json
-    index.html
-    src/
-      main.tsx
-      App.tsx
-      components/
-      graph/
-      pages/
-      state/
-      types/
-    src-tauri/
-      tauri.conf.json
-      src/
-        main.rs
-        proxy.rs
-        tray.rs
-        config.rs
+  src/
+    frontend/
+      react/
+        package.json
+        index.html
+        src/
+          main.tsx
+          App.tsx
+          components/
+          models/
+          services/
+      tauri/
+        tauri.conf.json
+        src/
+          main.rs
+          lib.rs
+          controller/
+          models/
+          services/
 
-  proxy/
+    proxy/
     addons/
       graph_proxy.py
     engine/
@@ -79,13 +80,13 @@ ProductivityProxy/
     proxy-setup.md
 
   scripts/
-    run_proxy.sh
+    run_mitm.sh
 
   README.md
   requirements.txt
 ```
 
-The current `mitmproxy/addons/productive_policies.py` logic will be migrated into the new graph-based proxy engine.
+The old legacy mitmproxy add-on was removed after the graph-based proxy engine replaced it.
 
 ## Runtime architecture
 
@@ -98,7 +99,7 @@ Tauri tray app
   └─ shows OS notifications
 
 mitmdump subprocess
-  └─ loads proxy/addons/graph_proxy.py
+  └─ loads src/proxy/addons/graph_proxy.py
        └─ reads config.json
        └─ evaluates active mode graph
        └─ executes built-in and custom Python blocks
@@ -341,7 +342,7 @@ The app starts mitmdump roughly like this:
 mitmdump \
   --listen-host 0.0.0.0 \
   --listen-port 8080 \
-  -s proxy/addons/graph_proxy.py \
+  -s src/proxy/addons/graph_proxy.py \
   --set productive_config_path=/path/to/config.json \
   --set productive_state_path=/path/to/state.json \
   --set productive_event_log_path=/path/to/events.jsonl
@@ -484,7 +485,7 @@ This keeps notification behavior in the app layer.
 
 ### Phase 4: Python graph engine
 
-- Create `proxy/addons/graph_proxy.py`.
+- Create `src/proxy/addons/graph_proxy.py`.
 - Create graph evaluator.
 - Implement context object.
 - Implement built-in nodes:

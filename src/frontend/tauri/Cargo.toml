@@ -1,0 +1,51 @@
+[package]
+name = "productivity-proxy-app"
+version = "0.1.0"
+description = "ProductivityProxy desktop app"
+authors = ["ProductivityProxy"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "productivity_proxy_app"
+crate-type = ["staticlib", "cdylib", "rlib"]
+path = "src/lib.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.6.2", features = [] }
+
+[dependencies]
+log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = { version = "2.11.2", features = ["tray-icon"] }
+tauri-plugin-log = "2"
+tauri-plugin-notification = "2"
+
+[[test]]
+name = "tauri_file_store"
+path = "../../../test/unit/frontend/tauri/config/file_store.rs"
+
+[[test]]
+name = "tauri_runtime_paths"
+path = "../../../test/unit/frontend/tauri/config/runtime_paths.rs"
+
+[[test]]
+name = "tauri_event_log"
+path = "../../../test/unit/frontend/tauri/events/event_log.rs"
+
+[[test]]
+name = "tauri_network_info"
+path = "../../../test/unit/frontend/tauri/network/network_info.rs"
+
+[[test]]
+name = "tauri_mitmdump_args"
+path = "../../../test/unit/frontend/tauri/proxy/mitmdump_args.rs"
+
+[[test]]
+name = "tauri_proxy_process"
+path = "../../../test/unit/frontend/tauri/proxy/proxy_process.rs"
+
+[[test]]
+name = "tauri_tray_actions"
+path = "../../../test/unit/frontend/tauri/tray/tray_actions.rs"

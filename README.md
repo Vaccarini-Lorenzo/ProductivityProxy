@@ -4,14 +4,17 @@ ProductivityProxy is a dockless Tauri + React tray app that controls a local `mi
 
 It lets you build traffic policies as mode-specific visual graphs. The proxy logic runs in Python inside `mitmdump`.
 
-## Current architecture
+## Project layout
 
 ```text
-app/                 Tauri v2 + React desktop app
-proxy/               Python mitmproxy graph policy engine
-scripts/             dev helper scripts
-tests/               Python proxy engine tests
-docs/                design/build docs
+src/
+  frontend/
+    react/        React dashboard, Vite, npm scripts
+    tauri/        Tauri v2 Rust shell and native commands
+  proxy/          Python mitmproxy graph policy engine
+scripts/          dev helper scripts
+test/             Unit and integration tests
+docs/             design/build docs
 ```
 
 ## Implemented
@@ -54,13 +57,25 @@ Rust, Node, and npm are also required for the desktop app.
 Python proxy engine:
 
 ```bash
-python3 -m unittest discover -s tests -p 'test_*.py'
+python3 -m unittest discover -s test -t . -p 'test_*.py'
+```
+
+Python unit tests only:
+
+```bash
+python3 -m unittest discover -s test/unit -t . -p 'test_*.py'
+```
+
+Python integration tests only:
+
+```bash
+python3 -m unittest discover -s test/integration -t . -p 'test_*.py'
 ```
 
 React app:
 
 ```bash
-cd app
+cd src/frontend/react
 npm test
 npm run build
 ```
@@ -68,21 +83,21 @@ npm run build
 Rust/Tauri backend:
 
 ```bash
-cd app/src-tauri
+cd src/frontend/tauri
 cargo test
 ```
 
 Tauri compile check:
 
 ```bash
-cd app
-npx tauri build --debug --no-bundle
+cd src/frontend/react
+npm run tauri build -- --debug --no-bundle
 ```
 
 ## Run the desktop app
 
 ```bash
-cd app
+cd src/frontend/react
 npm run tauri dev
 ```
 
@@ -101,7 +116,7 @@ set +a
 Default graph config:
 
 ```text
-proxy/defaults/default_config.json
+src/proxy/defaults/default_config.json
 ```
 
 ## Notes

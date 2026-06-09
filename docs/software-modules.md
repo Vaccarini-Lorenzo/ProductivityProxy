@@ -11,23 +11,42 @@ The first build target is the Python graph policy engine. The desktop app will c
 Code is grouped by layer and domain:
 
 ```text
-proxy/
-  models/
-    graph/
-    runtime/
-  services/
-    config/
-    events/
-    graph/
-    state/
-  controller/
-    mitmproxy/
-
-app/
-  src/
+src/
+  proxy/
     models/
+      graph/
+      runtime/
     services/
+      config/
+      events/
+      graph/
+      state/
     controller/
+      mitmproxy/
+  frontend/
+    react/src/
+      models/
+      services/
+      controller/
+    tauri/src/
+      models/
+      services/
+      controller/
+```
+
+Tests are grouped by test type first, then by tested unit or flow:
+
+```text
+test/
+  unit/
+    config_service/
+    state_store/
+    frontend/
+      react/
+      tauri/
+  integration/
+    default_policy_graph/
+    graph_policy_flow/
 ```
 
 ## Python proxy engine modules
@@ -243,44 +262,44 @@ Rules:
 
 ## App modules planned next
 
-### `app/src/models/config`
+### `src/frontend/react/src/models/config`
 
 Responsibility:
 
 - TypeScript types for config, modes, graph nodes, edges, and custom blocks.
 
-### `app/src/services/proxy/processService`
+### `src/frontend/react/src/services/proxy/processService`
 
 Responsibility:
 
 - Start, stop, and restart `mitmdump`.
 
-### `app/src/services/network/networkRepository`
+### `src/frontend/react/src/services/network/networkRepository`
 
 Responsibility:
 
 - Read local/LAN proxy setup details from Tauri commands.
 
-### `app/src/services/notifications/notificationService`
+### `src/frontend/react/src/services/notifications/notificationService`
 
 Responsibility:
 
 - Convert proxy `notification` events into desktop notification calls.
 - Deduplicate already-seen notification events.
 
-### `app/src/services/config/configService`
+### `src/frontend/react/src/services/config/configService`
 
 Responsibility:
 
 - Read/write app config through Tauri commands.
 
-### `app/src/controller/tray`
+### `src/frontend/react/src/controller/tray`
 
 Responsibility:
 
 - Control tray/menu interactions.
 
-### `app/src/controller/dashboard`
+### `src/frontend/react/src/controller/dashboard`
 
 Responsibility:
 

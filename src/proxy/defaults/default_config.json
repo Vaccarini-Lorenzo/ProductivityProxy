@@ -1,0 +1,83 @@
+{
+  "activeModeId": "productivity",
+  "proxy": {
+    "port": 8080,
+    "allowLan": false,
+    "authEnabled": false,
+    "authUsername": "productive",
+    "authPassword": "change-me"
+  },
+  "modes": [
+    {
+      "id": "productivity",
+      "name": "Productivity",
+      "graph": {
+        "nodes": [
+          { "id": "productivity-start", "type": "start", "position": { "x": 80, "y": 120 } },
+          {
+            "id": "detect-youtube-shorts",
+            "type": "python",
+            "position": { "x": 300, "y": 80 },
+            "params": {
+              "blockId": "detect-youtube-shorts",
+              "hostSuffixes": ["youtube.com", "www.youtube.com", "m.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com"],
+              "markers": ["/shorts", "/youtubei/v1/reel", "/api/stats/shorts"]
+            }
+          },
+          { "id": "block-youtube-shorts", "type": "block", "position": { "x": 560, "y": 40 }, "params": { "status": 403, "message": "YouTube Shorts blocked" } },
+          {
+            "id": "detect-reddit",
+            "type": "python",
+            "position": { "x": 560, "y": 180 },
+            "params": {
+              "blockId": "detect-platform",
+              "platform": "reddit",
+              "hostSuffixes": ["reddit.com", "www.reddit.com", "old.reddit.com", "new.reddit.com", "redd.it"]
+            }
+          },
+          { "id": "track-reddit", "type": "track_time", "position": { "x": 800, "y": 180 }, "params": { "platform": "reddit", "idleSeconds": 300 } },
+          { "id": "reddit-limit", "type": "if", "position": { "x": 1040, "y": 180 }, "params": { "key": "usage.daily_seconds", "greaterThanOrEqual": 1800 } },
+          { "id": "block-reddit", "type": "block", "position": { "x": 1280, "y": 140 }, "params": { "status": 403, "message": "Reddit daily limit reached" } },
+          { "id": "productivity-end", "type": "end", "position": { "x": 1280, "y": 280 } }
+        ],
+        "edges": [
+          { "from": "productivity-start", "output": "next", "to": "detect-youtube-shorts" },
+          { "from": "detect-youtube-shorts", "output": "match", "to": "block-youtube-shorts" },
+          { "from": "detect-youtube-shorts", "output": "no_match", "to": "detect-reddit" },
+          { "from": "detect-reddit", "output": "match", "to": "track-reddit" },
+          { "from": "detect-reddit", "output": "no_match", "to": "productivity-end" },
+          { "from": "track-reddit", "output": "next", "to": "reddit-limit" },
+          { "from": "reddit-limit", "output": "true", "to": "block-reddit" },
+          { "from": "reddit-limit", "output": "false", "to": "productivity-end" }
+        ]
+      }
+    },
+    {
+      "id": "chilling",
+      "name": "Chilling",
+      "graph": {
+        "nodes": [
+          { "id": "chilling-start", "type": "start", "position": { "x": 80, "y": 120 } },
+          { "id": "chilling-end", "type": "end", "position": { "x": 320, "y": 120 } }
+        ],
+        "edges": [
+          { "from": "chilling-start", "output": "next", "to": "chilling-end" }
+        ]
+      }
+    }
+  ],
+  "customBlocks": [
+    {
+      "id": "detect-youtube-shorts",
+      "name": "Detect YouTube Shorts",
+      "path": "src/proxy/defaults/blocks/detect_youtube_shorts.py",
+      "entrypoint": "run"
+    },
+    {
+      "id": "detect-platform",
+      "name": "Detect Platform",
+      "path": "src/proxy/defaults/blocks/detect_platform.py",
+      "entrypoint": "run"
+    }
+  ]
+}

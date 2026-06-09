@@ -7,11 +7,11 @@
 /data/
 *.log
 
-# App build output
-app/node_modules/
-app/dist/
-app/src-tauri/target/
-app/src-tauri/gen/
+# Frontend build output
+src/frontend/react/node_modules/
+src/frontend/react/dist/
+src/frontend/tauri/target/
+src/frontend/tauri/gen/
 
 # Python
 __pycache__/

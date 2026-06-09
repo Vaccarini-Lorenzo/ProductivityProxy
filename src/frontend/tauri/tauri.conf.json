@@ -1,0 +1,33 @@
+{
+  "$schema": "../react/node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "ProductivityProxy",
+  "version": "0.1.0",
+  "identifier": "com.productivityproxy.desktop",
+  "build": {
+    "frontendDist": "../react/dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "cd ../react && npm run dev",
+    "beforeBuildCommand": "cd ../react && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "ProductivityProxy",
+        "width": 960,
+        "height": 720,
+        "visible": false,
+        "skipTaskbar": true,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": "all"
+  }
+}
