@@ -5,12 +5,15 @@ import {
   Controls,
   MiniMap,
   Handle,
+  BaseEdge,
+  EdgeLabelRenderer,
   Position,
   MarkerType,
   ConnectionMode,
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
+  getSmoothStepPath,
   type Node,
   type Edge,
   type OnNodesChange,
@@ -18,6 +21,7 @@ import {
   type OnConnect,
   type NodeProps,
   type NodeHandle,
+  type EdgeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { ModeConfig, PolicyGraph } from "../models/config/types";
@@ -48,6 +52,17 @@ export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
     };
   }, []);
 
+  const deleteEdge = useCallback((id: string) => {
+    const graphEdges = mode.graph.edges.filter((e, i) => edgeId(e, i) !== id);
+    onGraphChange({ ...mode.graph, edges: graphEdges });
+  }, [mode.graph, onGraphChange]);
+
+  useEffect(() => {
+    const handleDelete = (event: Event) => deleteEdge((event as CustomEvent<string>).detail);
+    window.addEventListener("policy-edge-delete", handleDelete);
+    return () => window.removeEventListener("policy-edge-delete", handleDelete);
+  }, [deleteEdge]);
+
   const nodes: Node[] = useMemo(() =>
     mode.graph.nodes.map((n, i) => ({
       id: n.id,
@@ -65,7 +80,8 @@ export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
 
   const edges: Edge[] = useMemo(() =>
     mode.graph.edges.map((e, i) => ({
-      id: `${e.from}-${e.output}-${e.to}-${i}`,
+      id: edgeId(e, i),
+      type: "deletable",
       source: e.from,
       sourceHandle: "out",
       target: e.to,
@@ -73,6 +89,7 @@ export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
       label: e.output !== "next" ? e.output : undefined,
       markerEnd: { type: MarkerType.ArrowClosed },
       animated: e.output === "next",
+      selectable: true,
     })),
     [mode.graph.edges],
   );
@@ -97,7 +114,7 @@ export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
   }, [edges, mode.graph, onGraphChange]);
 
   const onConnect: OnConnect = useCallback((params) => {
-    const updated = addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed }, animated: true }, edges);
+    const updated = addEdge({ ...params, type: "deletable", markerEnd: { type: MarkerType.ArrowClosed }, animated: true, selectable: true }, edges);
     const graphEdges = updated.map((e) => ({
       from: e.source,
       output: (e.label as string) || "next",
@@ -127,6 +144,7 @@ export function GraphEditor({ mode, onGraphChange, onAddNode }: Props) {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           fitView
           fitViewOptions={{ maxZoom: 1.2, padding: 0.3 }}
           defaultEdgeOptions={{ type: "smoothstep", animated: true, markerEnd: { type: MarkerType.ArrowClosed } }}
@@ -173,7 +191,40 @@ function PolicyNode({ data }: NodeProps) {
   );
 }
 
+function DeletableEdge(props: EdgeProps) {
+  const [path, labelX, labelY] = getSmoothStepPath(props);
+  const zoneWidth = Math.max(Math.abs(props.targetX - props.sourceX), 64);
+  const zoneHeight = Math.max(Math.abs(props.targetY - props.sourceY), 44);
+
+  return (
+    <>
+      <BaseEdge path={path} markerEnd={props.markerEnd} style={props.style} interactionWidth={0} />
+      <EdgeLabelRenderer>
+        <div
+          className="edge-action-zone nodrag nopan"
+          style={{ height: zoneHeight, transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, width: zoneWidth }}
+        >
+          <button
+            aria-label="Delete edge"
+            className="edge-delete"
+            onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => { event.stopPropagation(); window.dispatchEvent(new CustomEvent("policy-edge-delete", { detail: props.id })); }}
+            type="button"
+          >
+            🗑
+          </button>
+        </div>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
 const nodeTypes = { policyNode: PolicyNode };
+const edgeTypes = { deletable: DeletableEdge };
+
+function edgeId(edge: PolicyGraph["edges"][number], index: number): string {
+  return `${edge.from}-${edge.output}-${edge.to}-${index}`;
+}
 
 function policyHandles(type: string): NodeHandle[] {
   const handles: NodeHandle[] = [];

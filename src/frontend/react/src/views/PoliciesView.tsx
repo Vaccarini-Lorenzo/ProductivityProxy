@@ -85,7 +85,7 @@ function createMode(name: string): ModeConfig {
         { id: `${id}-start`, type: "start", position: { x: 80, y: 200 } },
         { id: `${id}-end`, type: "end", position: { x: 460, y: 200 } },
       ],
-      edges: [{ from: `${id}-start`, output: "next", to: `${id}-end` }],
+      edges: [],
     },
   };
 }

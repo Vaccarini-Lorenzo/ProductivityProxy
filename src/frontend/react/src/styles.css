@@ -255,6 +255,13 @@ button + button, .field + button { margin-top: 0; }
 .react-flow__handle-left::after { content: "IN"; left: 28px; }
 .react-flow__handle-right::after { content: "OUT"; right: 28px; }
 .graph-hint { margin-top: 10px; font-size: 0.75rem; text-align: center; }
+.edge-action-zone { position: absolute; display: grid; place-items: center; pointer-events: all; }
+.edge-delete {
+  width: 34px; height: 34px; min-height: 34px; padding: 0; opacity: 0; pointer-events: none;
+  font-size: 0.9rem; border-color: var(--red); background: rgba(14, 4, 4, 0.96);
+}
+.edge-action-zone:hover .edge-delete { opacity: 1; pointer-events: all; }
+.edge-delete:hover { background: var(--red); color: #fff; }
 
 /* Operators */
 .block-list { display: grid; gap: 10px; }
