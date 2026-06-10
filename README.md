@@ -2,121 +2,136 @@
 
 # ProductivityProxy
 
-### Turn *“just one more video”* into a `403 Forbidden`.
+**Focus on what you want (... or need) with a click.**
 
 [![CI](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/ci.yml/badge.svg)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/ci.yml)
 [![latency](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/pp-latency.json)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/ci.yml)
 
-ProductivityProxy is a menu‑bar app that runs a local proxy and enforces **your** rules on **your** traffic — built as visual, node‑based policies. Block YouTube Shorts, put a daily timer on Reddit, or bounce every distraction to a “get back to work” page. No subscriptions, no cloud, no telemetry. It all runs on your machine.
+<a href="assets/hero.mp4"><img src="assets/hero-poster.png" alt="ProductivityProxy: visual policies enforced by a local proxy" width="900" /></a>
 
-<video src="https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/hero.mp4" poster="https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/hero-poster.png" width="900" controls autoplay loop muted playsinline></video>
+<sub>Simple demo showcasing two custom rules: Youtube shorts block and freedium redirect (we can do much more...)</sub>
 
-<sub>Visual node-based policies, real Python underneath, one-click modes — all enforced by a local proxy. (<a href="https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/hero.mp4">play the video</a>)</sub>
 
 </div>
 
 ---
 
+ProductivityProxy runs a small proxy on your machine and lets you decides what to do with every request you makes. </br>
+You draw the rules as graphs: a starting condition, some logic, and an action like block or redirect. Every node in a graph is a Python file: You can describe exactly what you want, tweaking requests and responses as you wish.
+
+It lives in the macOS menu bar. Nothing leaves your machine. No account, no subscriptions, nothing at all.
+
 ## Why it exists
 
-Willpower is a terrible content filter. ProductivityProxy moves the “should I really open this?” decision out of your head and into a tiny program that runs every time a request leaves your browser.
+Made by an ADHD kid for ~~ADHD kids~~ himself.</br>
+This is currently a personal-use project that I make publicly available hoping that it might be usefult to someone (and that someone more skilled and with more free time than me might actually make it good).
 
-- 🧩 **Visual policies** — wire up `Start → logic → action` graphs on a canvas. No regex soup.
-- 🐍 **Real Python under the hood** — every block is a small Python node with full access to the request/response. Bend it however you like.
-- 🎛️ **Modes** — flip between *Deep Work*, *Research*, and *Chill* in one click. Each mode is just an ordered set of policies.
-- 🔍 **Observability** — a filterable event log shows exactly which policy fired on which request, and why.
-- 💻 **Local & private** — a dockless macOS tray app driving `mitmproxy`. Your traffic never leaves the device.
+Most blockers are a browser extension (ew), or a paid app wrapping a fixed list of domains. This one is built differently: It lets you customize your policies completely, bundle them into modes, tweak responses (possibly injecting custom components in the webpage) and embed custom logic as you wish.
 
----
+## But can't I do the same exact thing with mitmproxy addons?
 
-## How it works
+Yes, but would you be able to throw around boxes and connect them? No? Exactly my point.
+> Spoiler: Under the hood mitmproxy addons are used
 
-The mental model is three layers deep:
+## What it does
 
+- **Visual policies.** Build start, logic, and action graphs on a canvas instead of editing config by hand.
+- **Python underneath.** Every node is a small Python file with access to the request. Read the URL, rewrite it, block it, or compute whatever you like.
+- **Modes.** Group policies into modes like **Deep Work**, **ADHD Block** or **Chill**, and switch between them in one click.
+- **A readable event log.** See which policy fired on which request, and why.
+- **Local and private.** A macOS menu bar app driving mitmproxy. Your traffic stays on the machine.
+
+## Components
+
+```text
+active mode
+   policy 1      checked first
+   policy 2
+   policy 3
+   ...
+
+each policy is a small graph:
+   start  >  logic  >  action (block, redirect, ...)  >  end
 ```
-            ┌──────────────────────── Active Mode ────────────────────────┐
- request ──▶│  Policy 1   ▶   Policy 2   ▶   Policy 3   ▶ …  (top‑to‑bottom)│──▶ first match wins
-            └──────┬───────────────────────────────────────────────────────┘
-                   │  each policy is a graph:
-                   ▼
-        Start(triggered_by) ─▶ node ─▶ operator ─▶ … ─▶ End
-        (run or skip?)       (do/decide)        (stop)
-```
 
-- A **Mode** is an *ordered* list of policies. Only the active mode runs.
-- A **Policy** is a graph that begins at a **Start** node. The Start node holds Python `def triggered_by(request: Request) -> bool` code — if it returns `False`, the policy is skipped.
-- Policies are evaluated top‑to‑bottom and the **first one to produce a response wins** (e.g. a block). If nothing responds, the request passes through.
-- An **empty mode = allow everything.** “Chill” is just a mode with no policies.
+- A **mode** is an ordered list of policies. Only the active mode runs.
+- A **policy** is a graph that begins at a **Start** node. The Start node holds a Python `triggered_by(request) -> bool`. If it returns `False`, the policy is skipped.
+- Policies run from top to bottom and the first one that produces a response wins, usually a block. If none respond, the request passes through untouched.
+- An empty mode allows everything. Chill is just a mode with no policies.
 
-Building blocks you get out of the box:
+Just as examples, the project includes some built-in pythin nodes *(custom logic)* and operators *(control flow management)*:
 
 | Block | Kind | What it does |
 |------|------|--------------|
-| **Start** | flow | Entry point + Python trigger (`triggered_by`) |
-| **End** | flow | Stops the policy |
 | **If / Then / Else** | operator | One input, two branches (Python `if_condition`) |
 | **Switch** | operator | One branch per case (Python `switch_condition`) |
+| **Start** | flow | Entry point plus a Python trigger (`triggered_by`) |
+| **End** | flow | Stops the policy |
 | **Block Response** | node | Returns a `403` (or any status) with a message |
 | **Track Time** | node | Accumulates active time on a platform |
 | **Is Usage Over Limit** | node | Flags when a daily budget is exceeded |
-| _your own_ | node | Any Python file with a `run(input, request, context, params)` function |
+| your own | node | Any Python file with a `run(input, request, context, params)` function |
 
----
+## Dashboard - Settings
 
-## The dashboard
-
-**Settings** — start/stop the proxy, pick the port, allow LAN devices, optional auth.
+- Start and stop the proxy
+- Pick the port
+- Allow other devices on your network to connect to your proxy
+- Turn on auth if you want it.
 
 <img src="assets/settings.png" alt="Settings page" width="820" />
 
-**Modes** — your one‑click presets. The active mode glows; everything else is dormant.
+## Dashboard - Modes
+Sets of policies you switch between.
+
+Only the active mode runs.
 
 <img src="assets/modes.gif" alt="Switching the active mode and reordering its policies" width="820" />
 
-**Policy** — the visual editor. Drag blocks from the library onto the canvas and click a node to configure it.
+## Dashboard - Policies
+The visual editor.
+
+Drag operators and nodes from the library onto the canvas to define how a request/response is handled.
 
 <img src="assets/policy.gif" alt="The visual policy graph editor with a Switch and If branch" width="820" />
 
-**Nodes** — your library of reusable Python building blocks.
+## Dashboard - Nodes
+Your library of reusable Python blocks.
+
+Each node is a middleware you can run in a policy.
 
 <img src="assets/nodes.gif" alt="Editing a Python node with autocomplete and the API reference drawer" width="820" />
 
-**Observability** — a filterable trace of every request, policy step, and custom‑node log.
+## Dashboard - Observability
+A filterable trace of every request, every policy step, and anything your nodes log.
 
 <img src="assets/observability.png" alt="Observability page" width="820" />
 
----
+## What you can build
 
-## Ideas to steal
+The default library ships `Block Response`, `Track Time`, and `Is Usage Over Limit`. Most of the ideas below are a small custom node away, which is the whole point: the interesting rules are a few lines of Python.
 
-### Policies
-
-The default library currently registers `Block Response`, `Track Time`, and `Is Usage Over Limit`. Other ideas below may require adding/registering a custom node first.
-
-| Goal | How to build it |
+| What you want | How you would build it |
 |------|-----------------|
-| 🚫 **Kill YouTube Shorts** | `Start` (`triggered_by` checks `youtube.com` + `/shorts`) → `Block Response 403` *(ships by default)* |
-| ⏳ **Daily Reddit budget** | `Start` (`triggered_by` checks `reddit.com`) → `Track Time` → `Is Usage Over Limit (30 min)` → `If over` → `Block` *(ships by default)* |
-| 🧱 **No social, period** | `Start` (`triggered_by` checks social hosts) → `Block Response` (“Back to work 💪”) |
-| 🔔 **Nudge, don’t block** | Add/register a notify node → `Start` (`triggered_by` checks news sites) → `Notify` (“5th time on the news today”) → `End` (let it through) |
-| ↪️ **Redirect to a focus page** | Add/register a redirect node → `Start` (`triggered_by` checks distraction hosts) → `Redirect Request` → your “is this aligned with today’s goal?” page |
-| 🧠 **Per‑platform limits** | Add/register a detector node → `Detect Platform` → `Switch` (youtube / reddit / twitter) → different budget per case |
-
-### Modes
-
-- **🎯 Deep Work** — *No social* + *Kill Shorts* + *Reddit budget = 0*. The nuclear option.
-- **📚 Research** — *No social*, but leave docs, GitHub, and Stack Overflow alone.
-- **🌙 Wind Down** — block work email and Slack after 7pm so the evening stays yours.
-- **🛋️ Chill** — empty mode. Everything is allowed. Touch grass.
-
----
+| **Kill YouTube Shorts** | `Start` (matches `youtube.com` and `/shorts`) goes to `Block Response 403`. Ships by default. |
+| **Daily Reddit budget** | `Start` (matches `reddit.com`) goes to `Track Time`, then `Is Usage Over Limit (30 min)`, then `If over`, then `Block`. Ships by default. |
+| **Inject a video summary** | On a YouTube watch page, inject an iframe with an LLM summary built from the video's transcript, right next to the player. |
+| **No social, ever** | `Start` (matches your social hosts) goes to `Block Response` with a "back to work" page. |
+| **No work links after a set hour** | `Start` checks the host and the time of day, then blocks or redirects so the evening stays yours. |
+| **Stay on topic with an LLM** | A node that scores each request against today's topic, using embeddings or an LLM, and filters out the content that drifts off it. |
+| **Skip the paywall** | `Start` matches article URLs and redirects to a reader like Freedium when the URL pattern fits. |
+| **Nudge instead of block** | A notify node: `Start` (matches news sites) goes to `Notify` ("fifth time on the news today"), then `End`, and lets it through. |
+| **Redirect to a focus page** | `Start` (matches distraction hosts) redirects to your own "is this what I planned to do?" page. |
+| **Per platform limits** | A detector node feeds a `Switch` on platform (youtube, reddit, twitter), with a different budget per case. |
 
 ## Custom nodes
 
-A node is just a Python file exposing `run(input, request, context, params)`. It receives optional `input` from the previous node, the current HTTP `request`, a small helper `context`, and its configured `params`. Return the next value — or use `request.block(...)` to stop the request.
+A node is a Python file that exposes `run(input, request, context, params)`.
+
+It gets the value from the previous node, the current request, a small helper `context`, and its configured `params`. Return the value for the next node, or call `request.block(...)` or `request.redirect(...)` to act on the request directly.
 
 ```python
-# block_response.py — return a 403 with a custom message
+# block_response.py: return a 403 with a custom message
 from typing import Any
 
 from proxy.api import Context, Request
@@ -127,37 +142,33 @@ def run(input: Any, request: Request, context: Context, params: dict[str, Any]) 
     return input
 ```
 
-Add the file on the **Nodes** page, then drop it into any policy from the library. That’s the whole extension model.
+Add the file on the **Nodes** page, then drag it into any policy from the library. That is the whole extension model.
 
-> ⚠️ Custom nodes and inline trigger/operator Python run with your local permissions and full mitmproxy access — they are **not** sandboxed. Only run code you trust.
-
----
+> Custom nodes and inline trigger or operator Python run with your permissions and full mitmproxy access. They are not sandboxed, so only run code you trust.
 
 ## Requirements
 
-> **You need [mitmproxy](https://mitmproxy.org/) installed and its CA certificate trusted.** ProductivityProxy drives `mitmdump` — it does not bundle it.
+> ProductivityProxy is built on top of [mitmproxy](https://mitmproxy.org/). You install mitmproxy and trust its certificate. The app does not bundle it.
 
-- **macOS** for automatic system-proxy control (it snapshots and restores your HTTP/HTTPS proxy settings). On Linux you can still run the proxy manually and point your browser at it.
+- **macOS** for automatic proxy control. The app snapshots your system HTTP and HTTPS proxy settings on start and restores them on exit. On Linux you can still run the proxy by hand and point your browser at it.
 - **mitmproxy** on your `PATH`:
   ```bash
   brew install mitmproxy
   ```
-- **Trust the mitmproxy CA certificate** to filter **HTTPS** traffic. After the first `mitmdump` run it lives at:
+- **The mitmproxy CA certificate, trusted**, so it can read HTTPS. After the first `mitmdump` run it lives at:
   ```text
   ~/.mitmproxy/mitmproxy-ca-cert.pem
   ```
-  Install and trust it on every device you proxy (macOS Keychain or your browser/OS trust store). **Without it, HTTPS sites can't be inspected or blocked.**
+  Trust it on every device you proxy (macOS Keychain, or your browser or OS trust store). Without it, HTTPS sites cannot be inspected or blocked.
 - **Rust, Node.js, and npm** to build and run the desktop app.
-- **Required environment variables** — the app refuses to start the proxy without them:
+- **These environment variables.** The app refuses to start the proxy without them:
 
   | Variable | Purpose |
   |---|---|
-  | `POLICY_MAX_STEPS` | Hard cap on policy steps per request (loop guard). |
-  | `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE` | `true` adds the full per-step policy trace to events. |
-  | `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES` | Event-log size budget before old events are compacted. |
-  | `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS` | How often usage state is flushed to disk. |
-
----
+  | `POLICY_MAX_STEPS` | Hard cap on policy steps per request, as a loop guard. |
+  | `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE` | `true` adds the full per step policy trace to events. |
+  | `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES` | Event log size budget before old events are compacted. |
+  | `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS` | How often usage state is written to disk. |
 
 ## Quick start
 
@@ -175,10 +186,9 @@ npm install
 npm run tauri dev
 ```
 
-The window starts hidden — open it from the **tray / menu‑bar icon**.
+The window starts hidden. Open it from the tray icon in the menu bar.
 
-To enforce rules on HTTPS traffic, install and trust the mitmproxy CA certificate
-(`~/.mitmproxy/mitmproxy-ca-cert.pem` after the first run).
+To enforce rules on HTTPS traffic, install and trust the mitmproxy CA certificate (`~/.mitmproxy/mitmproxy-ca-cert.pem` after the first run).
 
 **Run the proxy without the app** (configure your browser to use the listener manually):
 
@@ -187,19 +197,17 @@ set -a; source .env.example; set +a
 ./scripts/run_mitm.sh
 ```
 
----
-
 ## Project layout
 
 ```text
 src/
   frontend/
     react/        React dashboard (Vite)
-    tauri/        Tauri v2 Rust shell + native commands
+    tauri/        Tauri v2 Rust shell and native commands
   proxy/          Python mitmproxy policy engine
 scripts/          dev helper scripts
-test/             unit + integration tests
-docs/             design & architecture docs
+test/             unit and integration tests
+docs/             design and architecture docs
 ```
 
 ## Tests
@@ -217,7 +225,7 @@ cd src/frontend/tauri && cargo test
 
 ## Benchmark
 
-A re-runnable hot-path benchmark (per-request latency, telemetry volume, observability read cost):
+A repeatable benchmark for the hot path. It measures per request latency, telemetry volume, and the cost of reading observability:
 
 ```bash
 set -a; source .env.example; set +a
@@ -226,23 +234,15 @@ set -a; source .env.example; set +a
 
 ## Docs
 
-- [docs/usage.md](docs/usage.md) — running and using the app
-- [docs/development.md](docs/development.md) — setup, tests, workflows
-- [docs/architecture/](docs/architecture/) — component & data‑layer design
-- [docs/architecture/2_component/python-proxy-engine.md](docs/architecture/2_component/python-proxy-engine.md) — the node execution contract
+- [docs/usage.md](docs/usage.md): running and using the app
+- [docs/development.md](docs/development.md): setup, tests, workflows
+- [docs/architecture/](docs/architecture/): component and data layer design
+- [docs/architecture/2_component/python-proxy-engine.md](docs/architecture/2_component/python-proxy-engine.md): the node execution contract
 
----
+## Current limitations and TODOs
 
-## Honest limitations
-
-- **macOS‑first.** Starting from the app snapshots and restores macOS system proxy settings; Linux system‑proxy automation isn’t implemented yet (run the proxy manually instead).
+- **macOS first.** Starting the app snapshots and restores macOS system proxy settings. Linux proxy automation is not built yet, so run the proxy by hand there.
 - **HTTPS needs the mitmproxy CA** installed and trusted on each client.
-- **Custom Python nodes are unsandboxed** — they run with your permissions.
-- **mitmproxy isn’t bundled** — install it with Homebrew.
-- If the app is force‑killed, macOS proxy settings may need a manual reset (see [docs/usage.md](docs/usage.md#recovery-if-macos-proxy-stays-enabled)).
-
----
-
-<div align="center">
-<sub>Built for people who like their distractions to fail with a status code.</sub>
-</div>
+- **Custom Python nodes are not sandboxed.** They run with your permissions.
+- **mitmproxy is not bundled.** Install it with Homebrew.
+- If the app is force killed, macOS proxy settings may need a manual reset. See [docs/usage.md](docs/usage.md#recovery-if-macos-proxy-stays-enabled).

@@ -177,11 +177,11 @@ Security note: custom nodes and inline start/operator Python are executed direct
 
 ## Persistent state
 
-`StateStore` backs `context.persistent_state`. State is read from disk once, mutated in memory, and flushed write-behind (within `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`, and on shutdown), so the event loop no longer rewrites the whole file on every request. The registered `track-time` and `is-usage-over-limit` nodes use it for the top-level `usage` key. The state shape and usage-tracking rules (idle window, UTC daily buckets) live in [Data Layer](../4_data_layer/config-state-events.md#state-schema).
+`StateStore` backs `context.persistent_state`. State is read from disk once, mutated in memory, and flushed write-behind, so the event loop no longer rewrites the whole file on every request. The registered `track-time` and `is-usage-over-limit` nodes use it for the top-level `usage` key. The state shape, flush timing, and usage-tracking rules (idle window, UTC daily buckets) live in [Data Layer](../4_data_layer/config-state-events.md#state-schema).
 
 ## Events
 
-`EventLog` appends one JSON object per line to `events.jsonl` from a background thread, so the event loop never blocks on disk I/O. The file is kept under `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`: when it grows past the budget the oldest half is dropped (compaction), bounding both file size and dashboard read cost. Custom nodes call `context.log(type, message, level, **data)` for filterable custom events.
+`EventLog` appends one JSON object per line to `events.jsonl` from a background thread, so the event loop never blocks on disk I/O. The file is bounded by `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES` via compaction (see [Data Layer](../4_data_layer/config-state-events.md#event-log-schema)), which keeps both file size and dashboard read cost in check. Custom nodes call `context.log(type, message, level, **data)` for filterable custom events.
 
 The event taxonomy (default vs `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE` events), schemas, and query contracts live in [Data Layer](../4_data_layer/config-state-events.md#event-log-schema).
 

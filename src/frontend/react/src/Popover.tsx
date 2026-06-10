@@ -4,25 +4,32 @@ import { Button, Card, CheckRow, Icon, count } from "./components/ui";
 import type { AppConfig } from "./models/config/types";
 import { loadConfig, saveConfig, type CommandClient } from "./services/config/configRepository";
 import { errorMessage } from "./services/errors/errorMessage";
+import type { Notifier } from "./services/notifications/notificationService";
+import { tauriNotifier } from "./services/notifications/tauriNotifier";
 import { STATUS_POLL_MS } from "./services/proxy/polling";
 import { getProxyStatus, startProxy, stopProxy } from "./services/proxy/proxyRepository";
 import { tauriClient } from "./services/tauri/tauriClient";
 
 interface Props {
   client?: CommandClient;
+  notifier?: Notifier;
 }
 
 /** Compact menu-bar popover: proxy on/off, running state, and mode switch. */
-export function Popover({ client = tauriClient }: Props) {
+export function Popover({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [running, setRunning] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const shellRef = useRef<HTMLDivElement>(null);
+  // While a start/stop request is in flight we trust the optimistic toggle and
+  // ignore status polls, which would otherwise clobber it before it settles.
+  const pending = useRef(false);
 
   useEffect(() => {
     const refreshStatus = () => {
-      getProxyStatus(client).then((status) => setRunning(status.running)).catch(() => {});
+      getProxyStatus(client)
+        .then((status) => { if (!pending.current) setRunning(status.running); })
+        .catch(() => {});
     };
     const reloadConfig = () => loadConfig(client).then(setConfig).catch(showError);
     reloadConfig();
@@ -65,21 +72,22 @@ export function Popover({ client = tauriClient }: Props) {
     setMessage(errorMessage(error, "Tauri unavailable"));
   }
 
+  // Optimistic + async: flip the toggle immediately and run the start/stop in
+  // the background. If it fails, snap the toggle back and notify the user.
   async function toggleProxy(next: boolean) {
-    if (!config || busy) return;
-    setBusy(true);
-    setMessage(next ? "Starting proxy\u2026" : "Stopping proxy\u2026");
+    if (!config || pending.current) return;
+    pending.current = true;
+    setRunning(next);
+    setMessage("");
     try {
       if (next) await startProxy(client, config);
       else await stopProxy(client);
-      const status = await getProxyStatus(client);
-      setRunning(status.running);
-      setMessage("");
     } catch (error) {
-      showError(error);
-      getProxyStatus(client).then((status) => setRunning(status.running)).catch(() => {});
+      setRunning(!next);
+      const action = next ? "start" : "stop";
+      notifier.notify("ProductivityProxy", `Couldn't ${action} the proxy: ${errorMessage(error)}`).catch(() => {});
     } finally {
-      setBusy(false);
+      pending.current = false;
     }
   }
 
@@ -110,14 +118,11 @@ export function Popover({ client = tauriClient }: Props) {
             <div className={running ? "pop-power on" : "pop-power"}>
               <CheckRow
                 checked={running}
-                disabled={busy}
                 onChange={toggleProxy}
                 label={running ? "Proxy is on" : "Proxy is off"}
-                hint={busy
-                  ? "Working\u2026"
-                  : running
-                    ? `Filtering traffic on port ${config.proxy.port}`
-                    : "Turn on to enforce your rules"}
+                hint={running
+                  ? `Filtering traffic on port ${config.proxy.port}`
+                  : "Turn on to enforce your rules"}
               />
             </div>
 

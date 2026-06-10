@@ -39,7 +39,7 @@ The desktop app currently expects `mitmdump` to be available on `PATH`.
 
 Desktop proxy startup and the manual proxy helper both require `POLICY_MAX_STEPS` in the environment. The value must be a positive integer and is used by the Python evaluator as the loop guard.
 
-The manual proxy helper also requires the `PRODUCTIVE_PROXY_*` variables shown in `.env.example`.
+The manual proxy helper also requires the `PRODUCTIVE_PROXY_*` engine variables shown in `.env.example`. The desktop app pre-checks only `POLICY_MAX_STEPS`, but the `mitmdump` it launches runs the Python engine, so those same `PRODUCTIVE_PROXY_*` variables must also be present in the environment that starts the desktop app — otherwise the engine raises at runtime. See [Development Guide](../../development.md#environment).
 
 Command examples live in [Development Guide](../../development.md) and [Usage Guide](../../usage.md).
 
@@ -98,20 +98,17 @@ The app does not yet automate CA installation.
 
 While the proxy runs, the system HTTP/HTTPS proxy points at `127.0.0.1:<port>`; stopping or quitting restores the previous settings. The snapshot/restore mechanics, the authenticated-proxy refusal, and the disabled/missing-endpoint behavior are documented in [Tauri Desktop Backend](../2_component/tauri-desktop-backend.md#macos-system-proxy-handling).
 
-Runtime durability: the snapshot is persisted to `system_proxy_snapshot.json`, so a force-kill or crash is recovered automatically on the next app launch (the dashboard's `proxy_status` call, or a later start/stop, restores from the file). Manual `networksetup` recovery is only a fallback — see [Usage Guide](../../usage.md#recovery-if-macos-proxy-stays-enabled).
+Runtime durability: the snapshot is persisted to `system_proxy_snapshot.json`, so a force-kill or crash is recovered automatically on the next app launch ([restore mechanics](../2_component/tauri-desktop-backend.md#durable-restore-across-crashes)). Manual `networksetup` recovery is only a fallback — see [Usage Guide](../../usage.md#recovery-if-macos-proxy-stays-enabled).
 
 ## Packaging status
 
-Packaging is not finished.
+The app currently runs from the source tree, not a packaged bundle:
 
-Known gaps:
-
-- mitmproxy is not bundled,
-- Python runtime/addon packaging is unresolved,
+- the Tauri bundle config has `active: false` (no installer is produced),
 - repo-root discovery depends on source files existing on disk,
-- bundle config has `active: false`,
-- installer signing/notarization is not configured,
-- Linux tray and proxy behavior need validation per desktop environment.
+- mitmproxy/`mitmdump` and the Python runtime are expected on the host, not bundled.
+
+The remaining packaging work — a bundling strategy for mitmproxy/Python/addon files, installer signing/notarization, and per-desktop-environment Linux validation — is tracked in [Roadmap and Readiness](../../roadmap/readiness.md#not-ready-for-broad-daily-use-yet).
 
 ## Scaling model
 

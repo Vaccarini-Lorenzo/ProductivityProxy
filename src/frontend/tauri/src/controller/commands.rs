@@ -120,7 +120,7 @@ pub fn read_custom_node(app: AppHandle, path: String) -> Result<String, String> 
     fs::read_to_string(requested).map_err(to_string)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Result<(), String> {
     require_env("POLICY_MAX_STEPS")?;
     let paths = paths_for_app(&app)?;
@@ -189,14 +189,14 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn stop_proxy(app: AppHandle, state: State<AppState>) -> Result<(), String> {
     let snapshot_path = system_proxy_snapshot_path_for_app(&app)?;
     restore_marked_system_proxy(&state.system_proxy_snapshot, &snapshot_path)?;
     state.proxy.lock().map_err(to_string)?.stop().map_err(to_string)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn proxy_status(app: AppHandle, state: State<AppState>) -> Result<ProxyStatus, String> {
     let snapshot_path = system_proxy_snapshot_path_for_app(&app)?;
     let running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;

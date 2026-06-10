@@ -87,7 +87,7 @@ Workload size is set by `BENCH_N_BLOCK` and `BENCH_N_TRACK` (e.g. `BENCH_N_TRACK
 - **frontend** — `npm ci`, `npm test`, `npm run build` in `src/frontend/react`.
 - **benchmark** — runs `scripts/run_bench.sh` (after `python` passes). On pushes to `main` it commits the block-policy latency to `assets/pp-latency.json` (loop-guarded with `[skip ci]`, only when the value changes), which feeds the latency badge in the README. The number reflects the CI runner, so it is noisier/slower than a local run.
 
-The Tauri/Rust shell is not built in CI: it has no `#[test]` targets yet and compiling it needs webkit system dependencies. Add a job when Rust tests exist.
+CI does not yet run the Rust/Tauri tests (they run locally via `cargo test`, see [Run tests](#run-tests)) because compiling the shell needs webkit system dependencies; add a CI job when that is set up.
 
 Tauri compile check without bundling:
 
@@ -116,7 +116,7 @@ set +a
 ./scripts/run_mitm.sh
 ```
 
-The helper script uses `.env.example` for listener, runtime file paths, auth, and the engine variables (`POLICY_MAX_STEPS`, `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE`, `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`, `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`). It creates `PRODUCTIVE_PROXY_CONFIG_PATH` from `src/proxy/defaults/default_config.json` when that file does not exist.
+The helper script uses `.env.example` for listener, runtime file paths, auth, and the engine variables from [Environment](#environment). It creates `PRODUCTIVE_PROXY_CONFIG_PATH` from `src/proxy/defaults/default_config.json` when that file does not exist.
 
 If the config schema changes, delete the file at `PRODUCTIVE_PROXY_CONFIG_PATH` before running the helper so it regenerates from the current default config.
 
@@ -183,7 +183,7 @@ npm run build
 ## Manual checks before daily use
 
 1. `mitmdump --version` works.
-2. The required proxy environment variables (`POLICY_MAX_STEPS`, `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE`, `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`, `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`) are set in the shell that starts the desktop app.
+2. The required proxy environment variables from [Environment](#environment) are set in the shell that starts the desktop app.
 3. Tauri app starts.
 4. Start proxy from Settings.
 5. macOS system proxy points at `127.0.0.1:<port>`.

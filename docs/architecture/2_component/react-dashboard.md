@@ -36,7 +36,7 @@ All React CSS lives under `src/frontend/react/src/style/`. Components and views 
 - user-facing message string,
 - a set of notification events already shown.
 
-On mount it asks the Tauri backend for app config, proxy status, recent events, and network info.
+On mount it asks the Tauri backend for app config, proxy status, recent events, and network info. It then polls on intervals defined in `services/proxy/polling.ts`: proxy status every `STATUS_POLL_MS` (2000 ms) and recent events every `EVENT_POLL_MS` (3000 ms). The menu-bar `Popover` polls status on the same `STATUS_POLL_MS` interval, and `ObservabilityView` refreshes its event feed every `EVENT_POLL_MS`.
 
 ## Navigation and shared components
 

@@ -172,7 +172,7 @@ Rules:
 - daily keys are UTC dates,
 - `last_seen_at` is a UNIX timestamp,
 - elapsed time is counted only when the gap from last seen is within `idleSeconds`,
-- state is held in memory and flushed to disk as pretty JSON at most every `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS` (write-behind), and on shutdown.
+- state is held in memory and flushed to disk as pretty JSON write-behind (flush timing is in the get/set contract below).
 
 Public custom-node API:
 
@@ -214,7 +214,7 @@ Known event groups:
 - `notification`,
 - observability events such as `config_loaded`, `config_rejected`, `request_started`, `request_finished`, `request_failed`, `policy_started`, `policy_step`, `policy_finished`, and `policy_error`.
 
-`request_finished.outcome` is `allowed` or `blocked`. When blocked, it also carries `decidingPolicyId`, `decidingPolicyName`, and `responseStatus`, plus the request fields (`url`, `host`, `path`, `method`).
+`request_finished.outcome` is `allowed` or `blocked`. Every `request_finished` carries the request fields (`url`, `host`, `path`, `method`). When blocked, it also carries `decidingPolicyId`, `decidingPolicyName`, and `responseStatus`.
 
 `policy_step` (verbose only) contains routing fields such as `output`, `routeOutput`, `nextStepId`, and `durationMs`.
 

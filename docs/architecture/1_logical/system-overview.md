@@ -73,7 +73,7 @@ Detailed runtime mechanics live in [Tauri Desktop Backend](../2_component/tauri-
 2. The policy engine selects the active mode.
 3. Policies in that mode run in order.
 4. A policy starts at its start node.
-5. Custom nodes do work and continue through `next`; operators choose route labels.
+5. Custom nodes do work and continue along their single outgoing edge; operators choose route labels.
 6. Evaluation stops for a policy at an end node or when no route matches.
 7. Evaluation stops for the mode when a policy sets a response.
 
