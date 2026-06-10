@@ -4,24 +4,30 @@ import { NodeLibrary } from "../components/NodeLibrary";
 import { StepModal } from "../components/StepModal";
 import { Modal } from "../components/Modal";
 import { PageHeader, IconButton, count } from "../components/ui";
-import type { AppConfig, PolicyConfig, PolicyStepKind, StepParams } from "../models/config/types";
+import type { AppConfig, PolicyConfig, PolicyStepKind, StepParams, ValidationIssue } from "../models/config/types";
 import { createPolicy, slug } from "../services/config/configEditing";
 import { addStep, updateStepParams } from "../services/policy/policyOperations";
 
 interface Props {
   config: AppConfig;
+  savedConfig: AppConfig;
+  issues: ValidationIssue[];
   onConfigChange: (config: AppConfig) => void;
   onReadNode: (path: string) => Promise<string>;
 }
 
-export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
+export function PolicyView({ config, savedConfig, issues, onConfigChange, onReadNode }: Props) {
   const [selectedPolicyId, setSelectedPolicyId] = useState(config.policies[0]?.id ?? "");
   const [openStepId, setOpenStepId] = useState<string | null>(null);
   const [showNewPolicy, setShowNewPolicy] = useState(false);
+  const [showReset, setShowReset] = useState(false);
   const [newPolicyName, setNewPolicyName] = useState("");
   const activePolicy = config.policies.find((p) => p.id === selectedPolicyId) ?? config.policies[0];
   const openStep = activePolicy?.steps.find((s) => s.id === openStepId) ?? null;
   const usedIn = activePolicy ? config.modes.filter((m) => m.policyIds.includes(activePolicy.id)) : [];
+  const policyIssues = activePolicy ? issues.filter((i) => i.policyId === activePolicy.id) : [];
+  const invalidStepIds = new Set(policyIssues.flatMap((i) => i.stepIds));
+  const savedPolicy = activePolicy ? savedConfig.policies.find((p) => p.id === activePolicy.id) : undefined;
 
   useEffect(() => {
     if (!config.policies.some((p) => p.id === selectedPolicyId)) setSelectedPolicyId(config.policies[0]?.id ?? "");
@@ -47,6 +53,17 @@ export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
     const modes = config.modes.map((m) => ({ ...m, policyIds: m.policyIds.filter((pid) => pid !== id) }));
     onConfigChange({ ...config, policies, modes });
     selectPolicy(policies[0]?.id ?? "");
+  }
+
+  function resetPolicy() {
+    if (!activePolicy) return;
+    if (savedPolicy) {
+      onConfigChange({ ...config, policies: config.policies.map((p) => (p.id === savedPolicy.id ? savedPolicy : p)) });
+      setOpenStepId(null);
+    } else {
+      deletePolicy(activePolicy.id);
+    }
+    setShowReset(false);
   }
 
   function handleAddStep(kind: PolicyStepKind, type: string, params?: StepParams) {
@@ -83,10 +100,23 @@ export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
             )}
           </div>
           <div className="actions">
+            {policyIssues.length > 0 && <IconButton className="danger" icon="refresh" label="Reset policy to last saved" onClick={() => setShowReset(true)} disabled={!activePolicy} />}
             <IconButton className="danger" icon="trash" label="Delete policy" onClick={() => activePolicy && deletePolicy(activePolicy.id)} disabled={!activePolicy} />
             <IconButton className="primary" icon="plus" label="New policy" onClick={() => setShowNewPolicy(true)} />
           </div>
         </div>
+
+        {activePolicy && policyIssues.length > 0 && (
+          <div className="policy-issues" role="alert">
+            <span className="policy-issues-badge">Broken · not saved</span>
+            {policyIssues.map((issue, i) => (
+              <div className="policy-issue" key={i}>
+                <strong>{issue.message}</strong>
+                {issue.hint && <span className="muted">{issue.hint}</span>}
+              </div>
+            ))}
+          </div>
+        )}
 
         {activePolicy ? (
           <div className="policy-split">
@@ -102,6 +132,7 @@ export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
               <GraphEditor
                 policy={activePolicy}
                 openStepId={openStepId}
+                invalidStepIds={invalidStepIds}
                 onPolicyChange={updatePolicy}
                 onOpenStep={setOpenStepId}
                 onDeleteStep={handleDeleteStep}
@@ -135,6 +166,25 @@ export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
             <input autoFocus value={newPolicyName} onChange={(e) => setNewPolicyName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addPolicy()} placeholder="Block social media" />
           </label>
           <p className="inline-note">New policies are added to the shared library. Add them to a mode on the Modes page to make them run.</p>
+        </Modal>
+      )}
+      {showReset && activePolicy && (
+        <Modal
+          title={`Reset “${activePolicy.name}”`}
+          wide={!!savedPolicy}
+          onClose={() => setShowReset(false)}
+          footer={<><button type="button" onClick={() => setShowReset(false)}>Cancel</button><button className="primary" type="button" onClick={resetPolicy}>{savedPolicy ? "Reset to last saved" : "Remove policy"}</button></>}
+        >
+          {savedPolicy ? (
+            <>
+              <p className="inline-note">This discards the current broken changes and restores the last saved version shown below.</p>
+              <div className="reset-preview">
+                <GraphEditor policy={savedPolicy} openStepId={null} readOnly onPolicyChange={() => undefined} onOpenStep={() => undefined} onDeleteStep={() => undefined} />
+              </div>
+            </>
+          ) : (
+            <p className="danger-text">This policy was never saved, so there is no valid version to restore. Reset will remove it.</p>
+          )}
         </Modal>
       )}
     </div>

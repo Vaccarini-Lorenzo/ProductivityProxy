@@ -22,6 +22,7 @@ This document describes the current source tree. The UI is actively changing, so
 - active view: `settings`, `modes`, `policy`, `nodes`, or `observability`,
 - full app config,
 - last saved config for autosave comparison,
+- validation issues returned by the backend,
 - proxy running status,
 - detected local/LAN network info,
 - recent proxy events for notifications,
@@ -55,6 +56,8 @@ Current responsibilities:
 - load node source through `read_custom_node`,
 - add/edit node metadata and code,
 - write node code through the backend,
+- live-validate edited code through `validate_node_code` (backend),
+- reset broken code back to the last saved version,
 - delete unused node entries from config state.
 
 ### Modes
@@ -81,7 +84,9 @@ Current responsibilities:
 - show where the selected policy is used,
 - host the graph editor for the selected policy,
 - add/delete nodes and operators,
-- open the step inspector.
+- open the step inspector,
+- show backend validation issues and ring broken steps on the canvas,
+- reset a broken policy to its last saved version.
 
 Current limitations:
 
@@ -130,16 +135,13 @@ Thin wrapper around Tauri commands:
 
 ### Config validation
 
-`services/config/configValidation.ts`
+Validation lives entirely in the Python backend (the single source of truth). The dashboard re-implements no rules; it only renders what the backend returns.
 
-Current checks:
+- On autosave, `App` calls `write_app_config`, which validates the whole config in Python and writes the file **only when valid**. The command returns a `{ ok, issues[] }` report either way.
+- Editing custom-node code calls `validate_node_code`, which checks Python syntax and a `run` function.
+- On a failed report, `App` does not advance its last-saved snapshot. It shows the first issue in the top bar (red “Not saved”), `PolicyView` renders a per-policy “Broken · not saved” banner with message and hint, and `GraphEditor` rings the offending steps.
 
-- active mode exists,
-- each `mode.policyIds[]` entry references an existing policy,
-- each policy has exactly one start node,
-- policy edges point to existing steps.
-
-The Python backend enforces more behavior at runtime; frontend validation is intentionally small today.
+Each issue is `{ scope, policyId, nodeId, stepIds, message, hint }`. The rule set lives in [Python proxy engine](python-proxy-engine.md#config-model) and [Data Layer](../4_data_layer/config-state-events.md#validation-boundaries).
 
 ### Proxy repository
 

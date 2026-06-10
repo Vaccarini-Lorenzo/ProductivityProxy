@@ -1,14 +1,12 @@
 import unittest
 
-from proxy.api import RequestContext
-from proxy.models.runtime.context import RequestContext as RuntimeRequestContext
+from proxy.api import Context, Request
 
 
 class ProxyApiTest(unittest.TestCase):
-    def test_public_request_context_is_the_runtime_context(self):
-        # Custom nodes import RequestContext from the public proxy.api surface.
-        # It must stay the same class the evaluator passes as `context`.
-        self.assertIs(RequestContext, RuntimeRequestContext)
+    def test_public_api_exposes_request_and_context_only(self):
+        self.assertEqual(Request.__name__, "Request")
+        self.assertEqual(Context.__name__, "Context")
 
 
 if __name__ == "__main__":

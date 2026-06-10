@@ -1,12 +1,11 @@
 from typing import Any
 
-from proxy.api import RequestContext
+from proxy.api import Context, Request
 
 
-def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
+def run(input: Any, request: Request, context: Context, params: dict[str, Any]) -> Any:
     data = dict(input) if isinstance(input, dict) else {}
-    flow = context.flow
-    host = flow.request.pretty_host.lower().strip(".")
+    host = request.host.lower().strip(".")
     suffixes = params["hostSuffixes"]
     markers = [marker.lower() for marker in params["markers"]]
 
@@ -16,10 +15,10 @@ def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
         return data
 
     haystack = "\n".join([
-        getattr(flow.request, "pretty_url", ""),
-        getattr(flow.request, "path", ""),
-        flow.request.headers.get("referer", ""),
-        request_text(flow),
+        request.url,
+        request.path,
+        request.headers.get("referer", ""),
+        request.text(),
     ]).lower()
 
     if any(marker in haystack for marker in markers):
@@ -27,16 +26,3 @@ def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
         data["platform"] = "youtube"
         data["kind"] = "shorts"
     return data
-
-
-def request_text(flow):
-    get_text = getattr(flow.request, "get_text", None)
-    if callable(get_text):
-        try:
-            return get_text(strict=False)
-        except Exception:
-            return ""
-    content = getattr(flow.request, "content", b"")
-    if isinstance(content, bytes):
-        return content.decode("utf-8", errors="ignore")
-    return str(content)

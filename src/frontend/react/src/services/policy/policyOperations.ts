@@ -1,6 +1,6 @@
 import type { PolicyConfig, PolicyEdge, PolicyStep, PolicyStepKind, StepParams } from "../../models/config/types";
 
-const DEFAULT_START_TRIGGER_CODE = `def triggered_by(context: RequestContext) -> bool:
+const DEFAULT_START_TRIGGER_CODE = `def triggered_by(request: Request) -> bool:
     return True
 `;
 

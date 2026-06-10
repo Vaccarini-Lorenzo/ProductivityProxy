@@ -15,7 +15,7 @@ class FakeClient {
       return "custom_nodes/test.py" as T;
     }
     if (command === "read_custom_node") {
-      return "def run(input, context, params): return input" as T;
+      return "def run(input, request, context, params): return input" as T;
     }
     return undefined as T;
   }
@@ -43,7 +43,7 @@ describe("configRepository", () => {
   it("writes custom node code through command client", async () => {
     const client = new FakeClient();
 
-    const path = await writeCustomNode(client, "test.py", "def run(input, context, params): pass");
+    const path = await writeCustomNode(client, "test.py", "def run(input, request, context, params): pass");
 
     expect(path).toBe("custom_nodes/test.py");
     expect(client.calls[0].command).toBe("write_custom_node");

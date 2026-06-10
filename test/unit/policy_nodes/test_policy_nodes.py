@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from proxy.api import Context, Request
 from proxy.models.policy.flow import PolicyStep
 from proxy.models.runtime.context import RequestContext
 from proxy.services.events.event_log import EventLog
@@ -41,7 +42,7 @@ class DefaultNodeTest(unittest.TestCase):
             )
             module = load_default_node("block_response")
 
-            result = module.run({"match": True}, context, {"status": 451, "message": "Nope"})
+            result = module.run({"match": True}, Request(context), Context(context), {"status": 451, "message": "Nope"})
 
             self.assertEqual(result, {"match": True})
             self.assertEqual(context.flow.response.status_code, 451)

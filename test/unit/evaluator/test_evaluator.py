@@ -16,15 +16,15 @@ class PolicyEvaluatorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             detect_path = Path(tmp) / "detect.py"
             detect_path.write_text(
-                "def run(input, context, params):\n    return {'match': True, 'message': params['message']}\n",
+                "def run(input, request, context, params):\n    return {'match': True, 'message': params['message']}\n",
                 encoding="utf-8",
             )
             log_path = Path(tmp) / "log.py"
             log_path.write_text(
                 textwrap.dedent(
                     """
-                    def run(input, context, params):
-                        context.event_log.append({'type': 'seen', 'message': input['message']})
+                    def run(input, request, context, params):
+                        context.log('seen', input['message'])
                         return input
                     """
                 ),
@@ -77,7 +77,7 @@ class PolicyEvaluatorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             block_path = Path(tmp) / "block.py"
             block_path.write_text(
-                "def run(input, context, params):\n    context.flow.response = 'blocked'\n    return input\n",
+                "def run(input, request, context, params):\n    request.block(403, 'blocked')\n    return input\n",
                 encoding="utf-8",
             )
             config = AppConfig.from_dict(
@@ -93,7 +93,7 @@ class PolicyEvaluatorTest(unittest.TestCase):
                                     "kind": "node",
                                     "type": "start",
                                     "params": {
-                                        "code": "def triggered_by(context: RequestContext) -> bool:\n    return context.flow.request.pretty_host == 'work.test'\n"
+                                        "code": "def triggered_by(request: Request) -> bool:\n    return request.host == 'work.test'\n"
                                     },
                                 },
                                 {"id": "block", "kind": "node", "type": "block"},
@@ -113,18 +113,18 @@ class PolicyEvaluatorTest(unittest.TestCase):
             evaluator.evaluate(matched)
 
             self.assertIsNone(skipped.flow.response)
-            self.assertEqual(matched.flow.response, "blocked")
+            self.assertEqual(matched.flow.response.status_code, 403)
 
     def test_stops_ordered_mode_after_response_is_set(self):
         with tempfile.TemporaryDirectory() as tmp:
             block_path = Path(tmp) / "block.py"
             block_path.write_text(
-                "def run(input, context, params):\n    context.flow.response = 'blocked'\n    return input\n",
+                "def run(input, request, context, params):\n    request.block(403, 'blocked')\n    return input\n",
                 encoding="utf-8",
             )
             log_path = Path(tmp) / "log.py"
             log_path.write_text(
-                "def run(input, context, params):\n    context.event_log.append({'type': 'should_not_run'})\n    return input\n",
+                "def run(input, request, context, params):\n    context.log('should_not_run', 'should not run')\n    return input\n",
                 encoding="utf-8",
             )
             config = AppConfig.from_dict(

@@ -1,0 +1,43 @@
+/* Backend validation feedback: broken policy/node banners + reset preview. */
+.policy-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 2px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 112, 101, 0.45);
+  border-radius: 8px;
+  background: rgba(255, 112, 101, 0.07);
+}
+
+.policy-issues-badge {
+  align-self: flex-start;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--red);
+  background: rgba(255, 112, 101, 0.16);
+}
+
+.policy-issue {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.82rem;
+}
+
+.policy-issue strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.reset-preview {
+  display: flex;
+  height: 380px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}

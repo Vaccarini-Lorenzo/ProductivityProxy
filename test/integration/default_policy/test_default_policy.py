@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from proxy.models.runtime.context import RequestContext
@@ -49,15 +50,7 @@ class DefaultPolicyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             config = materialized_default_config()
             store = StateStore(Path(tmp) / "state.json")
-            store.save({
-                "usage": {
-                    "reddit": {
-                        "total_seconds": 1800.0,
-                        "daily_seconds": {"1970-01-01": 1800.0},
-                        "last_seen_at": 2800.0,
-                    }
-                }
-            })
+            day = datetime.now(timezone.utc).date().isoformat()
             flow = FakeFlow("https://www.reddit.com/r/test")
             flow.request.pretty_host = "www.reddit.com"
             flow.request.path = "/r/test"
@@ -68,8 +61,12 @@ class DefaultPolicyTest(unittest.TestCase):
                 event_log=EventLog(Path(tmp) / "events.jsonl"),
                 now=lambda: 2800.0,
             )
+            evaluator = PolicyEvaluator(config)
+            evaluator.shared_state["usage"] = {
+                "reddit": {"total_seconds": 1800.0, "daily_seconds": {day: 1800.0}, "last_seen_at": None}
+            }
 
-            PolicyEvaluator(config).evaluate(context)
+            evaluator.evaluate(context)
 
             self.assertEqual(flow.response.status_code, 403)
 

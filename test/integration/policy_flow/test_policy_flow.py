@@ -18,26 +18,28 @@ class PolicyFlowTest(unittest.TestCase):
                 tmp,
                 "detect_reddit.py",
                 """
-                def run(input, context, params):
-                    host = context.flow.request.pretty_host
-                    return {'match': host.endswith('reddit.com'), 'platform': 'reddit'}
+                def run(input, request, context, params):
+                    return {'match': request.host.endswith('reddit.com'), 'platform': 'reddit'}
                 """,
             )
             track_path = write_node(
                 tmp,
                 "track.py",
                 """
-                def run(input, context, params):
-                    usage = context.state.track_usage(params['platform'], params['idleSeconds'], context.now())
-                    return {**input, 'usage': usage}
+                def run(input, request, context, params):
+                    usage = context.state.setdefault('usage', {})
+                    record = usage.setdefault(params['platform'], {'seconds': 0})
+                    record['seconds'] += params['secondsToAdd']
+                    return {**input, 'usage': record}
                 """,
             )
             limit_path = write_node(
                 tmp,
                 "limit.py",
                 """
-                def run(input, context, params):
-                    used = context.state.usage_today(params['platform'], context.now())
+                def run(input, request, context, params):
+                    usage = context.state.get('usage', {})
+                    used = usage.get(params['platform'], {}).get('seconds', 0)
                     return {**input, 'used': used, 'over_limit': used >= params['seconds']}
                 """,
             )
@@ -45,13 +47,8 @@ class PolicyFlowTest(unittest.TestCase):
                 tmp,
                 "block.py",
                 """
-                class Response:
-                    def __init__(self, status_code, content):
-                        self.status_code = status_code
-                        self.content = content
-
-                def run(input, context, params):
-                    context.flow.response = Response(params['status'], params['message'].encode('utf-8'))
+                def run(input, request, context, params):
+                    request.block(params['status'], params['message'])
                     return input
                 """,
             )
@@ -66,7 +63,7 @@ class PolicyFlowTest(unittest.TestCase):
                                 {"id": "start", "kind": "node", "type": "start"},
                                 {"id": "detect", "kind": "node", "type": "detect-reddit"},
                                 {"id": "is-reddit", "kind": "operator", "type": "if", "params": {"code": "def if_condition(input):\n    return input['match']"}},
-                                {"id": "track", "kind": "node", "type": "track", "params": {"platform": "reddit", "idleSeconds": 9999}},
+                                {"id": "track", "kind": "node", "type": "track", "params": {"platform": "reddit", "secondsToAdd": 1800}},
                                 {"id": "limit", "kind": "node", "type": "limit", "params": {"platform": "reddit", "seconds": 1800}},
                                 {"id": "is-over", "kind": "operator", "type": "if", "params": {"code": "def if_condition(input):\n    return input['over_limit']"}},
                                 {"id": "block", "kind": "node", "type": "block", "params": {"status": 403, "message": "Reddit limit reached"}},
@@ -96,7 +93,6 @@ class PolicyFlowTest(unittest.TestCase):
                 }
             )
             store = StateStore(Path(tmp) / "state.json")
-            store.track_usage("reddit", idle_seconds=9999, now=1000.0)
             flow = FakeFlow("https://www.reddit.com/r/test")
             flow.request.pretty_host = "www.reddit.com"
             context = RequestContext(
@@ -111,7 +107,7 @@ class PolicyFlowTest(unittest.TestCase):
 
             self.assertEqual(flow.response.status_code, 403)
             self.assertIn(b"Reddit limit reached", flow.response.content)
-            self.assertEqual(store.usage_today("reddit", 2800.0), 1800.0)
+            self.assertEqual(context.shared_state["usage"]["reddit"]["seconds"], 1800)
 
 
 def write_node(tmp: str, name: str, code: str) -> Path:

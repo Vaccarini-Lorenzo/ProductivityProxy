@@ -1,11 +1,11 @@
 from typing import Any
 
-from proxy.api import RequestContext
+from proxy.api import Context, Request
 
 
-def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
+def run(input: Any, request: Request, context: Context, params: dict[str, Any]) -> Any:
     data = dict(input) if isinstance(input, dict) else {}
-    host = context.flow.request.pretty_host.lower().strip(".")
+    host = request.host.lower().strip(".")
     suffixes = params["hostSuffixes"]
     matched = any(host == suffix or host.endswith("." + suffix) for suffix in suffixes)
 

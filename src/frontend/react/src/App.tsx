@@ -8,15 +8,15 @@ import { ObservabilityView } from "./views/ObservabilityView";
 import { PolicyView } from "./views/PolicyView";
 import { SettingsView } from "./views/SettingsView";
 import { createDefaultConfig } from "./models/config/defaultConfig";
-import type { AppConfig } from "./models/config/types";
-import { readCustomNode, loadConfig, saveConfig, writeCustomNode, type CommandClient } from "./services/config/configRepository";
+import type { AppConfig, ValidationIssue } from "./models/config/types";
+import { readCustomNode, loadConfig, saveConfig, validateNodeCode, writeCustomNode, type CommandClient } from "./services/config/configRepository";
 import { uniqueSlug } from "./services/config/configEditing";
-import { validateAppConfig } from "./services/config/configValidation";
 import { showNotificationEvents, type Notifier } from "./services/notifications/notificationService";
 import { tauriNotifier } from "./services/notifications/tauriNotifier";
 import { getNetworkInfo, getProxyStatus, readRecentEvents, startProxy, stopProxy, type NetworkInfo, type ProxyEvent, type ProxyStatus } from "./services/proxy/proxyRepository";
 import { tauriClient } from "./services/tauri/tauriClient";
 import "./styles.css";
+import "./styles/validation.css";
 
 interface Props {
   client?: CommandClient;
@@ -34,6 +34,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [network, setNetwork] = useState<NetworkInfo>();
   const [events, setEvents] = useState<ProxyEvent[]>([]);
   const [message, setMessage] = useState("");
+  const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const seenNotifications = useRef(new Set<string>());
   const autosaveRun = useRef(0);
 
@@ -71,15 +72,18 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   useEffect(() => {
     if (!hasConfigChanges) return;
     const run = ++autosaveRun.current;
-    const errors = validateAppConfig(config);
-    if (errors.length > 0) { setMessage(errors.join(". ")); return; }
     setMessage("Saving…");
     const timeout = window.setTimeout(() => {
       saveConfig(client, config)
-        .then(() => {
+        .then((report) => {
           if (run !== autosaveRun.current) return;
-          setSavedConfig(config);
-          setMessage("Auto-saved");
+          setIssues(report.issues);
+          if (report.ok) {
+            setSavedConfig(config);
+            setMessage("Auto-saved");
+          } else {
+            setMessage(describeIssues(report.issues));
+          }
         })
         .catch((error) => { if (run === autosaveRun.current) showError(error); });
     }, AUTOSAVE_DELAY_MS);
@@ -87,8 +91,6 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   }, [client, config, hasConfigChanges]);
 
   async function handleStart() {
-    const errors = validateAppConfig(config);
-    if (errors.length > 0) { setMessage(errors.join(". ")); return; }
     await startProxy(client, config).then(() => setStatus({ running: true })).catch(showError);
   }
 
@@ -125,9 +127,9 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
       case "modes":
         return <ModesView config={config} onConfigChange={setConfig} />;
       case "policy":
-        return <PolicyView config={config} onConfigChange={setConfig} onReadNode={(path) => readCustomNode(client, path)} />;
+        return <PolicyView config={config} savedConfig={savedConfig} issues={issues} onConfigChange={setConfig} onReadNode={(path) => readCustomNode(client, path)} />;
       case "nodes":
-        return <NodesView nodes={config.customNodes} onSave={handleSaveNode} onRead={(path) => readCustomNode(client, path)} onDelete={handleDeleteNode} />;
+        return <NodesView nodes={config.customNodes} onSave={handleSaveNode} onRead={(path) => readCustomNode(client, path)} onValidateCode={(code) => validateNodeCode(client, code)} onDelete={handleDeleteNode} />;
       case "observability":
         return <ObservabilityView client={client} config={config} />;
     }
@@ -137,7 +139,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     <div className="app-frame">
       <TerminalNav active={view} running={status.running} onNavigate={setView} />
       <main className="app-shell">
-        <div className="top-bar"><span className={message ? "message" : "muted"} role="status">{message && <Icon name="info" />}{message || "Auto-save active"}</span></div>
+        <div className="top-bar"><span className={issues.length ? "message danger-text" : message ? "message" : "muted"} role="status">{message && <Icon name="info" />}{message || "Auto-save active"}</span></div>
         {renderView()}
       </main>
     </div>
@@ -146,4 +148,10 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
 
 function isNodeUsed(config: AppConfig, nodeId: string): boolean {
   return config.policies.some((policy) => policy.steps.some((step) => step.kind === "node" && step.type === nodeId));
+}
+
+function describeIssues(list: ValidationIssue[]): string {
+  if (list.length === 0) return "Not saved";
+  const extra = list.length > 1 ? ` (+${list.length - 1} more)` : "";
+  return `Not saved — ${list[0].message}${extra}`;
 }

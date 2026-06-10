@@ -18,8 +18,8 @@ class CustomNodeRunnerTest(unittest.TestCase):
             node_path.write_text(
                 textwrap.dedent(
                     """
-                    def run(input, context, params):
-                        context.data["seen"] = params["value"]
+                    def run(input, request, context, params):
+                        context.state["seen"] = params["value"]
                         return {"previous": input, "detected": True}
                     """
                 ),
@@ -51,7 +51,7 @@ class CustomNodeRunnerTest(unittest.TestCase):
             result = CustomNodeRunner(config).run(step, {"start": True}, context)
 
             self.assertEqual(result, {"previous": {"start": True}, "detected": True})
-            self.assertEqual(context.data["seen"], "ok")
+            self.assertEqual(context.shared_state["seen"], "ok")
 
 
 if __name__ == "__main__":

@@ -7,7 +7,6 @@ from typing import Any, Callable
 
 from proxy.models.policy.flow import AppConfig
 from proxy.services.events.event_log import EventLog
-from proxy.services.events.observability import CustomNodeLogger
 from proxy.services.state.state_store import StateStore
 
 
@@ -18,9 +17,6 @@ class RequestContext:
     state: StateStore
     event_log: EventLog
     data: dict[str, Any] = field(default_factory=dict)
+    shared_state: dict[str, Any] = field(default_factory=dict)
     now: Callable[[], float] = time.time
     request_id: str = field(default_factory=lambda: uuid.uuid4().hex)
-
-    @property
-    def log(self) -> CustomNodeLogger:
-        return CustomNodeLogger(self)

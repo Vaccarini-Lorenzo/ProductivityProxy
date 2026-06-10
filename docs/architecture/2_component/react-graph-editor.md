@@ -37,13 +37,15 @@ The editor is part of the React dashboard. It uses `@xyflow/react` for canvas re
 
 ## Step editing behavior
 
-- Start nodes edit inline Python `def triggered_by(context: RequestContext) -> bool` trigger code.
+- Start nodes edit inline Python `def triggered_by(request: Request) -> bool` trigger code.
 - End nodes have no configuration.
 - Custom nodes show metadata, existing params, and read-only Python source.
 - `if` operators edit inline `def if_condition(input) -> bool` code and route to `then` / `else`.
 - `switch` operators edit inline `def switch_condition(input) -> str` code plus a bounded case list.
 - Any Python editor exposes an **API** button opening the reference drawer (types and data available to node/operator code).
 - Step changes flow to `App` and autosave through the normal config path.
+- Steps the backend reports invalid render with a red ring via the `invalidStepIds` prop.
+- A `readOnly` mode renders the reset preview (the last saved graph) with dragging, connecting, and step opening disabled.
 
 ## Performance rule
 

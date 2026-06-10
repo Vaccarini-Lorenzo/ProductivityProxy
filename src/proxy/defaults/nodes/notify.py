@@ -1,12 +1,8 @@
 from typing import Any
 
-from proxy.api import RequestContext
+from proxy.api import Context, Request
 
 
-def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
-    context.event_log.append({
-        "type": "notification",
-        "title": str(params["title"]),
-        "body": str(params["body"]),
-    })
+def run(input: Any, request: Request, context: Context, params: dict[str, Any]) -> Any:
+    context.notify(str(params["title"]), str(params["body"]))
     return input

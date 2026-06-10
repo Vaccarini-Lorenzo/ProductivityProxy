@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
-BUILTIN_NODE_TYPES = {"start", "end"}
-OPERATOR_TYPES = {"if", "switch"}
+from proxy.services.config.validation import validate_config
 
 
 @dataclass(frozen=True)
@@ -49,32 +47,12 @@ class Policy:
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "Policy":
-        policy = cls(
+        return cls(
             id=str(raw["id"]),
             name=str(raw.get("name", raw["id"])),
             steps=[PolicyStep.from_dict(item) for item in raw.get("steps", [])],
             edges=[PolicyEdge.from_dict(item) for item in raw.get("edges", [])],
         )
-        policy.validate_structure()
-        return policy
-
-    def validate_structure(self) -> None:
-        _require_unique([step.id for step in self.steps], "policy step")
-        starts = [step for step in self.steps if step.kind == "node" and step.type == "start"]
-        if len(starts) != 1:
-            raise ValueError(f"Policy {self.id} must contain exactly one start node")
-
-        step_ids = {step.id for step in self.steps}
-        routes = set()
-        for edge in self.edges:
-            if edge.from_id not in step_ids:
-                raise ValueError(f"Unknown edge source: {edge.from_id}")
-            if edge.to_id not in step_ids:
-                raise ValueError(f"Unknown edge target: {edge.to_id}")
-            route = (edge.from_id, edge.output)
-            if route in routes:
-                raise ValueError(f"Duplicate route: {edge.from_id} -> {edge.output}")
-            routes.add(route)
 
     def start_step(self) -> PolicyStep:
         for step in self.steps:
@@ -103,13 +81,11 @@ class Mode:
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "Mode":
-        mode = cls(
+        return cls(
             id=str(raw["id"]),
             name=str(raw.get("name", raw["id"])),
             policy_ids=[str(pid) for pid in raw.get("policyIds", [])],
         )
-        _require_unique(mode.policy_ids, "policy reference")
-        return mode
 
 
 @dataclass(frozen=True)
@@ -120,13 +96,10 @@ class CustomNode:
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "CustomNode":
-        path = str(raw["path"])
-        if not Path(path).is_absolute():
-            raise ValueError(f"Custom node path must be absolute: {path}")
         return cls(
             id=str(raw["id"]),
             name=str(raw.get("name", raw["id"])),
-            path=path,
+            path=str(raw["path"]),
         )
 
 
@@ -140,30 +113,16 @@ class AppConfig:
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "AppConfig":
-        config = cls(
+        issues = validate_config(raw)
+        if issues:
+            raise ValueError("; ".join(issue["message"] for issue in issues))
+        return cls(
             active_mode_id=str(raw["activeModeId"]),
             proxy=dict(raw.get("proxy", {})),
             policies=[Policy.from_dict(item) for item in raw.get("policies", [])],
             modes=[Mode.from_dict(item) for item in raw.get("modes", [])],
             custom_nodes=[CustomNode.from_dict(item) for item in raw.get("customNodes", [])],
         )
-        config.validate()
-        return config
-
-    def validate(self) -> None:
-        _require_unique([mode.id for mode in self.modes], "mode")
-        _require_unique([policy.id for policy in self.policies], "policy")
-        _require_unique([node.id for node in self.custom_nodes], "custom node")
-        self.active_mode()
-        policy_ids = {policy.id for policy in self.policies}
-        for mode in self.modes:
-            for pid in mode.policy_ids:
-                if pid not in policy_ids:
-                    raise ValueError(f"Mode {mode.id} references unknown policy: {pid}")
-        custom_node_ids = {node.id for node in self.custom_nodes}
-        for policy in self.policies:
-            for step in policy.steps:
-                _validate_step_type(step, custom_node_ids)
 
     def active_mode(self) -> Mode:
         for mode in self.modes:
@@ -185,23 +144,3 @@ class AppConfig:
             if node.id == node_id:
                 return node
         raise ValueError(f"Unknown custom node: {node_id}")
-
-
-def _validate_step_type(step: PolicyStep, custom_node_ids: set[str]) -> None:
-    if step.kind == "node":
-        if step.type not in BUILTIN_NODE_TYPES and step.type not in custom_node_ids:
-            raise ValueError(f"Unknown node type: {step.type}")
-        return
-    if step.kind == "operator":
-        if step.type not in OPERATOR_TYPES:
-            raise ValueError(f"Unknown operator type: {step.type}")
-        return
-    raise ValueError(f"Unknown policy step kind: {step.kind}")
-
-
-def _require_unique(values: list[str], label: str) -> None:
-    seen = set()
-    for value in values:
-        if value in seen:
-            raise ValueError(f"Duplicate {label}: {value}")
-        seen.add(value)

@@ -4,7 +4,7 @@ import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
 import { PythonCodeEditor } from "./PythonCodeEditor";
 import { FieldGroup, Icon, IconButton, Modal, SearchInput, type IconName } from "./ui";
 
-const START_CODE = `def triggered_by(context: RequestContext) -> bool:
+const START_CODE = `def triggered_by(request: Request) -> bool:
     return True
 `;
 const IF_CODE = `def if_condition(input) -> bool:
@@ -15,7 +15,7 @@ const SWITCH_CODE = `def switch_condition(input) -> str:
 `;
 
 const FLOW_NODES: LibraryItem[] = [
-  { kind: "node", type: "start", label: "Start", desc: "Entry point with Python triggered_by(context) code", tone: "start", icon: "play", code: START_CODE },
+  { kind: "node", type: "start", label: "Start", desc: "Entry point with Python triggered_by(request) code", tone: "start", icon: "play", code: START_CODE },
   { kind: "node", type: "end", label: "End", desc: "Stop this policy flow", tone: "end", icon: "stop" },
 ];
 const OPERATORS: LibraryItem[] = [
@@ -93,11 +93,6 @@ export function NodeLibrary({ customNodes, hasStart, onAddStep, onReadNode }: Pr
         >
           <div className="node-view">
             <p className="inline-note">{selected.desc}</p>
-            <div className="meta-grid">
-              <div><dt>Kind</dt><dd>{selected.kind}</dd></div>
-              <div><dt>Type</dt><dd>{selected.type}</dd></div>
-              {selected.path && <div><dt>File</dt><dd>{selected.path}</dd></div>}
-            </div>
             {addDisabled && <p className="message">This policy already has a start node.</p>}
             {previewCode ? (
               <FieldGroup label={codeLabel(selected)} hint={canEditCode ? "Edit before adding" : "Read-only preview"}>

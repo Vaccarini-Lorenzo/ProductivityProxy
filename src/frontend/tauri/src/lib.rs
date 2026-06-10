@@ -4,7 +4,8 @@ pub mod services;
 
 use controller::commands::{
     network_info, proxy_status, query_events, read_app_config, read_custom_node, read_recent_events,
-    shutdown_cleanup, start_proxy, stop_proxy, write_app_config, write_custom_node, AppState,
+    shutdown_cleanup, start_proxy, stop_proxy, validate_node_code, write_app_config,
+    write_custom_node, AppState,
 };
 use controller::tray::actions::TrayAction;
 use controller::tray::popover::{self, PopoverState};
@@ -22,6 +23,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_app_config,
             write_app_config,
+            validate_node_code,
             write_custom_node,
             read_custom_node,
             start_proxy,

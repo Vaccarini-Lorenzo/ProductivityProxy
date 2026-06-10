@@ -1,6 +1,8 @@
 use crate::models::proxy::settings::ProxySettings;
+use crate::services::config::bootstrap::{discover_repo_root, ensure_config_exists};
 use crate::services::config::file_store::FileStore;
 use crate::services::config::runtime_paths::RuntimePaths;
+use crate::services::config::validator::{self, ValidationReport};
 use crate::services::events::event_log::{query_events as query_event_log, read_recent_events as read_events, EventQuery};
 use crate::services::network::network_info::{detect_network_info, NetworkInfo};
 use crate::services::proxy::mitmdump_args::build_mitmdump_args;
@@ -53,17 +55,32 @@ pub fn read_app_config(app: AppHandle) -> Result<Value, String> {
     FileStore::new(paths.proxy.config_path).read_json().map_err(to_string)
 }
 
+/// Validate via the Python source-of-truth, then write only if it is valid.
+/// Returns the report either way so the frontend can show issues without saving.
 #[tauri::command]
-pub fn write_app_config(app: AppHandle, config: Value) -> Result<(), String> {
+pub fn write_app_config(app: AppHandle, config: Value) -> Result<ValidationReport, String> {
     let paths = paths_for_app(&app)?;
-    FileStore::new(paths.proxy.config_path)
-        .write_json(&config)
-        .map_err(to_string)
+    let report = validator::validate_config(&discover_repo_root()?, &config)?;
+    if report.ok {
+        FileStore::new(paths.proxy.config_path)
+            .write_json(&config)
+            .map_err(to_string)?;
+    }
+    Ok(report)
+}
+
+#[tauri::command]
+pub fn validate_node_code(code: String) -> Result<ValidationReport, String> {
+    validator::validate_node_code(&discover_repo_root()?, &code)
 }
 
 #[tauri::command]
 pub fn write_custom_node(app: AppHandle, file_name: String, code: String) -> Result<String, String> {
     let paths = paths_for_app(&app)?;
+    let report = validator::validate_node_code(&discover_repo_root()?, &code)?;
+    if !report.ok {
+        return Err(validator::first_message(&report));
+    }
     fs::create_dir_all(&paths.custom_nodes_dir).map_err(to_string)?;
     let safe_name = Path::new(&file_name)
         .file_name()
@@ -105,6 +122,10 @@ pub fn read_custom_node(app: AppHandle, path: String) -> Result<String, String> 
 pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Result<(), String> {
     require_env("POLICY_MAX_STEPS")?;
     let paths = paths_for_app(&app)?;
+    let report = validator::validate_config(&discover_repo_root()?, &config)?;
+    if !report.ok {
+        return Err(validator::first_message(&report));
+    }
     let running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;
     if running {
         return Err("process already running".to_string());
@@ -193,46 +214,6 @@ pub fn network_info() -> NetworkInfo {
 fn paths_for_app(app: &AppHandle) -> Result<RuntimePaths, String> {
     let app_data = app.path().app_data_dir().map_err(to_string)?;
     Ok(RuntimePaths::new(app_data, discover_repo_root()?))
-}
-
-fn ensure_config_exists(paths: &RuntimePaths) -> Result<(), String> {
-    if paths.proxy.config_path.exists() {
-        return Ok(());
-    }
-    let repo_root = discover_repo_root()?;
-    let default_path = repo_root.join("src/proxy/defaults/default_config.json");
-    let mut config = FileStore::new(default_path).read_json().map_err(to_string)?;
-    materialize_custom_node_paths(&mut config, &repo_root);
-    FileStore::new(paths.proxy.config_path.clone())
-        .write_json(&config)
-        .map_err(to_string)
-}
-
-fn materialize_custom_node_paths(config: &mut Value, repo_root: &Path) {
-    let Some(nodes) = config["customNodes"].as_array_mut() else {
-        return;
-    };
-    for node in nodes {
-        let Some(path) = node["path"].as_str() else {
-            continue;
-        };
-        if Path::new(path).is_absolute() {
-            continue;
-        }
-        node["path"] = Value::String(repo_root.join(path).to_string_lossy().to_string());
-    }
-}
-
-fn discover_repo_root() -> Result<PathBuf, String> {
-    let mut dir = std::env::current_dir().map_err(to_string)?;
-    loop {
-        if dir.join("src/proxy/addons/policy_proxy.py").exists() {
-            return Ok(dir);
-        }
-        if !dir.pop() {
-            return Err("Cannot find repository root".to_string());
-        }
-    }
 }
 
 fn require_env(name: &str) -> Result<(), String> {

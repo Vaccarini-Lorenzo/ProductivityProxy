@@ -52,16 +52,18 @@ Important objects:
 - `PolicyEdge`,
 - `CustomNode`.
 
-Validation performed while parsing:
+Validation is delegated to `proxy.services.config.validation.validate_config`, the single source of truth shared with the desktop save path (`validate_cli.py`). `AppConfig.from_dict` runs it and raises on any issue. Rules:
 
 - `activeModeId` must match an existing mode,
 - each `mode.policyIds[]` value must reference a top-level policy,
+- ids must be unique (modes, policies, custom nodes, and steps within a policy),
 - custom node paths must be absolute,
 - each policy must have exactly one `start` node,
-- policy step IDs must be unique,
 - edges must point to existing steps,
 - routes must be unique by `from` + `output`,
-- step types must be known built-in nodes, operators, or custom nodes.
+- step types must be known built-in nodes, operators, or custom nodes,
+- every step must be reachable from `start` (no disconnected steps),
+- inline `start`/operator code must parse and define its required function.
 
 ## Semantic model
 
@@ -77,7 +79,10 @@ Built-in nodes:
 `start` returns `next` or `skip` by executing inline Python from `params["code"]`. The code must define:
 
 ```python
-def triggered_by(context: RequestContext) -> bool:
+from proxy.api import Request
+
+
+def triggered_by(request: Request) -> bool:
     return True
 ```
 
@@ -88,14 +93,14 @@ Custom nodes are trusted Python files with this entrypoint:
 ```python
 from typing import Any
 
-from proxy.api import RequestContext
+from proxy.api import Context, Request
 
 
-def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
+def run(input: Any, request: Request, context: Context, params: dict[str, Any]) -> Any:
     return input
 ```
 
-Reference functions are typed. `RequestContext` is re-exported from the public `proxy.api` module so node code does not import internal paths. The dashboard's Python editor has an API reference drawer documenting `context`, `params`, and the entry points.
+Reference functions are typed. `proxy.api` exposes only the small authoring surface: `Request` for HTTP request data/actions and `Context` for shared state, logging, and notifications. The dashboard's Python editor has an API reference drawer documenting that surface.
 
 Rules:
 
@@ -131,22 +136,19 @@ def switch_condition(input) -> str:
 
 It routes to the returned string. If no exact route exists, the evaluator tries a `default` route.
 
-## Request context
+## Runtime context vs author API
 
-`RequestContext` is a plain dataclass. It contains:
+`RequestContext` is internal runtime plumbing. It carries the mitmproxy flow, app config, persistent usage store, event log, per-request data, clock, and request id.
 
-- mitmproxy flow,
-- app config,
-- state store,
-- event log,
-- mutable per-request `data` dictionary (defaults to empty),
-- clock function `now`,
-- `request_id` (defaults to a random hex id),
-- derived `log` property returning a `CustomNodeLogger`.
+Python authors do not receive `RequestContext` directly:
 
-It has no `__post_init__`: defaults use `field(default_factory=...)` and `log` is a `@property`, so the object stays light.
+- start triggers receive only `request`,
+- custom nodes receive `input`, `request`, `context`, and `params`,
+- operators receive only `input`.
 
-The evaluator does not merge node outputs into `context.data`. Custom nodes own their return shape.
+Public `request` exposes HTTP fields/actions such as `host`, `url`, `headers`, `text()`, `redirect(url)`, and `block(status, message)`. Public `context` exposes `state`, `log(type, message, level, **data)`, and `notify(type, message, level, **data)`. `context.state` is an in-memory key/value store shared by requests handled by the same evaluator; stored dict/list values are passed by reference.
+
+The evaluator does not merge node outputs into `context.state`. Custom nodes own their return shape.
 
 ## Evaluation loop
 
@@ -158,7 +160,7 @@ The evaluator does not merge node outputs into `context.data`. Custom nodes own 
 4. passes each custom node return value to the next step as `input`,
 5. lets operators choose the next edge,
 6. stops a policy at `end` or when no edge matches,
-7. stops the whole mode when `context.flow.response` is set.
+7. stops the whole mode when a node sets a response (for author code, usually through `request.block(...)`).
 
 Loop protection is controlled by the required `POLICY_MAX_STEPS` environment variable.
 
@@ -195,7 +197,7 @@ Usage tracking counts elapsed time only when the previous request for a platform
 
 `EventLog` appends one JSON object per line to `events.jsonl`.
 
-The evaluator emits config, request, policy, step, and error events. Custom nodes receive `context.log` for filterable custom events.
+The evaluator emits config, request, policy, step, and error events. Custom nodes call `context.log(type, message, level, **data)` for filterable custom events.
 
 Event schemas and query contracts live in [Data Layer](../4_data_layer/config-state-events.md#event-log-schema).
 

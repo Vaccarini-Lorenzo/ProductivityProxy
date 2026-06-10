@@ -20,8 +20,8 @@ class ObservabilityTest(unittest.TestCase):
             node_path.write_text(
                 textwrap.dedent(
                     """
-                    def run(input, context, params):
-                        context.log.info("custom node saw request", value=params["value"])
+                    def run(input, request, context, params):
+                        context.log("custom_node_log", "custom node saw request", value=params["value"])
                         return {"match": True}
                     """
                 ),

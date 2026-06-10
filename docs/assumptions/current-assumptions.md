@@ -64,10 +64,10 @@
 
 **Impact if wrong:** packaged app behavior will fail until addon/runtime bundling is redesigned.
 
-## Minimal validation is acceptable during UI iteration
+## Config validation lives only in the backend
 
-**Assumption:** deep config validation can wait while the graph editor is still evolving.
+**Assumption:** the Python validator is the single source of truth, and the dashboard can rely on it for every save.
 
-**Why:** the Python engine and tests catch many errors, and the UI is under active development.
+**Why:** `write_app_config` validates through `validate_cli.py` before writing, so a broken policy (for example a disconnected step) blocks autosave and is surfaced in the UI with a message and a hint.
 
-**Impact if wrong:** users can save graphs that fail only when the proxy evaluates a request.
+**Impact if wrong:** a gap in the Python rules would let a config save that the proxy then refuses to load, and the dashboard would show “saved” for something inert.

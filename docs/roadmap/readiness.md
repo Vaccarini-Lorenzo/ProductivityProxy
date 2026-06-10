@@ -23,7 +23,7 @@ The main remaining blockers are:
 - packaged runtime strategy for mitmproxy, Python, and addon files,
 - clearer proxy startup diagnostics and process log capture,
 - visible HTTPS CA setup/help,
-- stronger config validation and migration handling,
+- config migrations/versioning and per-node required-param validation (structural graph validation is now unified in the Python backend),
 - durable crash recovery for macOS proxy settings,
 - Linux desktop-environment-specific proxy implementations,
 - installer signing/notarization after packaging is solved.
@@ -37,7 +37,7 @@ The main remaining blockers are:
 | Config and app data paths | Implemented with local config/state/events/custom nodes. |
 | Python policy engine | Implemented with loop guard, events, config hot reload, and default-policy tests. |
 | Default policies | Implemented for Productivity and Chilling defaults. |
-| React dashboard | Implemented for settings, modes, policies, nodes, autosave, notifications, and observability. |
+| React dashboard | Implemented for settings, modes, policies, nodes, autosave, backend-driven validation/reset, notifications, and observability. |
 | macOS system proxy support | Implemented with snapshot/restore and rollback paths. |
 | Documentation | Current docs cover usage, development, architecture, contracts, assumptions, and readiness. |
 
@@ -45,7 +45,7 @@ The main remaining blockers are:
 
 1. Add proxy process stdout/stderr capture and missing-`mitmdump` diagnostics.
 2. Add a visible HTTPS CA setup/help panel.
-3. Strengthen config validation shared between frontend and backend expectations.
+3. Add per-node required-param validation (structural graph validation is unified in the Python backend).
 4. Add config migrations/versioning before changing persisted shapes again.
 5. Add reset-to-defaults flow.
 6. Decide packaging strategy for mitmproxy/Python/addon files.

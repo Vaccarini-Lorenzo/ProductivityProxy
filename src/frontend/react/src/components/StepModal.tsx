@@ -14,7 +14,7 @@ interface Props {
   onClose: () => void;
 }
 
-const DEFAULT_START_TRIGGER_CODE = `def triggered_by(context: RequestContext) -> bool:
+const DEFAULT_START_TRIGGER_CODE = `def triggered_by(request: Request) -> bool:
     return True
 `;
 
@@ -87,10 +87,10 @@ function TriggerEditor({ step, onChange }: { step: PolicyStep; onChange: (p: Ste
   return (
     <div className="inspector-form">
       <FieldGroup label="Trigger function" hint="Return True to run this policy for the request. Return False to skip it.">
-        <div className="code-signature">def triggered_by(context: RequestContext) -&gt; bool</div>
+        <div className="code-signature">def triggered_by(request: Request) -&gt; bool</div>
         <PythonCodeEditor value={code} minHeight={190} ariaLabel="Start trigger Python code" onChange={setCode} apiQuery="triggered_by" />
       </FieldGroup>
-      <p className="inline-note">The function receives the live request context, including context.flow.request.</p>
+      <p className="inline-note">The function receives only the current request.</p>
     </div>
   );
 }

@@ -132,7 +132,8 @@ When changing proxy start/stop behavior, check:
 When adding built-in flow behavior, update:
 
 - `src/proxy/services/policy/operators.py` for routing operators,
-- `src/proxy/models/policy/flow.py` for config validation,
+- `src/proxy/services/config/validation.py` for config/node validation rules,
+- `src/proxy/models/policy/flow.py` for the runtime config model,
 - Python unit tests,
 - data/config docs if params or event schemas change.
 

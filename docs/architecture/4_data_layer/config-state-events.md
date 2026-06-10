@@ -93,11 +93,11 @@ A `start` node may include inline Python trigger code:
 
 ```json
 {
-  "code": "def triggered_by(context: RequestContext) -> bool:\n    host = context.flow.request.pretty_host.lower().strip(\".\")\n    return host == \"reddit.com\" or host.endswith(\".reddit.com\")\n"
+  "code": "def triggered_by(request: Request) -> bool:\n    host = request.host.lower().strip(\".\")\n    return host == \"reddit.com\" or host.endswith(\".reddit.com\")\n"
 }
 ```
 
-The Python evaluator executes `triggered_by(context)`. A truthy result routes to `next`; a falsy result routes to `skip`.
+The Python evaluator executes `triggered_by(request)`. A truthy result routes to `next`; a falsy result routes to `skip`.
 
 ### Policy edge
 
@@ -135,7 +135,7 @@ Bundled node files live under `src/proxy/defaults/nodes/`. A config must registe
 
 | Node type | Required params | Return / side effect |
 | --- | --- | --- |
-| `block-response` | `status` number, `message` string | Sets `context.flow.response`; returns input. |
+| `block-response` | `status` number, `message` string | Calls `request.block(...)`; returns input. |
 | `track-time` | `platform` string, `idleSeconds` number | Updates usage state, appends `usage_tracked`, returns input plus `usage`. |
 | `is-usage-over-limit` | `platform` string, `seconds` number | Returns input plus `used` and `over_limit`. |
 | `detect-platform` | `hostSuffixes` string array, `platform` string | Returns input plus `match`; adds `platform` on match. |
@@ -147,7 +147,7 @@ Bundled node files live under `src/proxy/defaults/nodes/`. A config must registe
 Custom nodes use the same general entrypoint:
 
 ```python
-def run(input, context, params):
+def run(input, request, context, params):
     return input
 ```
 
@@ -218,16 +218,16 @@ Known event groups:
 
 ### Custom node logging API
 
-Custom nodes can write filterable events through `context.log`:
+Custom nodes can write filterable events through `context.log(type, message, level, **data)`:
 
 ```python
-def run(input, context, params):
-    context.log.info("detected candidate", platform="reddit", score=0.91)
-    context.log.event("my_custom_event", "custom decision", level="debug", reason="matched host")
+def run(input, request, context, params):
+    context.log("detected_candidate", "detected candidate", platform="reddit", score=0.91)
+    context.log("my_custom_event", "custom decision", level="debug", reason="matched host")
     return input
 ```
 
-Supported helper methods are `debug`, `info`, `warning`, `warn`, `error`, and `event`.
+Use `context.notify(type, message, level, **data)` to append a notification event that the UI can show as a native notification.
 
 ### Event query API
 
@@ -276,10 +276,23 @@ The React dashboard sends file name and code to Tauri. Tauri writes the file und
 
 ## Validation boundaries
 
-Frontend validation is minimal. Python model parsing and runtime node execution enforce additional rules.
+The Python backend is the single validation source of truth. `proxy.services.config.validation.validate_config` accumulates structured issues, and `proxy.models.policy.flow.AppConfig.from_dict` raises them at runtime. The desktop save path calls the same function through `validate_cli.py` (spawned by the Tauri `write_app_config` command), so React and Rust never re-implement rules.
 
-Current missing validations include:
+The config is rejected (and autosave is blocked) when any of these fail:
 
-- full frontend parity with Python validation,
-- required params for each built-in or custom node,
+- `activeModeId` references an existing mode,
+- each `mode.policyIds[]` references an existing policy,
+- ids are unique (modes, policies, custom nodes, and steps within a policy),
+- custom node paths are absolute,
+- each policy has exactly one `start` node,
+- edges point to existing steps and routes are unique by `from` + `output`,
+- step types are known built-ins, operators, or registered custom nodes,
+- every step is reachable from `start` (no orphan/disconnected steps),
+- inline `start`/operator code parses and defines its required function.
+
+Custom-node code is validated separately via `validate_node_code`: Python syntax plus a `run` function.
+
+Still missing:
+
+- required params per built-in or custom node,
 - config migrations/versioning.

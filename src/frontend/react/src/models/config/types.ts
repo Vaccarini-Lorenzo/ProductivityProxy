@@ -49,6 +49,22 @@ export interface CustomNodeConfig {
   path: string;
 }
 
+export type ValidationScope = "global" | "policy" | "node";
+
+export interface ValidationIssue {
+  scope: ValidationScope;
+  policyId: string | null;
+  nodeId: string | null;
+  stepIds: string[];
+  message: string;
+  hint: string;
+}
+
+export interface ValidationReport {
+  ok: boolean;
+  issues: ValidationIssue[];
+}
+
 export interface AppConfig {
   activeModeId: string;
   proxy: ProxyConfig;

@@ -31,7 +31,7 @@ class ProxyBehaviorChangeTest(unittest.TestCase):
             self.assertIsNone(inactive_flow.response)
             self.assertEqual(active_flow.response.status_code, 451)
 
-    def test_unconnected_custom_step_is_inert_until_edge_points_to_it(self):
+    def test_unconnected_custom_step_is_rejected_until_edge_points_to_it(self):
         with tempfile.TemporaryDirectory() as tmp:
             block_path = write_block_node(tmp)
             raw = config_raw(
@@ -40,13 +40,15 @@ class ProxyBehaviorChangeTest(unittest.TestCase):
                 custom_nodes=[custom_node_raw("block", block_path)],
             )
 
-            draft_flow = evaluate(raw, tmp)
+            with self.assertRaisesRegex(ValueError, "not connected to Start"):
+                evaluate(raw, tmp)
+
             raw["policies"][0]["edges"] = [
-                {"from": "draft-start", "output": "next", "to": "draft-block"}
+                {"from": "draft-start", "output": "next", "to": "draft-block"},
+                {"from": "draft-block", "output": "next", "to": "draft-end"},
             ]
             connected_flow = evaluate(raw, tmp)
 
-            self.assertIsNone(draft_flow.response)
             self.assertEqual(connected_flow.response.status_code, 451)
 
     def test_empty_policy_added_to_active_mode_does_not_stop_later_policies(self):
@@ -111,13 +113,8 @@ def write_block_node(tmp: str) -> Path:
     path.write_text(
         textwrap.dedent(
             """
-            class Response:
-                def __init__(self, status_code):
-                    self.status_code = status_code
-                    self.content = b"blocked"
-
-            def run(input, context, params):
-                context.flow.response = Response(451)
+            def run(input, request, context, params):
+                request.block(451, "blocked")
                 return input
             """
         ),

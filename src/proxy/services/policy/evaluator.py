@@ -5,7 +5,7 @@ import time
 from typing import Any
 
 from proxy.models.policy.flow import AppConfig, Policy, PolicyStep
-from proxy.models.runtime.context import RequestContext
+from proxy.api import Request
 from proxy.services.events import observability
 from proxy.services.policy.custom_nodes import CustomNodeRunner
 from proxy.services.policy.operators import OperatorRunner
@@ -17,8 +17,10 @@ class PolicyEvaluator:
         self.custom_nodes = custom_nodes or CustomNodeRunner(config)
         self.operators = operators or OperatorRunner()
         self.max_steps = max_steps if max_steps is not None else _max_steps_from_env()
+        self.shared_state: dict[str, Any] = {}
 
     def evaluate(self, context) -> None:
+        context.shared_state = self.shared_state
         observability.request_started(context)
         try:
             for policy in self.config.active_policies():
@@ -100,12 +102,12 @@ def _evaluate_trigger(step: PolicyStep, context) -> str:
     code = step.params.get("code")
     if not code:
         return "next"
-    namespace: dict[str, Any] = {"RequestContext": RequestContext}
+    namespace: dict[str, Any] = {"Request": Request}
     exec(str(code), namespace)
     function = namespace.get("triggered_by")
     if not callable(function):
-        raise ValueError(f"Start node '{step.id}' must define triggered_by(context)")
-    return "next" if bool(function(context)) else "skip"
+        raise ValueError(f"Start node '{step.id}' must define triggered_by(request)")
+    return "next" if bool(function(Request(context))) else "skip"
 
 
 def _max_steps_from_env() -> int:

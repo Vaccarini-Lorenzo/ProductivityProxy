@@ -35,11 +35,14 @@ interface Props {
   onPolicyChange: (policy: PolicyConfig) => void;
   onOpenStep: (stepId: string) => void;
   onDeleteStep: (stepId: string) => void;
+  readOnly?: boolean;
+  invalidStepIds?: Set<string>;
 }
 
-export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, onDeleteStep }: Props) {
+export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, onDeleteStep, readOnly = false, invalidStepIds }: Props) {
   const [panMode, setPanMode] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const invalidKey = invalidStepIds ? [...invalidStepIds].sort().join("|") : "";
 
   // Keep current policy + parent callbacks in refs so editor handlers stay stable
   // (so the rebuild effects below never re-run mid-drag). See docs/architecture/2_component/react-graph-editor.md.
@@ -55,11 +58,11 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
     cbRef.current.onPolicyChange({ ...p, edges: p.edges.filter((e, i) => edgeId(e, i) !== id) });
   }, []);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(buildNodes(policy, openStepId, handleOpen, handleDelete));
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(buildNodes(policy, openStepId, handleOpen, handleDelete, invalidStepIds, readOnly));
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(buildEdges(policy, deleteEdge));
 
   // Rebuild from props on real structural changes only (not on every drag tick).
-  useEffect(() => { setNodes(buildNodes(policy, openStepId, handleOpen, handleDelete)); }, [policy, openStepId, handleOpen, handleDelete, setNodes]);
+  useEffect(() => { setNodes(buildNodes(policy, openStepId, handleOpen, handleDelete, invalidStepIds, readOnly)); }, [policy, openStepId, handleOpen, handleDelete, setNodes, invalidKey, readOnly]);
   useEffect(() => { setEdges(buildEdges(policy, deleteEdge)); }, [policy, deleteEdge, setEdges]);
 
   useEffect(() => {
@@ -97,12 +100,12 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
         <ReactFlow
           nodes={nodes} edges={edges}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-          onConnect={onConnect} onNodeDragStop={onNodeDragStop}
-          onNodeClick={(_event, node) => handleOpen(node.id)}
+          onConnect={readOnly ? undefined : onConnect} onNodeDragStop={onNodeDragStop}
+          onNodeClick={readOnly ? undefined : (_event, node) => handleOpen(node.id)}
           nodeTypes={nodeTypes} edgeTypes={edgeTypes}
           fitView fitViewOptions={FIT_VIEW_OPTIONS}
           connectionMode={ConnectionMode.Strict}
-          nodesDraggable={!panMode} nodesConnectable={!panMode}
+          nodesDraggable={!panMode && !readOnly} nodesConnectable={!panMode && !readOnly}
           elementsSelectable={false} selectNodesOnDrag={false}
           panOnDrag={false} panActivationKeyCode="Alt"
           selectionOnDrag={false} selectionKeyCode={null} deleteKeyCode={null}
@@ -115,20 +118,20 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
           <MiniMap pannable zoomable />
         </ReactFlow>
       </div>
-      <p className="graph-hint">Click a node to open it • click a green port then a target to connect • drag to move • Alt+drag to pan</p>
+      {!readOnly && <p className="graph-hint">Click a node to open it • click a green port then a target to connect • drag to move • Alt+drag to pan</p>}
     </div>
   );
 }
 
 const PolicyNode = memo(function PolicyNode({ data }: NodeProps) {
-  const { label, stepId, kind, isSelected, onOpen, onDelete } = data as unknown as NodeData;
+  const { label, stepId, kind, isSelected, isInvalid, readOnly, onOpen, onDelete } = data as unknown as NodeData;
   const [hovered, setHovered] = useState(false);
   const isStart = kind === "node" && label === "start";
   const isEnd = kind === "node" && label === "end";
   const typeClass = isStart ? "start" : isEnd ? "end" : "custom";
   const typeIcon: IconName = isStart ? "play" : isEnd ? "stop" : "hexagon";
   return (
-    <div className={`policy-node ${typeClass} ${isSelected ? "selected" : ""}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={() => onOpen(stepId)}>
+    <div className={`policy-node ${typeClass} ${isSelected ? "selected" : ""} ${isInvalid ? "invalid" : ""}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={() => !readOnly && onOpen(stepId)}>
       {!isStart && <Handle id="in" type="target" position={Position.Left} isConnectableStart={false} />}
       <span className="policy-node-icon"><Icon name={typeIcon} /></span>
       <span className="policy-node-text">
@@ -136,25 +139,25 @@ const PolicyNode = memo(function PolicyNode({ data }: NodeProps) {
         <span>{stepId}</span>
       </span>
       {!isEnd && <Handle id="out" type="source" position={Position.Right} isConnectableEnd={false} />}
-      {hovered && <button className="node-expand" type="button" title="Open" onPointerDown={(e) => { e.stopPropagation(); onOpen(stepId); }}>⤢</button>}
-      {hovered && !isStart && <button className="node-delete" type="button" title="Delete" onPointerDown={(e) => { e.stopPropagation(); onDelete(stepId); }}>×</button>}
+      {!readOnly && hovered && <button className="node-expand" type="button" title="Open" onPointerDown={(e) => { e.stopPropagation(); onOpen(stepId); }}>⤢</button>}
+      {!readOnly && hovered && !isStart && <button className="node-delete" type="button" title="Delete" onPointerDown={(e) => { e.stopPropagation(); onDelete(stepId); }}>×</button>}
     </div>
   );
 });
 
 const OperatorNode = memo(function OperatorNode({ data }: NodeProps) {
-  const { label, stepId, cases, isSelected, onOpen, onDelete } = data as unknown as NodeData;
+  const { label, stepId, cases, isSelected, isInvalid, readOnly, onOpen, onDelete } = data as unknown as NodeData;
   const [hovered, setHovered] = useState(false);
   const { verts, input, ports } = operatorLayout(label, cases);
   return (
-    <div className={`operator-shape ${label} ${isSelected ? "selected" : ""}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={() => onOpen(stepId)}>
+    <div className={`operator-shape ${label} ${isSelected ? "selected" : ""} ${isInvalid ? "invalid" : ""}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={() => !readOnly && onOpen(stepId)}>
       <svg className="operator-svg" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points={pointsAttr(verts)} /></svg>
       <span className="operator-name">{label}</span>
       <Handle id="in" type="target" position={Position.Left} className="op-handle" style={varStyle(input)} isConnectableStart={false} />
       {ports.map((p) => <Handle key={`h-${p.id}`} id={p.id} type="source" position={Position.Right} className="op-handle" style={varStyle(p)} isConnectableEnd={false} />)}
       {ports.map((p) => <span key={`l-${p.id}`} className="op-port-label" style={labelStyle(p)}>{p.id}</span>)}
-      {hovered && <button className="node-expand" type="button" title="Open" onPointerDown={(e) => { e.stopPropagation(); onOpen(stepId); }}>⤢</button>}
-      {hovered && <button className="node-delete" type="button" title="Delete" onPointerDown={(e) => { e.stopPropagation(); onDelete(stepId); }}>×</button>}
+      {!readOnly && hovered && <button className="node-expand" type="button" title="Open" onPointerDown={(e) => { e.stopPropagation(); onOpen(stepId); }}>⤢</button>}
+      {!readOnly && hovered && <button className="node-delete" type="button" title="Delete" onPointerDown={(e) => { e.stopPropagation(); onDelete(stepId); }}>×</button>}
     </div>
   );
 });
@@ -169,18 +172,18 @@ const DeletableEdge = memo(function DeletableEdge(props: EdgeProps) {
     </div></EdgeLabelRenderer></>;
 });
 
-interface NodeData { label: string; stepId: string; kind: string; cases: string[]; isSelected: boolean; onOpen: (id: string) => void; onDelete: (id: string) => void; }
+interface NodeData { label: string; stepId: string; kind: string; cases: string[]; isSelected: boolean; isInvalid: boolean; readOnly: boolean; onOpen: (id: string) => void; onDelete: (id: string) => void; }
 const nodeTypes = { policyNode: PolicyNode, operatorNode: OperatorNode };
 const edgeTypes = { deletable: DeletableEdge };
 
-function buildNodes(policy: PolicyConfig, openStepId: string | null, onOpen: (id: string) => void, onDelete: (id: string) => void): Node[] {
+function buildNodes(policy: PolicyConfig, openStepId: string | null, onOpen: (id: string) => void, onDelete: (id: string) => void, invalidStepIds?: Set<string>, readOnly = false): Node[] {
   return policy.steps.map((step, index) => {
     const isOperator = step.kind === "operator";
     return {
       id: step.id,
       type: isOperator ? "operatorNode" : "policyNode",
       position: step.position ?? { x: 80 + index * 240, y: 120 },
-      data: { label: step.type, stepId: step.id, kind: step.kind, cases: (step.params?.cases as string[]) ?? [], isSelected: step.id === openStepId, onOpen, onDelete },
+      data: { label: step.type, stepId: step.id, kind: step.kind, cases: (step.params?.cases as string[]) ?? [], isSelected: step.id === openStepId, isInvalid: invalidStepIds?.has(step.id) ?? false, readOnly, onOpen, onDelete },
       width: isOperator ? 132 : 200,
       height: isOperator ? 116 : 72,
     };

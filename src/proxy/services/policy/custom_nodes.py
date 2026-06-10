@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from proxy.api import Context, Request
 from proxy.models.policy.flow import AppConfig, PolicyStep
 
 
@@ -17,7 +18,7 @@ class CustomNodeRunner:
         custom_node = self.config.custom_node(step.type)
         module = self._module_for(Path(custom_node.path))
         run_function = getattr(module, "run")
-        return run_function(input_value, context, dict(step.params))
+        return run_function(input_value, Request(context), Context(context), dict(step.params))
 
     def _module_for(self, path: Path):
         key = str(path)

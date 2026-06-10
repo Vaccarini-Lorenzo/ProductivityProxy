@@ -8,30 +8,23 @@ SCHEMA = "observability.v1"
 SCOPE_KEY = "_observability_scope"
 
 
-class CustomNodeLogger:
-    def __init__(self, context):
-        self.context = context
+def custom_log(context, event_type: str, message: str, level: str = "info", **data: Any) -> None:
+    details = dict(_scope_fields(context))
+    if data:
+        details["data"] = data
+    _append(context.event_log, context, event_type, level, message, details, category="custom_node", source="custom_node")
 
-    def debug(self, message: str, **data: Any) -> None:
-        self.event("custom_node_log", message, "debug", **data)
 
-    def info(self, message: str, **data: Any) -> None:
-        self.event("custom_node_log", message, "info", **data)
-
-    def warning(self, message: str, **data: Any) -> None:
-        self.event("custom_node_log", message, "warning", **data)
-
-    def warn(self, message: str, **data: Any) -> None:
-        self.warning(message, **data)
-
-    def error(self, message: str, **data: Any) -> None:
-        self.event("custom_node_log", message, "error", **data)
-
-    def event(self, event_type: str, message: str, level: str = "info", **data: Any) -> None:
-        details = dict(_scope_fields(self.context))
-        if data:
-            details["data"] = data
-        _append(self.context.event_log, self.context, event_type, level, message, details, category="custom_node", source="custom_node")
+def notification(context, notification_type: str, message: str, level: str = "info", **data: Any) -> None:
+    details = {
+        **_scope_fields(context),
+        "notificationType": notification_type,
+        "title": notification_type,
+        "body": message,
+    }
+    if data:
+        details["data"] = data
+    _append(context.event_log, context, "notification", level, message, details, category="custom_node", source="custom_node")
 
 
 def config_loaded(event_log, config_path: Path, config) -> None:

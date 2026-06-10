@@ -1,16 +1,16 @@
 import type { AppConfig } from "./types";
 
-const YOUTUBE_TRIGGER_CODE = `def triggered_by(context: RequestContext) -> bool:
-    host = context.flow.request.pretty_host.lower().strip(".")
+const YOUTUBE_TRIGGER_CODE = `def triggered_by(request: Request) -> bool:
+    host = request.host.lower().strip(".")
     host_patterns = ["youtube.com", "youtube-nocookie.com"]
     if not any(host == item or host.endswith("." + item) for item in host_patterns):
         return False
-    haystack = context.flow.request.pretty_url.lower() + " " + context.flow.request.headers.get("referer", "").lower()
+    haystack = request.url.lower() + " " + request.headers.get("referer", "").lower()
     return "/shorts" in haystack or "/reel" in haystack
 `;
 
-const REDDIT_TRIGGER_CODE = `def triggered_by(context: RequestContext) -> bool:
-    host = context.flow.request.pretty_host.lower().strip(".")
+const REDDIT_TRIGGER_CODE = `def triggered_by(request: Request) -> bool:
+    host = request.host.lower().strip(".")
     return host == "reddit.com" or host.endswith(".reddit.com")
 `;
 

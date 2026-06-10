@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppConfig } from "../models/config/types";
 import type { CommandClient } from "../services/config/configRepository";
 import { queryEvents, type EventQuery, type ProxyEvent } from "../services/proxy/proxyRepository";
-import { Card, Field, Icon, IconButton, Modal, PageHeader, Toggle, count } from "../components/ui";
+import { Card, Field, Icon, IconButton, Modal, PageHeader, SearchInput, Toggle, count } from "../components/ui";
 
 interface Props {
   client: CommandClient;
@@ -58,7 +58,6 @@ export function ObservabilityView({ client, config }: Props) {
 
   const toolbar = (
     <>
-      <span className="count-pill"><span className="dot" />{count(events.length, "event")}</span>
       <Toggle checked={autoRefresh} onChange={setAutoRefresh} label="Auto-refresh" />
       <IconButton icon="refresh" label="Refresh" onClick={load} />
     </>
@@ -69,15 +68,15 @@ export function ObservabilityView({ client, config }: Props) {
       <PageHeader eyebrow="Observability" title="Policy trace" subtitle="Inspect requests, policy steps, and custom-node logs." />
 
       <Card title="Filters" icon="search" actions={toolbar}>
-        <div className="form-grid dense-grid">
-          <Field label="Limit"><input type="number" min="1" max="1000" value={filters.limit} onChange={(e) => update("limit", Number(e.target.value))} /></Field>
-          <Field label="Category"><select value={filters.category} onChange={(e) => update("category", e.target.value)}><option value="">any</option><option value="observability">observability</option><option value="custom_node">custom_node</option></select></Field>
+        <SearchInput value={filters.search} onChange={(v) => update("search", v)} placeholder="Search events…" ariaLabel="Search events" />
+        <div className="filter-grid">
           <Field label="Type"><select value={filters.type} onChange={(e) => update("type", e.target.value)}>{EVENT_TYPES.map((t) => <option key={t} value={t}>{t || "any"}</option>)}</select></Field>
           <Field label="Level"><select value={filters.level} onChange={(e) => update("level", e.target.value)}><option value="">any</option><option value="debug">debug</option><option value="info">info</option><option value="warning">warning</option><option value="error">error</option></select></Field>
+          <Field label="Category"><select value={filters.category} onChange={(e) => update("category", e.target.value)}><option value="">any</option><option value="observability">observability</option><option value="custom_node">custom_node</option></select></Field>
           <Field label="Policy"><select value={filters.policyId} onChange={(e) => update("policyId", e.target.value)}><option value="">any</option>{policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
           <Field label="Request ID"><input value={filters.requestId} onChange={(e) => update("requestId", e.target.value)} placeholder="hex" /></Field>
           <Field label="Minutes"><input value={filters.windowMinutes} onChange={(e) => update("windowMinutes", e.target.value)} placeholder="15" /></Field>
-          <Field label="Search"><input value={filters.search} onChange={(e) => update("search", e.target.value)} placeholder="keyword" /></Field>
+          <Field label="Limit"><input type="number" min="1" max="1000" value={filters.limit} onChange={(e) => update("limit", Number(e.target.value))} /></Field>
         </div>
         {message && <p className="inline-note">{message}</p>}
       </Card>

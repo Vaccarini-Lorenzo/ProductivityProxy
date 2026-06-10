@@ -41,7 +41,7 @@ The mental model is three layers deep:
 ```
 
 - A **Mode** is an *ordered* list of policies. Only the active mode runs.
-- A **Policy** is a graph that begins at a **Start** node. The Start node holds Python `def triggered_by(context: RequestContext) -> bool` code — if it returns `False`, the policy is skipped.
+- A **Policy** is a graph that begins at a **Start** node. The Start node holds Python `def triggered_by(request: Request) -> bool` code — if it returns `False`, the policy is skipped.
 - Policies are evaluated top‑to‑bottom and the **first one to produce a response wins** (e.g. a block). If nothing responds, the request passes through.
 - An **empty mode = allow everything.** “Chill” is just a mode with no policies.
 
@@ -56,7 +56,7 @@ Building blocks you get out of the box:
 | **Block Response** | node | Returns a `403` (or any status) with a message |
 | **Track Time** | node | Accumulates active time on a platform |
 | **Is Usage Over Limit** | node | Flags when a daily budget is exceeded |
-| _your own_ | node | Any Python file with a `run(input, context, params)` function |
+| _your own_ | node | Any Python file with a `run(input, request, context, params)` function |
 
 ---
 
@@ -108,18 +108,17 @@ Building blocks you get out of the box:
 
 ## Custom nodes
 
-A node is just a Python file exposing `run(input, context, params)`. It receives the data from the previous node, the live `mitmproxy` flow on `context.flow`, and its configured `params`. Return the (possibly modified) data — or set a response to short‑circuit the request.
+A node is just a Python file exposing `run(input, request, context, params)`. It receives optional `input` from the previous node, the current HTTP `request`, a small helper `context`, and its configured `params`. Return the next value — or use `request.block(...)` to stop the request.
 
 ```python
 # block_response.py — return a 403 with a custom message
-from mitmproxy import http
+from typing import Any
 
-def run(input, context, params):
-    context.flow.response = http.Response.make(
-        int(params["status"]),
-        str(params["message"]).encode("utf-8"),
-        {"Content-Type": "text/plain; charset=utf-8"},
-    )
+from proxy.api import Context, Request
+
+
+def run(input: Any, request: Request, context: Context, params: dict[str, Any]) -> Any:
+    request.block(int(params["status"]), str(params["message"]))
     return input
 ```
 

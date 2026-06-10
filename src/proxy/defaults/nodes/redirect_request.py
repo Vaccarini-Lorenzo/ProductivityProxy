@@ -1,11 +1,8 @@
 from typing import Any
 
-from proxy.api import RequestContext
+from proxy.api import Context, Request
 
 
-def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
-    url = str(params["url"])
-    context.flow.request.url = url
-    if hasattr(context.flow.request, "pretty_url"):
-        context.flow.request.pretty_url = url
+def run(input: Any, request: Request, context: Context, params: dict[str, Any]) -> Any:
+    request.redirect(str(params["url"]))
     return input

@@ -20,8 +20,8 @@ class PolicyProxyControllerTest(unittest.TestCase):
             node_path.write_text(
                 textwrap.dedent(
                     """
-                    def run(input, context, params):
-                        context.event_log.append({'type': 'controller_seen'})
+                    def run(input, request, context, params):
+                        context.log('controller_seen', 'controller saw request')
                         return input
                     """
                 ),
@@ -61,7 +61,7 @@ class PolicyProxyControllerTest(unittest.TestCase):
             config_path = Path(tmp) / "config.json"
             block_path = Path(tmp) / "block.py"
             block_path.write_text(
-                "def run(input, context, params):\n    context.flow.response = 'blocked'\n    return input\n",
+                "def run(input, request, context, params):\n    request.block(403, 'blocked')\n    return input\n",
                 encoding="utf-8",
             )
             config_path.write_text(json.dumps(_config("work", str(block_path))), encoding="utf-8")

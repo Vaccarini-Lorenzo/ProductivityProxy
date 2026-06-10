@@ -22,16 +22,16 @@ describe("apiReference", () => {
 
   it("filters to matching entries and drops unrelated ones", () => {
     const names = searchApiReference("triggered").flatMap((group) => group.entries.map((entry) => entry.name));
-    expect(names).toContain("triggered_by(context)");
+    expect(names).toContain("triggered_by(request)");
     expect(names).not.toContain("params[key]");
   });
 
   it("returns a full group when its title matches", () => {
-    const groups = searchApiReference("requestcontext");
-    const context = groups.find((group) => group.id === "context");
-    expect(context).toBeDefined();
-    const original = apiReference.groups.find((group) => group.id === "context")!;
-    expect(context!.entries.length).toBe(original.entries.length);
+    const groups = searchApiReference("request");
+    const request = groups.find((group) => group.id === "request");
+    expect(request).toBeDefined();
+    const original = apiReference.groups.find((group) => group.id === "request")!;
+    expect(request!.entries.length).toBe(original.entries.length);
   });
 
   it("isolates one entry for a function-name query (the editor seed)", () => {
@@ -42,8 +42,8 @@ describe("apiReference", () => {
   });
 
   it("fuzzy-matches identifier subsequences", () => {
-    expect(fuzzyMatch("now", "context.now()")).toBe(true);
+    expect(fuzzyMatch("reqhost", "request.host")).toBe(true);
     expect(fuzzyMatch("ctxlog", "context.log")).toBe(true);
-    expect(fuzzyMatch("zzz", "context.now()")).toBe(false);
+    expect(fuzzyMatch("zzz", "request.host")).toBe(false);
   });
 });

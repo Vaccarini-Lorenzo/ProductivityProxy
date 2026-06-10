@@ -25,7 +25,6 @@ export function TerminalNav({ active, running, onNavigate }: Props) {
           <span className="led" aria-hidden="true" /> Proxy: {running ? "RUNNING" : "STOPPED"}
         </span>
         <span className="version">v0.1.0-local</span>
-        <span className="window-dots" aria-hidden="true">— □ ×</span>
       </div>
       <nav className="tab-row" aria-label="Main navigation">
         {LINKS.map((link) => (
