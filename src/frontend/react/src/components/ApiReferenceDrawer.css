@@ -41,6 +41,8 @@
 .api-detail-list li { position: relative; padding-left: 12px; }
 .api-detail-list li::before { content: "•"; position: absolute; left: 0; color: var(--muted); }
 .api-inline-code { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.15); border-radius: 4px; padding: 0 4px; font-size: .72rem; font-family: "SFMono-Regular", "Menlo", "Consolas", monospace; color: var(--amber-2); white-space: nowrap; }
+.api-link { all: unset; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.15); border-radius: 4px; padding: 0 4px; font-size: .72rem; font-family: "SFMono-Regular", "Menlo", "Consolas", monospace; color: var(--amber-2); white-space: nowrap; cursor: pointer; text-decoration: underline; text-decoration-color: rgba(245,158,11,.3); text-underline-offset: 2px; }
+.api-link:hover { background: rgba(245,158,11,.16); border-color: var(--amber-2); text-decoration-color: var(--amber-2); }
 
 @media (max-width: 640px) { .api-drawer { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { .api-drawer-overlay, .api-drawer { animation: none; } }

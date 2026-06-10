@@ -77,7 +77,7 @@ input[type="checkbox"].switch:disabled { opacity: .5; cursor: not-allowed; }
 /* --- App frame & header --- */
 .app-frame { height: 100vh; display: flex; flex-direction: column; margin: 0; padding: 10px 16px 14px; overflow: hidden; }
 .terminal-head { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 10px 10px 0 0; background: linear-gradient(180deg, #181510, #100e0b); }
-.title-row { display: flex; align-items: center; gap: 14px; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--line); min-width: 0; overflow: hidden; }
+.title-row { display: flex; align-items: center; gap: 14px; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--line); min-width: 0; }
 .brand-button { all: unset; cursor: pointer; color: var(--amber-2); font-weight: 800; font-size: .92rem; flex-shrink: 0; }
 .run-state { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); font-size: .76rem; }
 .run-state.on { color: var(--green); }
@@ -85,7 +85,7 @@ input[type="checkbox"].switch:disabled { opacity: .5; cursor: not-allowed; }
 .led { width: 7px; height: 7px; border-radius: 99px; background: var(--dim); flex-shrink: 0; }
 .run-state.on .led { background: var(--green); box-shadow: 0 0 8px var(--green); }
 .version { margin-left: auto; flex-shrink: 0; color: var(--dim); font-size: .76rem; letter-spacing: .02em; }
-.tab-row { display: flex; overflow: hidden; }
+.tab-row { display: flex; }
 .tab { flex: 1; min-width: 0; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 8px; border: 0; border-radius: 0; background: transparent; color: var(--muted); font-size: .92rem; text-transform: uppercase; letter-spacing: .05em; }
 .tab .icon { width: 1.05em; height: 1.05em; flex-shrink: 0; }
 .tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -94,7 +94,7 @@ input[type="checkbox"].switch:disabled { opacity: .5; cursor: not-allowed; }
 
 /* --- Shell, top bar, page header --- */
 .app-shell { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding-top: 16px; overflow: hidden; }
-.top-bar { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.top-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-width: 0; flex: 0 0 auto; }
 .top-bar .message, .top-bar .muted { display: inline-flex; align-items: center; gap: 7px; }
 .top-bar .icon { width: 1em; height: 1em; flex-shrink: 0; }
 .page-stack { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; padding-right: 2px; }
@@ -129,7 +129,7 @@ input[type="checkbox"].switch:disabled { opacity: .5; cursor: not-allowed; }
 /* --- Check row & toggle --- */
 .check-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.018); cursor: pointer; }
 .check-row:hover { border-color: #463d31; }
-.check-row .check-text { display: grid; gap: 2px; }
+.check-row .check-text { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .check-row .check-text strong { font-size: .88rem; font-weight: 600; color: var(--text); }
 .check-row .check-text small { color: var(--muted); font-size: .78rem; }
 .check-row.disabled { opacity: .55; cursor: default; }
@@ -168,7 +168,7 @@ input[type="checkbox"].switch:disabled { opacity: .5; cursor: not-allowed; }
 /* --- Policy single-box workspace --- */
 .policy-box { flex: 1; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
 .policy-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--line); flex-wrap: wrap; flex-shrink: 0; }
-.policy-bar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.policy-bar-left { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; min-width: 0; }
 .policy-bar-left select { width: auto; min-width: 190px; max-width: 320px; }
 .policy-split { flex: 1; min-height: 0; display: grid; grid-template-columns: 264px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .policy-library { border-right: 1px solid var(--line); padding: 14px; overflow-y: auto; min-height: 0; }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { searchApiReference, type ApiEntry, type ApiGroup } from "../services/apiReference/apiReference";
 import { Icon, SearchInput, type IconName } from "./ui";
@@ -16,6 +16,16 @@ export function ApiReferenceDrawer({ open, initialQuery, onClose }: Props) {
   const groups = useMemo(() => searchApiReference(query), [query]);
   const searching = query.trim() !== "";
   const totalEntries = groups.reduce((sum, group) => sum + group.entries.length, 0);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  const scrollToGroup = useCallback((groupId: string) => {
+    setQuery("");
+    // Wait for the filter to clear and groups to render, then scroll.
+    requestAnimationFrame(() => {
+      const el = bodyRef.current?.querySelector(`[data-group-id="${groupId}"]`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   // Seed the search each time the drawer opens (e.g. with the current function name).
   useEffect(() => { if (open) setQuery(initialQuery ?? ""); }, [open, initialQuery]);
@@ -43,8 +53,8 @@ export function ApiReferenceDrawer({ open, initialQuery, onClose }: Props) {
         <div className="api-drawer-search">
           <SearchInput value={query} onChange={setQuery} placeholder="Search API reference…" ariaLabel="Search API reference" />
         </div>
-        <div className="api-drawer-body">
-          {groups.map((group) => <GroupView key={group.id} group={group} forceOpen={searching} autoExpandEntry={searching && totalEntries === 1} />)}
+        <div className="api-drawer-body" ref={bodyRef}>
+          {groups.map((group) => <GroupView key={group.id} group={group} forceOpen={searching} autoExpandEntry={searching && totalEntries === 1} scrollToGroup={scrollToGroup} />)}
           {groups.length === 0 && <p className="muted api-drawer-empty">No matches.</p>}
         </div>
       </aside>
@@ -53,11 +63,11 @@ export function ApiReferenceDrawer({ open, initialQuery, onClose }: Props) {
   );
 }
 
-function GroupView({ group, forceOpen, autoExpandEntry }: { group: ApiGroup; forceOpen: boolean; autoExpandEntry: boolean }) {
+function GroupView({ group, forceOpen, autoExpandEntry, scrollToGroup }: { group: ApiGroup; forceOpen: boolean; autoExpandEntry: boolean; scrollToGroup: (id: string) => void }) {
   const [open, setOpen] = useState(true);
   const expanded = forceOpen || open;
   return (
-    <section className="api-group">
+    <section className="api-group" data-group-id={group.id}>
       <button className="api-group-head" type="button" onClick={() => setOpen(!open)} aria-expanded={expanded}>
         <span className={expanded ? "api-chevron open" : "api-chevron"}>›</span>
         <span className="api-group-icon"><Icon name={group.icon as IconName} /></span>
@@ -65,14 +75,14 @@ function GroupView({ group, forceOpen, autoExpandEntry }: { group: ApiGroup; for
       </button>
       {expanded && (
         <div className="api-entries">
-          {group.entries.map((entry) => <EntryView key={entry.name} entry={entry} autoExpand={autoExpandEntry} />)}
+          {group.entries.map((entry) => <EntryView key={entry.name} entry={entry} autoExpand={autoExpandEntry} scrollToGroup={scrollToGroup} />)}
         </div>
       )}
     </section>
   );
 }
 
-function EntryView({ entry, autoExpand }: { entry: ApiEntry; autoExpand: boolean }) {
+function EntryView({ entry, autoExpand, scrollToGroup }: { entry: ApiEntry; autoExpand: boolean; scrollToGroup: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const hasDetails = (entry.details?.length ?? 0) > 0;
   const expanded = hasDetails && (autoExpand || open);
@@ -93,7 +103,7 @@ function EntryView({ entry, autoExpand }: { entry: ApiEntry; autoExpand: boolean
           {entry.details!.map((detail) => (
             <div className="api-detail-row" key={detail.label}>
               <dt>{detail.label}</dt>
-              <dd><DetailText text={detail.text} /></dd>
+              <dd><DetailText text={detail.text} scrollToGroup={scrollToGroup} /></dd>
             </div>
           ))}
         </dl>
@@ -102,28 +112,36 @@ function EntryView({ entry, autoExpand }: { entry: ApiEntry; autoExpand: boolean
   );
 }
 
-/** Renders detail text with inline `code` and bullet lists (lines starting with "- "). */
-function DetailText({ text }: { text: string }) {
+/** Renders detail text with inline `code` (linkable when matching a section) and bullet lists. */
+function DetailText({ text, scrollToGroup }: { text: string; scrollToGroup: (id: string) => void }) {
   const lines = text.split("\n");
   const isList = lines.length > 1 && lines.every((line) => line.startsWith("- "));
   if (isList) {
     return (
       <ul className="api-detail-list">
-        {lines.map((line, i) => <li key={i}>{renderInlineCode(line.slice(2))}</li>)}
+        {lines.map((line, i) => <li key={i}>{renderInlineCode(line.slice(2), scrollToGroup)}</li>)}
       </ul>
     );
   }
-  return <>{renderInlineCode(text)}</>;
+  return <>{renderInlineCode(text, scrollToGroup)}</>;
 }
 
-function renderInlineCode(text: string): (string | JSX.Element)[] {
+const LINKABLE_GROUPS = new Set(["request", "context", "params"]);
+
+function renderInlineCode(text: string, scrollToGroup: (id: string) => void): (string | JSX.Element)[] {
   const parts: (string | JSX.Element)[] = [];
   const regex = /`([^`]+)`/g;
   let last = 0;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) !== null) {
     if (match.index > last) parts.push(text.slice(last, match.index));
-    parts.push(<code key={match.index} className="api-inline-code">{match[1]}</code>);
+    const code = match[1];
+    const linkTarget = LINKABLE_GROUPS.has(code) ? code : null;
+    if (linkTarget) {
+      parts.push(<button key={match.index} type="button" className="api-inline-code api-link" onClick={() => scrollToGroup(linkTarget)}>{code}</button>);
+    } else {
+      parts.push(<code key={match.index} className="api-inline-code">{code}</code>);
+    }
     last = regex.lastIndex;
   }
   if (last < text.length) parts.push(text.slice(last));

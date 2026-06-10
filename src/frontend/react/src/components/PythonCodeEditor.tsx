@@ -3,7 +3,10 @@ import { createPortal } from "react-dom";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { indentUnit } from "@codemirror/language";
-import { EditorView } from "@codemirror/view";
+import { keymap, EditorView } from "@codemirror/view";
+import { indentLess } from "@codemirror/commands";
+import { autocompletion, acceptCompletion } from "@codemirror/autocomplete";
+import { pythonCompletionSource } from "../services/apiReference/pythonCompletions";
 import { ApiReferenceDrawer } from "./ApiReferenceDrawer";
 import "./PythonCodeEditor.css";
 
@@ -43,7 +46,29 @@ const editorTheme = EditorView.theme({
   ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": { backgroundColor: "rgba(245,158,11,.24)" },
 }, { dark: true });
 
-const pythonExtensions = [python(), indentUnit.of("    "), EditorView.lineWrapping, editorTheme];
+const tabKeymap = keymap.of([
+  { key: "Tab", run: acceptCompletion },
+  { key: "Tab", run: insertIndent },
+  { key: "Shift-Tab", run: indentLess },
+]);
+
+const pythonExtensions = [
+  python(),
+  indentUnit.of("    "),
+  autocompletion({ override: [pythonCompletionSource], activateOnTyping: true }),
+  tabKeymap,
+  EditorView.lineWrapping,
+  editorTheme,
+];
+
+/** Insert spaces to the next indent stop (like insertTab but without indenting the line). */
+function insertIndent(view: EditorView): boolean {
+  const { state } = view;
+  const unit = state.facet(indentUnit);
+  const size = unit.length || 4;
+  view.dispatch(state.replaceSelection(" ".repeat(size)));
+  return true;
+}
 
 export function PythonCodeEditor({ value, onChange, minHeight = 160, autoFocus = false, ariaLabel = "Python code", readOnly = false, apiQuery }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -105,7 +130,7 @@ function renderEditor(value: string, onChange: ((value: string) => void) | undef
     editable={!readOnly}
     extensions={pythonExtensions}
     height={height}
-    indentWithTab={!readOnly}
+    indentWithTab={false}
     minHeight={height ? undefined : `${minHeight}px`}
     onChange={onChange}
     readOnly={readOnly}
