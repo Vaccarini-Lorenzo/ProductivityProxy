@@ -39,6 +39,7 @@ class ObservabilityTest(unittest.TestCase):
 
             PolicyEvaluator(config, max_steps=10).evaluate(context)
 
+            context.event_log.flush()
             events = read_events(event_path)
             custom = first_event(events, "custom_node_log")
             step = first_event(events, "policy_step")

@@ -70,6 +70,7 @@ class PolicyEvaluatorTest(unittest.TestCase):
 
             PolicyEvaluator(config).evaluate(context)
 
+            context.event_log.flush()
             self.assertIn("hello", event_path.read_text(encoding="utf-8"))
 
     def test_stops_ordered_mode_after_response_is_set(self):
@@ -108,6 +109,7 @@ class PolicyEvaluatorTest(unittest.TestCase):
 
             PolicyEvaluator(config).evaluate(context)
 
+            context.event_log.flush()
             self.assertNotIn("should_not_run", event_path.read_text(encoding="utf-8"))
 
     def test_loop_guard_raises(self):

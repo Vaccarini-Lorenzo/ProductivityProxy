@@ -51,6 +51,7 @@ class PolicyProxyControllerTest(unittest.TestCase):
 
             controller.request(FakeFlow("https://example.com"))
 
+            controller.event_log.flush()
             self.assertIn("controller_seen", event_path.read_text(encoding="utf-8"))
 
 

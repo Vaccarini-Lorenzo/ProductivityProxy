@@ -34,5 +34,8 @@ class PolicyProxyAddon:
     def request(self, flow) -> None:
         self.controller.request(flow)
 
+    def done(self) -> None:
+        self.controller.close()
+
 
 addons = [PolicyProxyAddon()]

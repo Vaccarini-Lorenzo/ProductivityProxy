@@ -18,15 +18,22 @@ class PolicyProxyController:
         self.evaluator = None
 
     def configure(self, config_path: Path, state_path: Path, event_log_path: Path) -> None:
+        if self.event_log is not None:
+            self.event_log.close()
         self.event_log = EventLog(event_log_path)
         try:
             self.config = ConfigService(config_path).load()
         except Exception as error:
             observability.config_rejected(self.event_log, config_path, error)
+            self.event_log.flush()
             raise
         observability.config_loaded(self.event_log, config_path, self.config)
         self.state = StateStore(state_path)
         self.evaluator = PolicyEvaluator(self.config)
+
+    def close(self) -> None:
+        if self.event_log is not None:
+            self.event_log.close()
 
     def request(self, flow) -> None:
         if not self.evaluator or not self.config or not self.state or not self.event_log:
