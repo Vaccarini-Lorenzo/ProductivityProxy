@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   Handle,
   BaseEdge,
   EdgeLabelRenderer,
@@ -122,7 +121,6 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
         >
           <Background gap={20} size={1} />
           <Controls showInteractive={false} showFitView={false} />
-          <MiniMap pannable zoomable />
         </ReactFlow>
       </div>
       {!readOnly && <p className="graph-hint">Click a node to open it • click a green port then a target to connect • drag to move • Alt+drag to pan</p>}
