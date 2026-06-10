@@ -7,7 +7,7 @@
 [![Tests](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/tests.yml/badge.svg)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/tests.yml)
 [![latency](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/pp-latency.json)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/benchmark.yml)
 
-<img src="assets/hero-poster.png" alt="ProductivityProxy: visual policies enforced by a local proxy" width="900" />
+<video src="https://github.com/user-attachments/assets/d508ce2b-ded9-479a-82ea-67008384aff3" width="100%" controls autoplay loop muted playsinline></video>
 
 <sub>Simple demo showcasing two custom rules: Youtube shorts block and freedium redirect (we can do much more...)</sub>
 
@@ -28,9 +28,9 @@ This is currently a personal-use project that I make publicly available hoping t
 
 Most blockers are a browser extension (ew), or a paid app wrapping a fixed list of domains. This one is built differently: It lets you customize your policies completely, bundle them into modes, tweak responses (possibly injecting custom components in the webpage) and embed custom logic as you wish.
 
-## But can't I do the same exact thing with mitmproxy addons?
+## But can't I do the same exact thing with mitmproxy add-ons?
 
-Yes, but would you be able to throw around boxes and connect them? No? Exactly my point.
+Yes, but would you be able to throw around silly little boxes and connect them? No? Exactly my point.
 > Spoiler: Under the hood mitmproxy addons are used
 
 ## What it does
