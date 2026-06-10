@@ -101,7 +101,7 @@ export function NodeLibrary({ customNodes, hasStart, onAddStep, onReadNode }: Pr
             {addDisabled && <p className="message">This policy already has a start node.</p>}
             {previewCode ? (
               <FieldGroup label={codeLabel(selected)} hint={canEditCode ? "Edit before adding" : "Read-only preview"}>
-                <PythonCodeEditor value={previewCode} minHeight={260} readOnly={!canEditCode} ariaLabel={`${selected.label} Python preview`} onChange={canEditCode ? setPreviewCode : undefined} />
+                <PythonCodeEditor value={previewCode} minHeight={260} readOnly={!canEditCode} ariaLabel={`${selected.label} Python preview`} onChange={canEditCode ? setPreviewCode : undefined} apiQuery={apiQueryFor(selected)} />
               </FieldGroup>
             ) : <p className="muted">This flow node has no Python code.</p>}
           </div>
@@ -142,6 +142,12 @@ function codeLabel(item: LibraryItem): string {
   if (item.kind === "operator") return "Python code";
   if (item.type === "start") return "Python trigger";
   return item.path ? "Python source" : "Python template";
+}
+
+function apiQueryFor(item: LibraryItem): string {
+  if (item.kind === "operator") return item.type === "if" ? "if_condition" : "switch_condition";
+  if (item.type === "start") return "triggered_by";
+  return "run";
 }
 
 function shortPath(path: string): string { return path.split("/").pop() ?? path; }

@@ -109,7 +109,7 @@ Supporting pieces:
 - `NodeLibrary.tsx` lists flow nodes, operators, and registered custom nodes that can be added to the graph.
 - `StepModal.tsx` edits start trigger code, operator code, switch cases, and existing node params.
 - `PythonCodeEditor.tsx` backs start trigger code, operator code, custom-node editing, syntax highlighting, autoindentation, full-screen expansion, and an API reference drawer.
-- `ApiReferenceDrawer.tsx` reads `services/apiReference/pythonApiReference.json` and fuzzy-searches the documented Python API.
+- `ApiReferenceDrawer.tsx` reads `services/apiReference/pythonApiReference.json` and fuzzy-searches the documented Python API. Entries expand to structured contract details; opening it from an editor seeds the search with the current function name.
 - `operatorShapes.ts` defines operator port layout.
 - `services/nodes/defaultNodeSources.ts` bundles the real default node `.py` files as read-only fallback for browser preview.
 

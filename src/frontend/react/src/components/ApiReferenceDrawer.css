@@ -21,12 +21,22 @@
 .api-group-title { color: var(--text); font-size: .9rem; font-weight: 700; }
 
 .api-entries { display: grid; gap: 1px; padding: 2px 0 8px 16px; margin-left: 12px; border-left: 1px solid var(--line); }
-.api-entry { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 7px; }
-.api-entry:hover { background: rgba(255,255,255,.03); }
+.api-entry { border-radius: 7px; }
+.api-entry.expanded { background: rgba(255,255,255,.03); }
+.api-entry-head { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 7px; }
+.api-entry-head:hover:not(:disabled) { background: rgba(255,255,255,.03); }
+.api-entry-head:disabled { cursor: default; }
 .api-entry-text { display: grid; gap: 3px; min-width: 0; }
 .api-entry-name { color: var(--amber-2); font-size: .8rem; font-family: "SFMono-Regular", "Menlo", "Consolas", monospace; word-break: break-word; }
 .api-entry-summary { color: var(--muted); font-size: .76rem; line-height: 1.4; }
+.api-entry-right { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.api-entry-toggle { color: var(--muted); font-size: 1rem; line-height: 1; width: 10px; text-align: center; transition: transform .15s; }
+.api-entry-toggle.open { transform: rotate(90deg); color: var(--amber-2); }
 .api-type { flex-shrink: 0; margin-top: 1px; padding: 2px 9px; border: 1px solid var(--line-soft); border-radius: 999px; background: rgba(183,155,255,.1); color: var(--purple); font-size: .68rem; font-family: "SFMono-Regular", "Menlo", "Consolas", monospace; white-space: nowrap; }
+.api-detail { display: grid; gap: 7px; padding: 0 10px 12px 10px; }
+.api-detail-row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: start; }
+.api-detail-row dt { color: var(--amber-2); font-size: .66rem; text-transform: uppercase; letter-spacing: .05em; padding-top: 2px; }
+.api-detail-row dd { color: var(--text); font-size: .76rem; line-height: 1.45; }
 
 @media (max-width: 640px) { .api-drawer { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { .api-drawer-overlay, .api-drawer { animation: none; } }

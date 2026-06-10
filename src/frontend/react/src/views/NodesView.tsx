@@ -120,7 +120,7 @@ export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
             </Field>
           </div>
           <FieldGroup label="Python code">
-            <PythonCodeEditor value={draft.code} minHeight={340} ariaLabel={`Python code for ${draft.name}`} onChange={(code) => setDraft({ ...draft, code })} />
+            <PythonCodeEditor value={draft.code} minHeight={340} ariaLabel={`Python code for ${draft.name}`} onChange={(code) => setDraft({ ...draft, code })} apiQuery="run" />
           </FieldGroup>
         </Modal>
       )}

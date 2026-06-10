@@ -16,7 +16,7 @@ The editor is part of the React dashboard. It uses `@xyflow/react` for canvas re
 - `NodeLibrary.tsx` lists addable flow nodes, operators, and registered custom nodes.
 - `StepModal.tsx` edits step details: start trigger code, operator code, switch cases, and existing node params.
 - `PythonCodeEditor.tsx` provides the syntax-highlighted code editor, autoindentation, full-screen expansion, and an in-editor API reference drawer, used by start triggers, operators, and custom-node editing.
-- `ApiReferenceDrawer.tsx` is a slide-over that reads `services/apiReference/pythonApiReference.json` and fuzzy-searches it. The JSON defines the documented groups and order; the UI only renders and filters.
+- `ApiReferenceDrawer.tsx` is a slide-over that reads `services/apiReference/pythonApiReference.json` and fuzzy-searches it. The JSON defines the documented groups, order, and per-entry contract details (input/output/side effects); the UI only renders and filters. Entries expand to show those details. Opening it from a specific editor seeds the search with that function name (`run`, `triggered_by`, `if_condition`, `switch_condition`).
 - `operatorShapes.ts` defines operator shape geometry and output port label positions.
 - `Modal.tsx` and `ui.tsx` provide shared shell controls used by the editor and inspector.
 - `services/nodes/defaultNodeSources.ts` bundles the real `src/proxy/defaults/nodes/*.py` files (via Vite glob) as read-only fallback source when Tauri source reads are unavailable, so previews never drift from the actual files.

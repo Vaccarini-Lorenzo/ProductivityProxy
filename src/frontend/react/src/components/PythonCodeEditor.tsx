@@ -14,6 +14,7 @@ interface Props {
   autoFocus?: boolean;
   ariaLabel?: string;
   readOnly?: boolean;
+  apiQuery?: string;
 }
 
 const editorTheme = EditorView.theme({
@@ -44,7 +45,7 @@ const editorTheme = EditorView.theme({
 
 const pythonExtensions = [python(), indentUnit.of("    "), EditorView.lineWrapping, editorTheme];
 
-export function PythonCodeEditor({ value, onChange, minHeight = 160, autoFocus = false, ariaLabel = "Python code", readOnly = false }: Props) {
+export function PythonCodeEditor({ value, onChange, minHeight = 160, autoFocus = false, ariaLabel = "Python code", readOnly = false, apiQuery }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [apiOpen, setApiOpen] = useState(false);
 
@@ -92,7 +93,7 @@ export function PythonCodeEditor({ value, onChange, minHeight = 160, autoFocus =
       {renderEditor(value, onChange, minHeight, autoFocus, ariaLabel, readOnly)}
     </div>
     {fullscreen}
-    <ApiReferenceDrawer open={apiOpen} onClose={() => setApiOpen(false)} />
+    <ApiReferenceDrawer open={apiOpen} initialQuery={apiQuery} onClose={() => setApiOpen(false)} />
   </>;
 }
 

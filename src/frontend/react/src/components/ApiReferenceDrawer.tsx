@@ -1,19 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { searchApiReference, type ApiGroup } from "../services/apiReference/apiReference";
+import { searchApiReference, type ApiEntry, type ApiGroup } from "../services/apiReference/apiReference";
 import { Icon, SearchInput, type IconName } from "./ui";
 import "./ApiReferenceDrawer.css";
 
 interface Props {
   open: boolean;
+  initialQuery?: string;
   onClose: () => void;
 }
 
 /** Slide-over API reference. Reads the documented reference and lets you fuzzy-search it. */
-export function ApiReferenceDrawer({ open, onClose }: Props) {
+export function ApiReferenceDrawer({ open, initialQuery, onClose }: Props) {
   const [query, setQuery] = useState("");
   const groups = useMemo(() => searchApiReference(query), [query]);
   const searching = query.trim() !== "";
+  const totalEntries = groups.reduce((sum, group) => sum + group.entries.length, 0);
+
+  // Seed the search each time the drawer opens (e.g. with the current function name).
+  useEffect(() => { if (open) setQuery(initialQuery ?? ""); }, [open, initialQuery]);
 
   useEffect(() => {
     if (!open) return;
@@ -39,7 +44,7 @@ export function ApiReferenceDrawer({ open, onClose }: Props) {
           <SearchInput value={query} onChange={setQuery} placeholder="Search API reference…" ariaLabel="Search API reference" />
         </div>
         <div className="api-drawer-body">
-          {groups.map((group) => <GroupView key={group.id} group={group} forceOpen={searching} />)}
+          {groups.map((group) => <GroupView key={group.id} group={group} forceOpen={searching} autoExpandEntry={searching && totalEntries === 1} />)}
           {groups.length === 0 && <p className="muted api-drawer-empty">No matches.</p>}
         </div>
       </aside>
@@ -48,7 +53,7 @@ export function ApiReferenceDrawer({ open, onClose }: Props) {
   );
 }
 
-function GroupView({ group, forceOpen }: { group: ApiGroup; forceOpen: boolean }) {
+function GroupView({ group, forceOpen, autoExpandEntry }: { group: ApiGroup; forceOpen: boolean; autoExpandEntry: boolean }) {
   const [open, setOpen] = useState(true);
   const expanded = forceOpen || open;
   return (
@@ -60,17 +65,39 @@ function GroupView({ group, forceOpen }: { group: ApiGroup; forceOpen: boolean }
       </button>
       {expanded && (
         <div className="api-entries">
-          {group.entries.map((entry) => (
-            <div className="api-entry" key={entry.name}>
-              <div className="api-entry-text">
-                <code className="api-entry-name">{entry.name}</code>
-                <span className="api-entry-summary">{entry.summary}</span>
-              </div>
-              <span className="api-type">{entry.type}</span>
-            </div>
-          ))}
+          {group.entries.map((entry) => <EntryView key={entry.name} entry={entry} autoExpand={autoExpandEntry} />)}
         </div>
       )}
     </section>
+  );
+}
+
+function EntryView({ entry, autoExpand }: { entry: ApiEntry; autoExpand: boolean }) {
+  const [open, setOpen] = useState(false);
+  const hasDetails = (entry.details?.length ?? 0) > 0;
+  const expanded = hasDetails && (autoExpand || open);
+  return (
+    <div className={expanded ? "api-entry expanded" : "api-entry"}>
+      <button className="api-entry-head" type="button" onClick={() => hasDetails && setOpen(!open)} aria-expanded={expanded} disabled={!hasDetails}>
+        <span className="api-entry-text">
+          <code className="api-entry-name">{entry.name}</code>
+          <span className="api-entry-summary">{entry.summary}</span>
+        </span>
+        <span className="api-entry-right">
+          <span className="api-type">{entry.type}</span>
+          {hasDetails && <span className={expanded ? "api-entry-toggle open" : "api-entry-toggle"}>›</span>}
+        </span>
+      </button>
+      {expanded && (
+        <dl className="api-detail">
+          {entry.details!.map((detail) => (
+            <div className="api-detail-row" key={detail.label}>
+              <dt>{detail.label}</dt>
+              <dd>{detail.text}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
   );
 }

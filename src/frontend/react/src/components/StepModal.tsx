@@ -74,7 +74,7 @@ function NodeView({ node, step, onChange, onReadNode }: { node: CustomNodeConfig
       </div>
       <ParamsEditor step={step} onChange={onChange} />
       <FieldGroup label="Python source" hint="Read-only · edit in Nodes">
-        <PythonCodeEditor value={code} minHeight={260} readOnly ariaLabel={`Python source for ${node.name}`} />
+        <PythonCodeEditor value={code} minHeight={260} readOnly ariaLabel={`Python source for ${node.name}`} apiQuery="run" />
       </FieldGroup>
     </div>
   );
@@ -88,7 +88,7 @@ function TriggerEditor({ step, onChange }: { step: PolicyStep; onChange: (p: Ste
     <div className="inspector-form">
       <FieldGroup label="Trigger function" hint="Return True to run this policy for the request. Return False to skip it.">
         <div className="code-signature">def triggered_by(context: RequestContext) -&gt; bool</div>
-        <PythonCodeEditor value={code} minHeight={190} ariaLabel="Start trigger Python code" onChange={setCode} />
+        <PythonCodeEditor value={code} minHeight={190} ariaLabel="Start trigger Python code" onChange={setCode} apiQuery="triggered_by" />
       </FieldGroup>
       <p className="inline-note">The function receives the live request context, including context.flow.request.</p>
     </div>
@@ -121,7 +121,7 @@ function OperatorEditor({ step, onChange }: { step: PolicyStep; onChange: (p: St
     <div className="inspector-form">
       <FieldGroup label="Condition" hint={isIf ? "Return True for the then port, False for else" : "Return a case label string"}>
         <div className="code-signature">{isIf ? "def if_condition(input) -> bool" : "def switch_condition(input) -> str"}</div>
-        <PythonCodeEditor value={code} minHeight={130} ariaLabel={`${step.type} operator Python code`} onChange={(next) => onChange({ ...step.params, code: next })} />
+        <PythonCodeEditor value={code} minHeight={130} ariaLabel={`${step.type} operator Python code`} onChange={(next) => onChange({ ...step.params, code: next })} apiQuery={isIf ? "if_condition" : "switch_condition"} />
       </FieldGroup>
       {!isIf && <SwitchCases cases={cases} onChange={(next) => onChange({ ...step.params, cases: next })} />}
       <p className="inline-note">Changes auto-save to disk.</p>

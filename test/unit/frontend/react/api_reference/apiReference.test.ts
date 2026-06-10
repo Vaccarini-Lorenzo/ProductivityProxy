@@ -26,11 +26,19 @@ describe("apiReference", () => {
     expect(names).not.toContain("params[key]");
   });
 
-  it("matches a whole group when its title matches", () => {
+  it("returns a full group when its title matches", () => {
     const groups = searchApiReference("requestcontext");
-    expect(groups).toHaveLength(1);
-    expect(groups[0].id).toBe("context");
-    expect(groups[0].entries.length).toBe(apiReference.groups.find((g) => g.id === "context")!.entries.length);
+    const context = groups.find((group) => group.id === "context");
+    expect(context).toBeDefined();
+    const original = apiReference.groups.find((group) => group.id === "context")!;
+    expect(context!.entries.length).toBe(original.entries.length);
+  });
+
+  it("isolates one entry for a function-name query (the editor seed)", () => {
+    const entries = searchApiReference("if_condition").flatMap((group) => group.entries);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].name).toBe("if_condition(input)");
+    expect(entries[0].details?.length ?? 0).toBeGreaterThan(0);
   });
 
   it("fuzzy-matches identifier subsequences", () => {
