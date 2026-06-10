@@ -72,10 +72,6 @@ function NodeView({ node, step, onChange, onReadNode }: { node: CustomNodeConfig
 
   return (
     <div className="node-view">
-      <div className="meta-grid">
-        <div><dt>Name</dt><dd>{node.name}</dd></div>
-        <div><dt>File</dt><dd>{node.path}</dd></div>
-      </div>
       <ParamsEditor step={step} onChange={onChange} />
       <FieldGroup label="Python source" hint="Read-only · edit in Nodes">
         <PythonCodeEditor value={code} minHeight={260} readOnly ariaLabel={`Python source for ${node.name}`} apiQuery="run" />
