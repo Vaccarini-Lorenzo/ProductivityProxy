@@ -32,7 +32,7 @@ export interface ModeConfig {
   id: string;
   name: string;
   description?: string;
-  policies: PolicyConfig[];
+  policyIds: string[];
 }
 
 export interface ProxyConfig {
@@ -53,5 +53,6 @@ export interface AppConfig {
   activeModeId: string;
   proxy: ProxyConfig;
   modes: ModeConfig[];
+  policies: PolicyConfig[];
   customNodes: CustomNodeConfig[];
 }

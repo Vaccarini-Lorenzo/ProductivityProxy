@@ -36,13 +36,14 @@ class CustomNodeLogger:
 
 def config_loaded(event_log, config_path: Path, config) -> None:
     active_mode = config.active_mode()
-    policy_count = sum(len(mode.policies) for mode in config.modes)
+    policy_count = len(config.policies)
     _append(event_log, None, "config_loaded", "info", "Proxy config loaded", {
         "configPath": str(config_path),
         "modeId": config.active_mode_id,
         "modeName": active_mode.name,
         "modeCount": len(config.modes),
         "policyCount": policy_count,
+        "activePolicyCount": len(active_mode.policy_ids),
         "customNodeCount": len(config.custom_nodes),
     })
 

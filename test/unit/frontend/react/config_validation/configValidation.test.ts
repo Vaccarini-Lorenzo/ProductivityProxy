@@ -17,8 +17,8 @@ describe("validateAppConfig", () => {
 
   it("rejects a policy without exactly one start node", () => {
     const config = createDefaultConfig();
-    config.modes[0].policies[0].steps = config.modes[0].policies[0].steps.filter((step) => step.type !== "start");
+    config.policies[0].steps = config.policies[0].steps.filter((step) => step.type !== "start");
 
-    expect(validateAppConfig(config)).toContain("Policy Productivity/Block YouTube Shorts must have exactly one start node");
+    expect(validateAppConfig(config)).toContain("Policy Block YouTube Shorts must have exactly one start node");
   });
 });

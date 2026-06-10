@@ -1,4 +1,4 @@
-import type { AppConfig, ModeConfig, PolicyConfig } from "../../models/config/types";
+import type { AppConfig, PolicyConfig } from "../../models/config/types";
 
 export function validateAppConfig(config: AppConfig): string[] {
   const errors: string[] = [];
@@ -7,22 +7,25 @@ export function validateAppConfig(config: AppConfig): string[] {
     errors.push("Active mode does not exist");
   }
 
+  const policyIds = new Set(config.policies.map((policy) => policy.id));
   for (const mode of config.modes) {
-    errors.push(...validateMode(mode));
+    for (const id of mode.policyIds) {
+      if (!policyIds.has(id)) errors.push(`Mode ${mode.name} references unknown policy ${id}`);
+    }
+  }
+
+  for (const policy of config.policies) {
+    errors.push(...validatePolicy(policy));
   }
 
   return errors;
 }
 
-function validateMode(mode: ModeConfig): string[] {
-  return mode.policies.flatMap((policy) => validatePolicy(mode, policy));
-}
-
-function validatePolicy(mode: ModeConfig, policy: PolicyConfig): string[] {
+function validatePolicy(policy: PolicyConfig): string[] {
   const errors: string[] = [];
   const startCount = policy.steps.filter((step) => step.kind === "node" && step.type === "start").length;
   if (startCount !== 1) {
-    errors.push(`Policy ${mode.name}/${policy.name} must have exactly one start node`);
+    errors.push(`Policy ${policy.name} must have exactly one start node`);
   }
 
   const stepIds = new Set(policy.steps.map((step) => step.id));

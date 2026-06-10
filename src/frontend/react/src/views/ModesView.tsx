@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AppConfig, ModeConfig } from "../models/config/types";
+import type { AppConfig, ModeConfig, PolicyConfig } from "../models/config/types";
 import { createMode } from "../services/config/configEditing";
 import { Card, Field, Modal, PageHeader, count } from "../components/ui";
 
@@ -8,14 +8,14 @@ interface Props {
   onConfigChange: (config: AppConfig) => void;
 }
 
+function policyById(config: AppConfig, id: string): PolicyConfig | undefined {
+  return config.policies.find((policy) => policy.id === id);
+}
+
 export function ModesView({ config, onConfigChange }: Props) {
   const [newName, setNewName] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const editMode = config.modes.find((mode) => mode.id === editId) ?? null;
-
-  function updateMode(nextMode: ModeConfig) {
-    onConfigChange({ ...config, modes: config.modes.map((mode) => (mode.id === nextMode.id ? nextMode : mode)) });
-  }
 
   function addMode() {
     const name = newName.trim();
@@ -23,6 +23,7 @@ export function ModesView({ config, onConfigChange }: Props) {
     const mode = createMode(name, config.modes.map((item) => item.id));
     onConfigChange({ ...config, activeModeId: mode.id, modes: [...config.modes, mode] });
     setNewName("");
+    setEditId(mode.id);
   }
 
   function deleteMode(id: string) {
@@ -41,20 +42,20 @@ export function ModesView({ config, onConfigChange }: Props) {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Modes" title="Runtime modes" subtitle="A mode groups ordered policies. Only the active mode is evaluated. Click a mode to make it active." />
+      <PageHeader eyebrow="Modes" title="Runtime modes" subtitle="A mode is an ordered set of policies. Only the active mode runs; policies are evaluated top to bottom and the first to respond wins." />
 
       <Card title="Modes" actions={addControl}>
         <div className="list">
           {config.modes.map((mode) => {
             const isActive = mode.id === config.activeModeId;
-            const steps = mode.policies.reduce((c, p) => c + p.steps.length, 0);
+            const steps = mode.policyIds.reduce((c, id) => c + (policyById(config, id)?.steps.length ?? 0), 0);
             return (
               <div className={isActive ? "list-row active" : "list-row"} key={mode.id}>
                 <button className="list-main" type="button" onClick={() => onConfigChange({ ...config, activeModeId: mode.id })}>
                   <span className="list-title">{mode.name}{isActive && <span className="badge">active</span>}</span>
                   <small>{mode.description || "No description"}</small>
                 </button>
-                <span className="list-meta">{count(mode.policies.length, "policy", "policies")} · {count(steps, "step")}</span>
+                <span className="list-meta">{count(mode.policyIds.length, "policy", "policies")} · {count(steps, "step")}</span>
                 <button className="small" type="button" onClick={() => setEditId(mode.id)}>Edit</button>
                 <button className="danger small" type="button" onClick={() => deleteMode(mode.id)} disabled={config.modes.length <= 1}>Delete</button>
               </div>
@@ -69,15 +70,61 @@ export function ModesView({ config, onConfigChange }: Props) {
           onClose={() => setEditId(null)}
           footer={<button className="primary" type="button" onClick={() => setEditId(null)}>Done</button>}
         >
-          <Field label="Name">
-            <input autoFocus value={editMode.name} onChange={(e) => updateMode({ ...editMode, name: e.target.value })} />
-          </Field>
-          <Field label="Description">
-            <input value={editMode.description ?? ""} onChange={(e) => updateMode({ ...editMode, description: e.target.value })} />
-          </Field>
-          <p className="inline-note">Changes are saved automatically. Use “Save config” to persist them to disk.</p>
+          <ModeEditor config={config} mode={editMode} onConfigChange={onConfigChange} />
         </Modal>
       )}
     </div>
+  );
+}
+
+function ModeEditor({ config, mode, onConfigChange }: { config: AppConfig; mode: ModeConfig; onConfigChange: (c: AppConfig) => void }) {
+  const updateMode = (next: ModeConfig) => onConfigChange({ ...config, modes: config.modes.map((m) => (m.id === next.id ? next : m)) });
+  const setIds = (policyIds: string[]) => updateMode({ ...mode, policyIds });
+  const available = config.policies.filter((policy) => !mode.policyIds.includes(policy.id));
+
+  function move(index: number, dir: -1 | 1) {
+    const t = index + dir;
+    if (t < 0 || t >= mode.policyIds.length) return;
+    const arr = [...mode.policyIds];
+    [arr[index], arr[t]] = [arr[t], arr[index]];
+    setIds(arr);
+  }
+
+  function addExisting(id: string) {
+    if (id) setIds([...mode.policyIds, id]);
+  }
+
+  return (
+    <>
+      <Field label="Name">
+        <input autoFocus value={mode.name} onChange={(e) => updateMode({ ...mode, name: e.target.value })} />
+      </Field>
+      <Field label="Description">
+        <input value={mode.description ?? ""} onChange={(e) => updateMode({ ...mode, description: e.target.value })} />
+      </Field>
+
+      <div className="mode-policies">
+        <h3>Policies in this mode <small className="muted">(run top to bottom)</small></h3>
+        <div className="list">
+          {mode.policyIds.map((id, index) => {
+            const policy = policyById(config, id);
+            return (
+              <div className="list-row" key={id}>
+                <span className="list-main"><span className="list-title">{index + 1}. {policy?.name ?? id}</span>{!policy && <small className="danger-text">missing policy</small>}</span>
+                <button className="small" type="button" onClick={() => move(index, -1)} disabled={index === 0} title="Move up">↑</button>
+                <button className="small" type="button" onClick={() => move(index, 1)} disabled={index === mode.policyIds.length - 1} title="Move down">↓</button>
+                <button className="danger small" type="button" onClick={() => setIds(mode.policyIds.filter((x) => x !== id))}>Remove</button>
+              </div>
+            );
+          })}
+          {mode.policyIds.length === 0 && <p className="muted">No policies yet. Add one below.</p>}
+        </div>
+        <select className="policy-add-select" aria-label="Add an existing policy" value="" onChange={(e) => addExisting(e.target.value)} disabled={available.length === 0}>
+          <option value="" disabled hidden>{available.length ? "Add an existing policy…" : "All policies are already added"}</option>
+          {available.map((policy) => <option key={policy.id} value={policy.id}>{policy.name}</option>)}
+        </select>
+        <p className="inline-note">Policies are shared across modes. Create and edit them on the Policy page. Changes here save automatically.</p>
+      </div>
+    </>
   );
 }

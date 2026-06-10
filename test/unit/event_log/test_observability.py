@@ -72,27 +72,22 @@ class ObservabilityTest(unittest.TestCase):
 def config_raw(node_path: Path) -> dict:
     return {
         "activeModeId": "mode",
-        "modes": [
+        "policies": [
             {
-                "id": "mode",
-                "name": "Mode",
-                "policies": [
-                    {
-                        "id": "policy",
-                        "name": "Policy",
-                        "steps": [
-                            {"id": "start", "kind": "node", "type": "start"},
-                            {"id": "custom", "kind": "node", "type": "custom-node", "params": {"value": "ok"}},
-                            {"id": "end", "kind": "node", "type": "end"},
-                        ],
-                        "edges": [
-                            {"from": "start", "output": "next", "to": "custom"},
-                            {"from": "custom", "output": "next", "to": "end"},
-                        ],
-                    }
+                "id": "policy",
+                "name": "Policy",
+                "steps": [
+                    {"id": "start", "kind": "node", "type": "start"},
+                    {"id": "custom", "kind": "node", "type": "custom-node", "params": {"value": "ok"}},
+                    {"id": "end", "kind": "node", "type": "end"},
+                ],
+                "edges": [
+                    {"from": "start", "output": "next", "to": "custom"},
+                    {"from": "custom", "output": "next", "to": "end"},
                 ],
             }
         ],
+        "modes": [{"id": "mode", "name": "Mode", "policyIds": ["policy"]}],
         "customNodes": [{"id": "custom-node", "name": "Custom", "path": str(node_path)}],
     }
 

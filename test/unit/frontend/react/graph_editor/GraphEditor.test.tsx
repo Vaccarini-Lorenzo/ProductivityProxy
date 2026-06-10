@@ -8,7 +8,7 @@ import { NodeLibrary } from "@app/components/NodeLibrary";
 describe("GraphEditor", () => {
   it("renders the policy steps as graph nodes", () => {
     const config = createDefaultConfig();
-    const policy = config.modes[0].policies[0];
+    const policy = config.policies[0];
 
     const markup = renderToStaticMarkup(
       <GraphEditor

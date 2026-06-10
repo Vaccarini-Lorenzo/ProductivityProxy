@@ -8,7 +8,8 @@ class DefaultConfigTest(unittest.TestCase):
         config = materialized_default_config()
 
         self.assertEqual(config.active_mode().id, "productivity")
-        self.assertGreater(len(config.active_mode().policies), 0)
+        self.assertGreater(len(config.active_policies()), 0)
+        self.assertEqual(config.active_mode().policy_ids, ["block-youtube-shorts", "limit-reddit"])
 
 
 if __name__ == "__main__":

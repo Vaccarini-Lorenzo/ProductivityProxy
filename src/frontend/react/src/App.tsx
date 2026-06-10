@@ -117,5 +117,5 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
 }
 
 function isNodeUsed(config: AppConfig, nodeId: string): boolean {
-  return config.modes.some((mode) => mode.policies.some((policy) => policy.steps.some((step) => step.kind === "node" && step.type === nodeId)));
+  return config.policies.some((policy) => policy.steps.some((step) => step.kind === "node" && step.type === nodeId));
 }

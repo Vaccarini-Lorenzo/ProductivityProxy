@@ -5,7 +5,9 @@ import { createDefaultConfig } from "@app/models/config/defaultConfig";
 function startSteps(modeId: string) {
   const config = createDefaultConfig();
   const mode = config.modes.find((item) => item.id === modeId);
-  return mode?.policies[0].steps.filter((step) => step.kind === "node" && step.type === "start") ?? [];
+  const policyId = mode?.policyIds[0];
+  const policy = config.policies.find((item) => item.id === policyId);
+  return policy?.steps.filter((step) => step.kind === "node" && step.type === "start") ?? [];
 }
 
 describe("createDefaultConfig", () => {
@@ -18,7 +20,12 @@ describe("createDefaultConfig", () => {
 
   it("creates one start node per default mode policy", () => {
     expect(startSteps("productivity")).toHaveLength(1);
-    expect(startSteps("chilling")).toHaveLength(1);
+  });
+
+  it("leaves the chilling mode empty so it allows all traffic", () => {
+    const config = createDefaultConfig();
+    const chilling = config.modes.find((mode) => mode.id === "chilling");
+    expect(chilling?.policyIds).toEqual([]);
   });
 
   it("uses local-only unauthenticated proxy by default", () => {

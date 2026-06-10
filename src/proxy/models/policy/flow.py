@@ -99,16 +99,16 @@ class Policy:
 class Mode:
     id: str
     name: str
-    policies: list[Policy]
+    policy_ids: list[str]
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "Mode":
         mode = cls(
             id=str(raw["id"]),
             name=str(raw.get("name", raw["id"])),
-            policies=[Policy.from_dict(item) for item in raw.get("policies", [])],
+            policy_ids=[str(pid) for pid in raw.get("policyIds", [])],
         )
-        _require_unique([policy.id for policy in mode.policies], "policy")
+        _require_unique(mode.policy_ids, "policy reference")
         return mode
 
 
@@ -134,6 +134,7 @@ class CustomNode:
 class AppConfig:
     active_mode_id: str
     modes: list[Mode]
+    policies: list[Policy]
     custom_nodes: list[CustomNode]
     proxy: dict[str, Any] = field(default_factory=dict)
 
@@ -142,6 +143,7 @@ class AppConfig:
         config = cls(
             active_mode_id=str(raw["activeModeId"]),
             proxy=dict(raw.get("proxy", {})),
+            policies=[Policy.from_dict(item) for item in raw.get("policies", [])],
             modes=[Mode.from_dict(item) for item in raw.get("modes", [])],
             custom_nodes=[CustomNode.from_dict(item) for item in raw.get("customNodes", [])],
         )
@@ -150,19 +152,33 @@ class AppConfig:
 
     def validate(self) -> None:
         _require_unique([mode.id for mode in self.modes], "mode")
+        _require_unique([policy.id for policy in self.policies], "policy")
         _require_unique([node.id for node in self.custom_nodes], "custom node")
         self.active_mode()
-        custom_node_ids = {node.id for node in self.custom_nodes}
+        policy_ids = {policy.id for policy in self.policies}
         for mode in self.modes:
-            for policy in mode.policies:
-                for step in policy.steps:
-                    _validate_step_type(step, custom_node_ids)
+            for pid in mode.policy_ids:
+                if pid not in policy_ids:
+                    raise ValueError(f"Mode {mode.id} references unknown policy: {pid}")
+        custom_node_ids = {node.id for node in self.custom_nodes}
+        for policy in self.policies:
+            for step in policy.steps:
+                _validate_step_type(step, custom_node_ids)
 
     def active_mode(self) -> Mode:
         for mode in self.modes:
             if mode.id == self.active_mode_id:
                 return mode
         raise ValueError(f"Unknown active mode: {self.active_mode_id}")
+
+    def policy_by_id(self, policy_id: str) -> Policy:
+        for policy in self.policies:
+            if policy.id == policy_id:
+                return policy
+        raise ValueError(f"Unknown policy: {policy_id}")
+
+    def active_policies(self) -> list[Policy]:
+        return [self.policy_by_id(pid) for pid in self.active_mode().policy_ids]
 
     def custom_node(self, node_id: str) -> CustomNode:
         for node in self.custom_nodes:

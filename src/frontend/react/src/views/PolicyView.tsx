@@ -4,7 +4,7 @@ import { NodeLibrary } from "../components/NodeLibrary";
 import { StepModal } from "../components/StepModal";
 import { Modal } from "../components/Modal";
 import { PageHeader, count } from "../components/ui";
-import type { AppConfig, ModeConfig, PolicyConfig, PolicyStepKind } from "../models/config/types";
+import type { AppConfig, PolicyConfig, PolicyStepKind } from "../models/config/types";
 import { createPolicy, slug } from "../services/config/configEditing";
 import { addStep, updateStepParams } from "../services/policy/policyOperations";
 
@@ -15,47 +15,38 @@ interface Props {
 }
 
 export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
-  const activeMode = config.modes.find((m) => m.id === config.activeModeId) ?? config.modes[0];
-  const [selectedPolicyId, setSelectedPolicyId] = useState(activeMode?.policies[0]?.id ?? "");
+  const [selectedPolicyId, setSelectedPolicyId] = useState(config.policies[0]?.id ?? "");
   const [openStepId, setOpenStepId] = useState<string | null>(null);
   const [showNewPolicy, setShowNewPolicy] = useState(false);
   const [newPolicyName, setNewPolicyName] = useState("");
-  const activePolicy = activeMode?.policies.find((p) => p.id === selectedPolicyId) ?? activeMode?.policies[0];
+  const activePolicy = config.policies.find((p) => p.id === selectedPolicyId) ?? config.policies[0];
   const openStep = activePolicy?.steps.find((s) => s.id === openStepId) ?? null;
+  const usedIn = activePolicy ? config.modes.filter((m) => m.policyIds.includes(activePolicy.id)) : [];
 
   useEffect(() => {
-    if (!activeMode) return;
-    if (!activeMode.policies.some((p) => p.id === selectedPolicyId)) setSelectedPolicyId(activeMode.policies[0]?.id ?? "");
-  }, [activeMode, selectedPolicyId]);
+    if (!config.policies.some((p) => p.id === selectedPolicyId)) setSelectedPolicyId(config.policies[0]?.id ?? "");
+  }, [config.policies, selectedPolicyId]);
 
-  function updateMode(next: ModeConfig) { onConfigChange({ ...config, modes: config.modes.map((m) => (m.id === next.id ? next : m)) }); }
-  function updatePolicy(next: PolicyConfig) { if (activeMode) updateMode({ ...activeMode, policies: activeMode.policies.map((p) => (p.id === next.id ? next : p)) }); }
+  function updatePolicy(next: PolicyConfig) {
+    onConfigChange({ ...config, policies: config.policies.map((p) => (p.id === next.id ? next : p)) });
+  }
+
   function selectPolicy(id: string) { setSelectedPolicyId(id); setOpenStepId(null); }
 
   function addPolicy() {
-    if (!activeMode || !newPolicyName.trim()) return;
-    const p = createPolicy(slug(newPolicyName), newPolicyName.trim(), activeMode.policies.map((x) => x.id));
-    updateMode({ ...activeMode, policies: [...activeMode.policies, p] });
+    if (!newPolicyName.trim()) return;
+    const p = createPolicy(slug(newPolicyName), newPolicyName.trim(), config.policies.map((x) => x.id));
+    onConfigChange({ ...config, policies: [...config.policies, p] });
     selectPolicy(p.id);
     setNewPolicyName("");
     setShowNewPolicy(false);
   }
 
   function deletePolicy(id: string) {
-    if (!activeMode) return;
-    const policies = activeMode.policies.filter((p) => p.id !== id);
-    updateMode({ ...activeMode, policies });
+    const policies = config.policies.filter((p) => p.id !== id);
+    const modes = config.modes.map((m) => ({ ...m, policyIds: m.policyIds.filter((pid) => pid !== id) }));
+    onConfigChange({ ...config, policies, modes });
     selectPolicy(policies[0]?.id ?? "");
-  }
-
-  function movePolicy(dir: -1 | 1) {
-    if (!activeMode || !activePolicy) return;
-    const i = activeMode.policies.findIndex((p) => p.id === activePolicy.id);
-    const t = i + dir;
-    if (i < 0 || t < 0 || t >= activeMode.policies.length) return;
-    const arr = [...activeMode.policies];
-    [arr[i], arr[t]] = [arr[t], arr[i]];
-    updateMode({ ...activeMode, policies: arr });
   }
 
   function handleAddStep(kind: PolicyStepKind, type: string) {
@@ -77,25 +68,23 @@ export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
     if (openStepId === stepId) setOpenStepId(null);
   }
 
-  if (!activeMode) return <PageHeader eyebrow="Policy" title="No modes" subtitle="Create a mode first." />;
-
-  const index = activeMode.policies.findIndex((p) => p.id === activePolicy?.id);
-
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Policy" title={activeMode.name} subtitle="Policies run top to bottom. The first to act on a request wins." />
+      <PageHeader eyebrow="Policy" title="Policies" subtitle="Edit policy graphs here. Policies are shared; add them to modes on the Modes page." />
 
       <div className="policy-box">
         <div className="policy-bar">
           <div className="policy-bar-left">
-            <select aria-label="Select policy" value={activePolicy?.id ?? ""} onChange={(e) => selectPolicy(e.target.value)}>
-              {activeMode.policies.map((p, i) => <option key={p.id} value={p.id}>{i + 1}. {p.name}</option>)}
+            <select aria-label="Select policy" value={activePolicy?.id ?? ""} onChange={(e) => selectPolicy(e.target.value)} disabled={config.policies.length === 0}>
+              {config.policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            {activePolicy && <span className="muted">{count(activePolicy.steps.length, "step")} · {count(activePolicy.edges.length, "route")}</span>}
+            {activePolicy && (
+              <span className="muted">
+                {count(activePolicy.steps.length, "step")} · {count(activePolicy.edges.length, "route")} · {usedIn.length > 0 ? `used in ${usedIn.map((m) => m.name).join(", ")}` : "not in any mode"}
+              </span>
+            )}
           </div>
           <div className="actions">
-            <button className="small" type="button" onClick={() => movePolicy(-1)} disabled={index <= 0} title="Move earlier">↑</button>
-            <button className="small" type="button" onClick={() => movePolicy(1)} disabled={index < 0 || index >= activeMode.policies.length - 1} title="Move later">↓</button>
             <button className="small danger" type="button" onClick={() => activePolicy && deletePolicy(activePolicy.id)} disabled={!activePolicy}>Delete</button>
             <button className="small" type="button" onClick={() => setShowNewPolicy(true)}>New policy</button>
           </div>
@@ -146,6 +135,7 @@ export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
             <span className="field-label">Policy name</span>
             <input autoFocus value={newPolicyName} onChange={(e) => setNewPolicyName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addPolicy()} placeholder="Block social media" />
           </label>
+          <p className="inline-note">New policies are added to the shared library. Add them to a mode on the Modes page to make them run.</p>
         </Modal>
       )}
     </div>

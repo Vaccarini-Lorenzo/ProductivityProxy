@@ -20,7 +20,7 @@ class PolicyEvaluator:
     def evaluate(self, context) -> None:
         observability.request_started(context)
         try:
-            for policy in self.config.active_mode().policies:
+            for policy in self.config.active_policies():
                 self._evaluate_policy(policy, context)
                 if getattr(context.flow, "response", None) is not None:
                     observability.request_finished(context, "blocked")

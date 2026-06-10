@@ -28,20 +28,15 @@ class CustomNodeRunnerTest(unittest.TestCase):
             config = AppConfig.from_dict(
                 {
                     "activeModeId": "mode",
-                    "modes": [
+                    "policies": [
                         {
-                            "id": "mode",
-                            "name": "Mode",
-                            "policies": [
-                                {
-                                    "id": "policy",
-                                    "name": "Policy",
-                                    "steps": [{"id": "start", "kind": "node", "type": "start"}],
-                                    "edges": [],
-                                }
-                            ],
+                            "id": "policy",
+                            "name": "Policy",
+                            "steps": [{"id": "start", "kind": "node", "type": "start"}],
+                            "edges": [],
                         }
                     ],
+                    "modes": [{"id": "mode", "name": "Mode", "policyIds": ["policy"]}],
                     "customNodes": [{"id": "detect", "name": "Detect", "path": str(node_path)}],
                 }
             )

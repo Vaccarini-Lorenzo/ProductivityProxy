@@ -29,23 +29,18 @@ class PolicyProxyControllerTest(unittest.TestCase):
                 json.dumps(
                     {
                         "activeModeId": "mode",
-                        "modes": [
+                        "policies": [
                             {
-                                "id": "mode",
-                                "name": "Mode",
-                                "policies": [
-                                    {
-                                        "id": "policy",
-                                        "name": "Policy",
-                                        "steps": [
-                                            {"id": "start", "kind": "node", "type": "start"},
-                                            {"id": "log", "kind": "node", "type": "log-event"},
-                                        ],
-                                        "edges": [{"from": "start", "output": "next", "to": "log"}],
-                                    }
+                                "id": "policy",
+                                "name": "Policy",
+                                "steps": [
+                                    {"id": "start", "kind": "node", "type": "start"},
+                                    {"id": "log", "kind": "node", "type": "log-event"},
                                 ],
+                                "edges": [{"from": "start", "output": "next", "to": "log"}],
                             }
                         ],
+                        "modes": [{"id": "mode", "name": "Mode", "policyIds": ["policy"]}],
                         "customNodes": [{"id": "log-event", "name": "Log", "path": str(node_path)}],
                     }
                 ),

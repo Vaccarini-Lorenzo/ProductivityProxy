@@ -33,32 +33,27 @@ class PolicyEvaluatorTest(unittest.TestCase):
             config = AppConfig.from_dict(
                 {
                     "activeModeId": "mode",
-                    "modes": [
+                    "policies": [
                         {
-                            "id": "mode",
-                            "name": "Mode",
-                            "policies": [
-                                {
-                                    "id": "policy",
-                                    "name": "Policy",
-                                    "steps": [
-                                        {"id": "start", "kind": "node", "type": "start"},
-                                        {"id": "detect", "kind": "node", "type": "detect", "params": {"message": "hello"}},
-                                        {"id": "choice", "kind": "operator", "type": "if", "params": {"code": "def if_condition(input):\n    return input['match']"}},
-                                        {"id": "log", "kind": "node", "type": "log"},
-                                        {"id": "end", "kind": "node", "type": "end"},
-                                    ],
-                                    "edges": [
-                                        {"from": "start", "output": "next", "to": "detect"},
-                                        {"from": "detect", "output": "next", "to": "choice"},
-                                        {"from": "choice", "output": "then", "to": "log"},
-                                        {"from": "choice", "output": "else", "to": "end"},
-                                        {"from": "log", "output": "next", "to": "end"},
-                                    ],
-                                }
+                            "id": "policy",
+                            "name": "Policy",
+                            "steps": [
+                                {"id": "start", "kind": "node", "type": "start"},
+                                {"id": "detect", "kind": "node", "type": "detect", "params": {"message": "hello"}},
+                                {"id": "choice", "kind": "operator", "type": "if", "params": {"code": "def if_condition(input):\n    return input['match']"}},
+                                {"id": "log", "kind": "node", "type": "log"},
+                                {"id": "end", "kind": "node", "type": "end"},
+                            ],
+                            "edges": [
+                                {"from": "start", "output": "next", "to": "detect"},
+                                {"from": "detect", "output": "next", "to": "choice"},
+                                {"from": "choice", "output": "then", "to": "log"},
+                                {"from": "choice", "output": "else", "to": "end"},
+                                {"from": "log", "output": "next", "to": "end"},
                             ],
                         }
                     ],
+                    "modes": [{"id": "mode", "name": "Mode", "policyIds": ["policy"]}],
                     "customNodes": [
                         {"id": "detect", "name": "Detect", "path": str(detect_path)},
                         {"id": "log", "name": "Log", "path": str(log_path)},
@@ -92,16 +87,11 @@ class PolicyEvaluatorTest(unittest.TestCase):
             config = AppConfig.from_dict(
                 {
                     "activeModeId": "mode",
-                    "modes": [
-                        {
-                            "id": "mode",
-                            "name": "Mode",
-                            "policies": [
-                                simple_policy("first", "block"),
-                                simple_policy("second", "log"),
-                            ],
-                        }
+                    "policies": [
+                        simple_policy("first", "block"),
+                        simple_policy("second", "log"),
                     ],
+                    "modes": [{"id": "mode", "name": "Mode", "policyIds": ["first", "second"]}],
                     "customNodes": [
                         {"id": "block", "name": "Block", "path": str(block_path)},
                         {"id": "log", "name": "Log", "path": str(log_path)},
@@ -124,20 +114,15 @@ class PolicyEvaluatorTest(unittest.TestCase):
         config = AppConfig.from_dict(
             {
                 "activeModeId": "mode",
-                "modes": [
+                "policies": [
                     {
-                        "id": "mode",
-                        "name": "Mode",
-                        "policies": [
-                            {
-                                "id": "policy",
-                                "name": "Policy",
-                                "steps": [{"id": "start", "kind": "node", "type": "start"}],
-                                "edges": [{"from": "start", "output": "next", "to": "start"}],
-                            }
-                        ],
+                        "id": "policy",
+                        "name": "Policy",
+                        "steps": [{"id": "start", "kind": "node", "type": "start"}],
+                        "edges": [{"from": "start", "output": "next", "to": "start"}],
                     }
                 ],
+                "modes": [{"id": "mode", "name": "Mode", "policyIds": ["policy"]}],
                 "customNodes": [],
             }
         )

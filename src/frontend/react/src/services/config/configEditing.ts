@@ -6,7 +6,7 @@ export function createMode(name: string, existingIds: string[] = []): ModeConfig
     id,
     name,
     description: "",
-    policies: [createPolicy(`${id}-policy`, `${name} policy`, [])],
+    policyIds: [],
   };
 }
 

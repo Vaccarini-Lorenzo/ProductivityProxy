@@ -41,7 +41,7 @@ class ProxyBehaviorChangeTest(unittest.TestCase):
             )
 
             draft_flow = evaluate(raw, tmp)
-            raw["modes"][0]["policies"][0]["edges"] = [
+            raw["policies"][0]["edges"] = [
                 {"from": "draft-start", "output": "next", "to": "draft-block"}
             ]
             connected_flow = evaluate(raw, tmp)
@@ -72,7 +72,8 @@ class ProxyBehaviorChangeTest(unittest.TestCase):
             )
 
             unused_flow = evaluate(raw, tmp)
-            raw["modes"][0]["policies"] = [node_policy("uses-missing", "missing")]
+            raw["policies"] = [node_policy("uses-missing", "missing")]
+            raw["modes"][0]["policyIds"] = ["uses-missing"]
 
             self.assertIsNone(unused_flow.response)
             with self.assertRaises(FileNotFoundError):
@@ -126,7 +127,18 @@ def write_block_node(tmp: str) -> Path:
 
 
 def config_raw(active_mode_id: str, modes: list[dict], custom_nodes: list[dict]) -> dict:
-    return {"activeModeId": active_mode_id, "modes": modes, "customNodes": custom_nodes}
+    policies: list[dict] = []
+    seen: set[str] = set()
+    out_modes: list[dict] = []
+    for mode in modes:
+        ids: list[str] = []
+        for policy in mode.get("policies", []):
+            if policy["id"] not in seen:
+                policies.append(policy)
+                seen.add(policy["id"])
+            ids.append(policy["id"])
+        out_modes.append({"id": mode["id"], "name": mode["name"], "policyIds": ids})
+    return {"activeModeId": active_mode_id, "policies": policies, "modes": out_modes, "customNodes": custom_nodes}
 
 
 def mode_raw(mode_id: str, policies: list[dict]) -> dict:

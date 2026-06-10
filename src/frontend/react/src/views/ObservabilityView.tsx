@@ -29,7 +29,7 @@ export function ObservabilityView({ client, config }: Props) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [message, setMessage] = useState("");
-  const policies = useMemo(() => config.modes.flatMap((mode) => mode.policies), [config.modes]);
+  const policies = useMemo(() => config.policies, [config.policies]);
   const selected = openIndex === null ? undefined : events[openIndex];
   const requestId = text(selected, "requestId");
   const timeline = requestId ? events.filter((e) => text(e, "requestId") === requestId) : [];

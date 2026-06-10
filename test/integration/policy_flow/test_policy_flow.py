@@ -58,37 +58,34 @@ class PolicyFlowTest(unittest.TestCase):
             config = AppConfig.from_dict(
                 {
                     "activeModeId": "productivity",
-                    "modes": [
+                    "policies": [
                         {
-                            "id": "productivity",
-                            "name": "Productivity",
-                            "policies": [
-                                {
-                                    "id": "reddit-limit",
-                                    "name": "Reddit limit",
-                                    "steps": [
-                                        {"id": "start", "kind": "node", "type": "start"},
-                                        {"id": "detect", "kind": "node", "type": "detect-reddit"},
-                                        {"id": "is-reddit", "kind": "operator", "type": "if", "params": {"code": "def if_condition(input):\n    return input['match']"}},
-                                        {"id": "track", "kind": "node", "type": "track", "params": {"platform": "reddit", "idleSeconds": 9999}},
-                                        {"id": "limit", "kind": "node", "type": "limit", "params": {"platform": "reddit", "seconds": 1800}},
-                                        {"id": "is-over", "kind": "operator", "type": "if", "params": {"code": "def if_condition(input):\n    return input['over_limit']"}},
-                                        {"id": "block", "kind": "node", "type": "block", "params": {"status": 403, "message": "Reddit limit reached"}},
-                                        {"id": "end", "kind": "node", "type": "end"},
-                                    ],
-                                    "edges": [
-                                        {"from": "start", "output": "next", "to": "detect"},
-                                        {"from": "detect", "output": "next", "to": "is-reddit"},
-                                        {"from": "is-reddit", "output": "then", "to": "track"},
-                                        {"from": "is-reddit", "output": "else", "to": "end"},
-                                        {"from": "track", "output": "next", "to": "limit"},
-                                        {"from": "limit", "output": "next", "to": "is-over"},
-                                        {"from": "is-over", "output": "then", "to": "block"},
-                                        {"from": "is-over", "output": "else", "to": "end"},
-                                    ],
-                                }
+                            "id": "reddit-limit",
+                            "name": "Reddit limit",
+                            "steps": [
+                                {"id": "start", "kind": "node", "type": "start"},
+                                {"id": "detect", "kind": "node", "type": "detect-reddit"},
+                                {"id": "is-reddit", "kind": "operator", "type": "if", "params": {"code": "def if_condition(input):\n    return input['match']"}},
+                                {"id": "track", "kind": "node", "type": "track", "params": {"platform": "reddit", "idleSeconds": 9999}},
+                                {"id": "limit", "kind": "node", "type": "limit", "params": {"platform": "reddit", "seconds": 1800}},
+                                {"id": "is-over", "kind": "operator", "type": "if", "params": {"code": "def if_condition(input):\n    return input['over_limit']"}},
+                                {"id": "block", "kind": "node", "type": "block", "params": {"status": 403, "message": "Reddit limit reached"}},
+                                {"id": "end", "kind": "node", "type": "end"},
+                            ],
+                            "edges": [
+                                {"from": "start", "output": "next", "to": "detect"},
+                                {"from": "detect", "output": "next", "to": "is-reddit"},
+                                {"from": "is-reddit", "output": "then", "to": "track"},
+                                {"from": "is-reddit", "output": "else", "to": "end"},
+                                {"from": "track", "output": "next", "to": "limit"},
+                                {"from": "limit", "output": "next", "to": "is-over"},
+                                {"from": "is-over", "output": "then", "to": "block"},
+                                {"from": "is-over", "output": "else", "to": "end"},
                             ],
                         }
+                    ],
+                    "modes": [
+                        {"id": "productivity", "name": "Productivity", "policyIds": ["reddit-limit"]}
                     ],
                     "customNodes": [
                         {"id": "detect-reddit", "name": "Detect Reddit", "path": str(detect_path)},
