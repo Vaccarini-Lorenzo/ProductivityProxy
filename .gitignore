@@ -35,3 +35,10 @@ dist/
 # Editor temp files
 *.swp
 *.swo
+
+# Style 
+**/style_ideas/**
+
+# Local agentic
+**/.agents
+**/.pi
