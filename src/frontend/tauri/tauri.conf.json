@@ -10,6 +10,7 @@
     "beforeBuildCommand": "cd ../react && npm run build"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "main",
@@ -20,6 +21,20 @@
         "skipTaskbar": true,
         "resizable": true,
         "fullscreen": false
+      },
+      {
+        "label": "popover",
+        "title": "ProductivityProxy",
+        "width": 340,
+        "height": 480,
+        "visible": false,
+        "focus": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true
       }
     ],
     "security": {

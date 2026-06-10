@@ -50,7 +50,7 @@ export function createDefaultConfig(): AppConfig {
           { id: "start", kind: "node", type: "start", position: { x: 80, y: 120 }, params: { code: REDDIT_TRIGGER_CODE } },
           { id: "track", kind: "node", type: "track-time", position: { x: 380, y: 120 }, params: { platform: "reddit", idleSeconds: 300 } },
           { id: "check-limit", kind: "node", type: "is-usage-over-limit", position: { x: 680, y: 120 }, params: { platform: "reddit", seconds: 1800 } },
-          { id: "over-limit", kind: "operator", type: "if", position: { x: 980, y: 120 }, params: { code: "def if_condition(input):\n    return bool(input.get('over_limit'))\n" } },
+          { id: "over-limit", kind: "operator", type: "if", position: { x: 980, y: 120 }, params: { code: "def if_condition(input) -> bool:\n    return bool(input.get('over_limit'))\n" } },
           { id: "block", kind: "node", type: "block-response", position: { x: 1260, y: 60 }, params: { status: 403, message: "Reddit daily limit reached" } },
           { id: "end", kind: "node", type: "end", position: { x: 1260, y: 200 } },
         ],

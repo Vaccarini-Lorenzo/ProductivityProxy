@@ -42,8 +42,8 @@ export function updateEdgeOutput(policy: PolicyConfig, index: number, output: st
 
 function defaultParams(kind: PolicyStepKind, type: string): StepParams {
   if (kind === "operator") {
-    if (type === "if") return { code: "def if_condition(input):\n    return False\n" };
-    return { code: 'def switch_condition(input):\n    return "default"\n', cases: ["case_a", "case_b", "case_c", "default"] };
+    if (type === "if") return { code: "def if_condition(input) -> bool:\n    return False\n" };
+    return { code: 'def switch_condition(input) -> str:\n    return "default"\n', cases: ["case_a", "case_b", "case_c", "default"] };
   }
   if (type === "start") return { code: DEFAULT_START_TRIGGER_CODE };
   if (type === "block-response") return { status: 403, message: "Blocked" };

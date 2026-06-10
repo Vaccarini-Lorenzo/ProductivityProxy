@@ -15,10 +15,11 @@ The editor is part of the React dashboard. It uses `@xyflow/react` for canvas re
 - `GraphEditor.tsx` renders policy steps and edges, handles connect/delete/move actions, and persists discrete graph changes back to the parent policy.
 - `NodeLibrary.tsx` lists addable flow nodes, operators, and registered custom nodes.
 - `StepModal.tsx` edits step details: start trigger code, operator code, switch cases, and existing node params.
-- `PythonCodeEditor.tsx` provides the syntax-highlighted code editor, autoindentation, and full-screen expansion used by start triggers, operators, and custom-node editing.
+- `PythonCodeEditor.tsx` provides the syntax-highlighted code editor, autoindentation, full-screen expansion, and an in-editor API reference drawer, used by start triggers, operators, and custom-node editing.
+- `ApiReferenceDrawer.tsx` is a slide-over that reads `services/apiReference/pythonApiReference.json` and fuzzy-searches it. The JSON defines the documented groups and order; the UI only renders and filters.
 - `operatorShapes.ts` defines operator shape geometry and output port label positions.
 - `Modal.tsx` and `ui.tsx` provide shared shell controls used by the editor and inspector.
-- `services/nodes/defaultNodeSources.ts` provides bundled read-only source snippets when Tauri source reads are unavailable.
+- `services/nodes/defaultNodeSources.ts` bundles the real `src/proxy/defaults/nodes/*.py` files (via Vite glob) as read-only fallback source when Tauri source reads are unavailable, so previews never drift from the actual files.
 - `styles.css` owns visual styling for nodes, operators, routes, library items, and inspector forms.
 
 ## Current graph behavior
@@ -39,8 +40,9 @@ The editor is part of the React dashboard. It uses `@xyflow/react` for canvas re
 - Start nodes edit inline Python `def triggered_by(context: RequestContext) -> bool` trigger code.
 - End nodes have no configuration.
 - Custom nodes show metadata, existing params, and read-only Python source.
-- `if` operators edit inline `def if_condition(input)` code and route to `then` / `else`.
-- `switch` operators edit inline `def switch_condition(input)` code plus a bounded case list.
+- `if` operators edit inline `def if_condition(input) -> bool` code and route to `then` / `else`.
+- `switch` operators edit inline `def switch_condition(input) -> str` code plus a bounded case list.
+- Any Python editor exposes an **API** button opening the reference drawer (types and data available to node/operator code).
 - Step changes flow to `App` and autosave through the normal config path.
 
 ## Performance rule

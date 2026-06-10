@@ -1,10 +1,14 @@
+from typing import Any
+
+from proxy.api import RequestContext
+
 try:
     from mitmproxy import http
 except ModuleNotFoundError:
     http = None
 
 
-def run(input, context, params):
+def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
     status = int(params["status"])
     message = str(params["message"])
     context.flow.response = make_response(

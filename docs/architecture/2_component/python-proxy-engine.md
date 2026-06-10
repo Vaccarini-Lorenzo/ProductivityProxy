@@ -86,9 +86,16 @@ A truthy return value routes to `next`; a falsy value routes to `skip`. `end` re
 Custom nodes are trusted Python files with this entrypoint:
 
 ```python
-def run(input, context, params):
+from typing import Any
+
+from proxy.api import RequestContext
+
+
+def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
     return input
 ```
+
+Reference functions are typed. `RequestContext` is re-exported from the public `proxy.api` module so node code does not import internal paths. The dashboard's Python editor has an API reference drawer documenting `context`, `params`, and the entry points.
 
 Rules:
 
@@ -109,7 +116,7 @@ Built-in operators:
 `if` requires this function:
 
 ```python
-def if_condition(input):
+def if_condition(input) -> bool:
     return True
 ```
 
@@ -118,7 +125,7 @@ It routes to `then` when the function returns truthy and `else` otherwise.
 `switch` requires this function:
 
 ```python
-def switch_condition(input):
+def switch_condition(input) -> str:
     return "case_label"
 ```
 
@@ -126,14 +133,18 @@ It routes to the returned string. If no exact route exists, the evaluator tries 
 
 ## Request context
 
-`RequestContext` contains:
+`RequestContext` is a plain dataclass. It contains:
 
 - mitmproxy flow,
 - app config,
 - state store,
 - event log,
-- mutable per-request data dictionary,
-- clock function.
+- mutable per-request `data` dictionary (defaults to empty),
+- clock function `now`,
+- `request_id` (defaults to a random hex id),
+- derived `log` property returning a `CustomNodeLogger`.
+
+It has no `__post_init__`: defaults use `field(default_factory=...)` and `log` is a `@property`, so the object stays light.
 
 The evaluator does not merge node outputs into `context.data`. Custom nodes own their return shape.
 

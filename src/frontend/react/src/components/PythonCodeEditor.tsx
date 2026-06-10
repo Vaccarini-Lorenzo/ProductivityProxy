@@ -4,6 +4,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { indentUnit } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
+import { ApiReferenceDrawer } from "./ApiReferenceDrawer";
 import "./PythonCodeEditor.css";
 
 interface Props {
@@ -45,18 +46,19 @@ const pythonExtensions = [python(), indentUnit.of("    "), EditorView.lineWrappi
 
 export function PythonCodeEditor({ value, onChange, minHeight = 160, autoFocus = false, ariaLabel = "Python code", readOnly = false }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [apiOpen, setApiOpen] = useState(false);
 
   useEffect(() => {
     if (!expanded) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || apiOpen) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       setExpanded(false);
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [expanded]);
+  }, [expanded, apiOpen]);
 
   const title = readOnly ? "Python source" : "Python code";
 
@@ -65,7 +67,10 @@ export function PythonCodeEditor({ value, onChange, minHeight = 160, autoFocus =
       <div className="python-editor-fullscreen" onClick={(event) => event.stopPropagation()}>
         <div className="python-editor-fullscreen-head">
           <div><strong>{title}</strong><span>{ariaLabel}</span></div>
-          <button type="button" onClick={() => setExpanded(false)}>Close</button>
+          <div className="python-editor-actions">
+            <button type="button" className="small" onClick={() => setApiOpen(true)}>API</button>
+            <button type="button" onClick={() => setExpanded(false)}>Close</button>
+          </div>
         </div>
         <div className="python-editor-fullscreen-body">
           {renderEditor(value, onChange, 0, true, ariaLabel, readOnly, "100%")}
@@ -79,11 +84,15 @@ export function PythonCodeEditor({ value, onChange, minHeight = 160, autoFocus =
     <div className="python-editor-shell">
       <div className="python-editor-head">
         <span className="python-editor-title">{title}</span>
-        <button type="button" className="small python-editor-expand" onClick={() => setExpanded(true)}>Full screen</button>
+        <div className="python-editor-actions">
+          <button type="button" className="small python-editor-api" onClick={() => setApiOpen(true)}>API</button>
+          <button type="button" className="small python-editor-expand" onClick={() => setExpanded(true)}>Full screen</button>
+        </div>
       </div>
       {renderEditor(value, onChange, minHeight, autoFocus, ariaLabel, readOnly)}
     </div>
     {fullscreen}
+    <ApiReferenceDrawer open={apiOpen} onClose={() => setApiOpen(false)} />
   </>;
 }
 

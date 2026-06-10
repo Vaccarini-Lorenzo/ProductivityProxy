@@ -17,14 +17,10 @@ class RequestContext:
     config: AppConfig
     state: StateStore
     event_log: EventLog
-    data: dict[str, Any] | None = None
+    data: dict[str, Any] = field(default_factory=dict)
     now: Callable[[], float] = time.time
-    request_id: str | None = None
-    log: CustomNodeLogger = field(init=False)
+    request_id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
-    def __post_init__(self) -> None:
-        if self.data is None:
-            self.data = {}
-        if self.request_id is None:
-            self.request_id = uuid.uuid4().hex
-        self.log = CustomNodeLogger(self)
+    @property
+    def log(self) -> CustomNodeLogger:
+        return CustomNodeLogger(self)

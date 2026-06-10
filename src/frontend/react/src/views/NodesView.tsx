@@ -18,7 +18,12 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
-const DEFAULT_CODE = `def run(input, context, params):
+const DEFAULT_CODE = `from typing import Any
+
+from proxy.api import RequestContext
+
+
+def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
     context.log.info("custom node executed")
     return input
 `;

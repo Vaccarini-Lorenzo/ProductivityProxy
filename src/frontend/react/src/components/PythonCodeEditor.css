@@ -1,7 +1,8 @@
 .python-editor-shell { display: grid; gap: 6px; min-width: 0; }
 .python-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.python-editor-actions { display: inline-flex; gap: 6px; }
 .python-editor-title { color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-button.python-editor-expand { min-height: 28px; padding: 3px 10px; font-size: .72rem; }
+button.python-editor-expand, button.python-editor-api { min-height: 28px; padding: 3px 10px; font-size: .72rem; }
 .python-codemirror { min-width: 0; }
 .python-editor-overlay { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 22px; background: rgba(5,4,3,.82); backdrop-filter: blur(4px); }
 .python-editor-fullscreen { width: min(1200px, 100%); height: calc(100dvh - 44px); min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); box-shadow: 0 24px 70px rgba(0,0,0,.62); overflow: hidden; }

@@ -1,0 +1,106 @@
+/* Menu-bar popover window: transparent so only the floating panel shows, and
+   sized to its content by the Rust side so it never scrolls internally. */
+html.popover-mode {
+  font-size: 15px;
+}
+
+html.popover-mode,
+html.popover-mode body {
+  background: transparent !important;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.pop-shell {
+  padding: 9px 11px 13px;
+}
+
+.pop-panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .55), 0 0 0 1px rgba(245, 158, 11, .06);
+  overflow: hidden;
+}
+
+.pop-loading {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 15px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #181510, #100e0b);
+}
+
+.pop-brand {
+  color: var(--amber-2);
+  font-weight: 800;
+  font-size: .9rem;
+}
+
+.pop-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.pop-body .card {
+  padding: 13px 14px;
+}
+
+.pop-body .card-head {
+  margin-bottom: 11px;
+}
+
+.pop-body .list {
+  gap: 7px;
+}
+
+/* Hero power toggle reuses the dashboard CheckRow, with a glow when running. */
+.pop-power .check-row {
+  padding: 13px 14px;
+}
+
+.pop-power.on .check-row {
+  border-color: var(--amber);
+  background: rgba(245, 158, 11, .07);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, .3), 0 0 22px rgba(245, 158, 11, .12);
+}
+
+.pop-msg {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border-top: 1px solid var(--line);
+  color: var(--blue);
+  font-size: .78rem;
+}
+
+.pop-msg .icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
+
+.pop-foot {
+  display: flex;
+  gap: 10px;
+  padding: 11px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.pop-foot > button {
+  flex: 1;
+}

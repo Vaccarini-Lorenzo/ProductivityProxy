@@ -1,4 +1,9 @@
-def run(input, context, params):
+from typing import Any
+
+from proxy.api import RequestContext
+
+
+def run(input: Any, context: RequestContext, params: dict[str, Any]) -> Any:
     data = dict(input) if isinstance(input, dict) else {}
     flow = context.flow
     host = flow.request.pretty_host.lower().strip(".")

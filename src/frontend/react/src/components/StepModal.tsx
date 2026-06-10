@@ -81,11 +81,8 @@ function NodeView({ node, step, onChange, onReadNode }: { node: CustomNodeConfig
 }
 
 function TriggerEditor({ step, onChange }: { step: PolicyStep; onChange: (p: StepParams) => void }) {
-  const code = startTriggerCode(step.params);
-  function setCode(next: string) {
-    const { trigger: _legacy, ...rest } = step.params ?? {};
-    onChange({ ...rest, code: next });
-  }
+  const code = typeof step.params?.code === "string" ? step.params.code : DEFAULT_START_TRIGGER_CODE;
+  const setCode = (next: string) => onChange({ ...step.params, code: next });
 
   return (
     <div className="inspector-form">
@@ -148,29 +145,4 @@ function SwitchCases({ cases, onChange }: { cases: string[]; onChange: (next: st
       <p className="inline-note">Each label is an output port (max 7).</p>
     </div>
   );
-}
-
-function startTriggerCode(params: StepParams | undefined): string {
-  if (typeof params?.code === "string") return params.code;
-  const trigger = params?.trigger;
-  if (trigger && typeof trigger === "object") return legacyTriggerCode(trigger as Record<string, unknown>);
-  return DEFAULT_START_TRIGGER_CODE;
-}
-
-function legacyTriggerCode(trigger: Record<string, unknown>): string {
-  const hosts = Array.isArray(trigger.hostPatterns) ? trigger.hostPatterns.map(String) : [];
-  const paths = Array.isArray(trigger.pathPatterns) ? trigger.pathPatterns.map(String) : [];
-  return `def triggered_by(context: RequestContext) -> bool:
-    host = context.flow.request.pretty_host.lower().strip(".")
-    host_patterns = ${pythonList(hosts)}
-    if host_patterns and not any(host == item or host.endswith("." + item) for item in host_patterns):
-        return False
-    haystack = context.flow.request.pretty_url.lower() + " " + context.flow.request.headers.get("referer", "").lower()
-    path_patterns = ${pythonList(paths)}
-    return not path_patterns or any(item in haystack for item in path_patterns)
-`;
-}
-
-function pythonList(values: string[]): string {
-  return `[${values.map((value) => JSON.stringify(value)).join(", ")}]`;
 }

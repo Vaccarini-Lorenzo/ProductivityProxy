@@ -128,7 +128,7 @@
             "y": 120
           },
           "params": {
-            "code": "def if_condition(input):\n    return bool(input.get('over_limit'))\n"
+            "code": "def if_condition(input) -> bool:\n    return bool(input.get('over_limit'))\n"
           }
         },
         {

@@ -7,8 +7,10 @@ use controller::commands::{
     shutdown_cleanup, start_proxy, stop_proxy, write_app_config, write_custom_node, AppState,
 };
 use controller::tray::actions::TrayAction;
+use controller::tray::popover::{self, PopoverState};
+use controller::window::{quit_app, resize_popover, show_main_window};
 use tauri::menu::{Menu, MenuItem};
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, RunEvent, WindowEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -16,6 +18,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .manage(AppState::default())
+        .manage(PopoverState::default())
         .invoke_handler(tauri::generate_handler![
             read_app_config,
             write_app_config,
@@ -26,7 +29,10 @@ pub fn run() {
             proxy_status,
             read_recent_events,
             query_events,
-            network_info
+            network_info,
+            show_main_window,
+            resize_popover,
+            quit_app
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -43,11 +49,17 @@ pub fn run() {
             create_tray(app)?;
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
+        .on_window_event(|window, event| match event {
+            WindowEvent::CloseRequested { api, .. } => {
                 let _ = window.hide();
                 api.prevent_close();
             }
+            // Dismiss the menu-bar popover when it loses focus (click outside).
+            WindowEvent::Focused(false) if window.label() == popover::POPOVER_LABEL => {
+                window.app_handle().state::<PopoverState>().mark_dismissed();
+                let _ = window.hide();
+            }
+            _ => {}
         })
         .build(tauri::generate_context!())
         .expect("error while building ProductivityProxy")
@@ -65,20 +77,33 @@ fn create_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &quit])?;
 
+    // Left-click opens the styled popover; right-click shows this native menu
+    // as a fallback (e.g. if the popover webview ever fails to load).
     let mut tray = TrayIconBuilder::with_id("main")
         .menu(&menu)
         .tooltip("ProductivityProxy")
-        .show_menu_on_left_click(true)
+        .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match TrayAction::from_menu_id(event.id().as_ref()) {
-            Some(TrayAction::OpenDashboard) => show_dashboard(app),
+            Some(TrayAction::OpenDashboard) => {
+                let _ = show_main_window(app.clone());
+            }
             Some(TrayAction::Quit) => {
-                if let Err(error) = stop_proxy(app.state::<AppState>()) {
+                if let Err(error) = quit_app(app.clone(), app.state::<AppState>()) {
                     log::error!("refusing to quit because proxy cleanup failed: {error}");
-                    return;
                 }
-                app.exit(0);
             }
             None => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                rect,
+                ..
+            } = event
+            {
+                popover::toggle_popover(tray.app_handle(), rect);
+            }
         });
 
     if let Some(icon) = app.default_window_icon() {
@@ -88,11 +113,4 @@ fn create_tray(app: &mut tauri::App) -> tauri::Result<()> {
     tray.build(app)?;
 
     Ok(())
-}
-
-fn show_dashboard(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.set_focus();
-    }
 }
