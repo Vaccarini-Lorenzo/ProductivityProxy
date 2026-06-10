@@ -3,7 +3,7 @@ import { GraphEditor } from "../components/GraphEditor";
 import { NodeLibrary } from "../components/NodeLibrary";
 import { StepModal } from "../components/StepModal";
 import { Modal } from "../components/Modal";
-import { PageHeader, IconButton, count } from "../components/ui";
+import { PageHeader, IconButton, Button, count } from "../components/ui";
 import type { AppConfig, PolicyConfig, PolicyStepKind, StepParams, ValidationIssue } from "../models/config/types";
 import { createPolicy, slug } from "../services/config/configEditing";
 import { addStep, updateStepParams } from "../services/policy/policyOperations";
@@ -89,21 +89,21 @@ export function PolicyView({ config, savedConfig, issues, onConfigChange, onRead
 
       <div className="policy-box">
         <div className="policy-bar">
-          <div className="policy-bar-left">
-            <select aria-label="Select policy" value={activePolicy?.id ?? ""} onChange={(e) => selectPolicy(e.target.value)} disabled={config.policies.length === 0}>
+          <div className="policy-bar-row">
+            <select className="policy-select" aria-label="Select policy" value={activePolicy?.id ?? ""} onChange={(e) => selectPolicy(e.target.value)} disabled={config.policies.length === 0}>
               {config.policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            {activePolicy && (
-              <span className="muted">
-                {count(activePolicy.steps.length, "step")} · {count(activePolicy.edges.length, "route")} · {usedIn.length > 0 ? `used in ${usedIn.map((m) => m.name).join(", ")}` : "not in any mode"}
-              </span>
-            )}
+            <div className="policy-bar-actions">
+              {policyIssues.length > 0 && <IconButton className="danger" icon="refresh" label="Reset policy to last saved" onClick={() => setShowReset(true)} disabled={!activePolicy} />}
+              <IconButton className="danger" icon="trash" label="Delete policy" onClick={() => activePolicy && deletePolicy(activePolicy.id)} disabled={!activePolicy} />
+              <Button className="primary" icon="plus" onClick={() => setShowNewPolicy(true)}>New</Button>
+            </div>
           </div>
-          <div className="actions">
-            {policyIssues.length > 0 && <IconButton className="danger" icon="refresh" label="Reset policy to last saved" onClick={() => setShowReset(true)} disabled={!activePolicy} />}
-            <IconButton className="danger" icon="trash" label="Delete policy" onClick={() => activePolicy && deletePolicy(activePolicy.id)} disabled={!activePolicy} />
-            <IconButton className="primary" icon="plus" label="New policy" onClick={() => setShowNewPolicy(true)} />
-          </div>
+          {activePolicy && (
+            <p className="policy-bar-meta">
+              {count(activePolicy.steps.length, "step")} · {count(activePolicy.edges.length, "route")} · {usedIn.length > 0 ? `used in ${usedIn.map((m) => m.name).join(", ")}` : "not in any mode"}
+            </p>
+          )}
         </div>
 
         {activePolicy && policyIssues.length > 0 && (

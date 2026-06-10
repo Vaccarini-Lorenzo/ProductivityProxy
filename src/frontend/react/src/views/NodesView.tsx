@@ -111,15 +111,19 @@ export function NodesView({ nodes, onSave, onRead, onValidateCode, onDelete }: P
 
       <Card title="Installed nodes" icon="hexagon" actions={<IconButton className="primary" icon="plus" label="New node" onClick={newNode} />}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search nodes…" ariaLabel="Search nodes" />
-        <div className="node-grid" role="list">
+        <div className="box-grid" role="list">
           {visibleNodes.map((node) => (
-            <div className="node-card" key={node.id} role="listitem">
-              <button className="node-card-main" type="button" onClick={() => editNode(node)} aria-label={`Edit ${node.name}`}>
-                <span className="node-card-icon"><Icon name="hexagon" /></span>
-                <span className="node-card-name">{node.name}</span>
-                <span className="node-card-file">{node.path.split("/").pop()}</span>
+            <div className="box-card node" key={node.id} role="listitem">
+              <button className="box-card-main" type="button" onClick={() => editNode(node)} aria-label={`Edit ${node.name}`}>
+                <span className="box-card-icon"><Icon name="hexagon" /></span>
+                <span className="box-card-body">
+                  <span className="box-card-title"><span className="box-card-name">{node.name}</span></span>
+                  <span className="box-card-pill">{node.path.split("/").pop()}</span>
+                </span>
               </button>
-              <IconButton className="node-card-del danger small" icon="trash" label={`Delete ${node.name}`} onClick={() => onDelete(node.id)} />
+              <div className="box-card-actions">
+                <IconButton className="danger small" icon="trash" label={`Delete ${node.name}`} onClick={() => onDelete(node.id)} />
+              </div>
             </div>
           ))}
           {visibleNodes.length === 0 && <p className="muted">No matching nodes.</p>}

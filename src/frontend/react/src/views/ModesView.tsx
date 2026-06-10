@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { AppConfig, ModeConfig, PolicyConfig } from "../models/config/types";
 import { createMode } from "../services/config/configEditing";
-import { Card, Field, IconButton, Modal, PageHeader, count } from "../components/ui";
+import { Card, Field, Icon, IconButton, Modal, PageHeader, count } from "../components/ui";
 
 interface Props {
   config: AppConfig;
@@ -34,19 +34,24 @@ export function ModesView({ config, onConfigChange }: Props) {
       <PageHeader eyebrow="Modes" title="Runtime modes" subtitle="A mode is an ordered set of policies. Only the active mode runs; policies are evaluated top to bottom and the first to respond wins." />
 
       <Card title="Modes" actions={<IconButton className="primary" icon="plus" label="New mode" onClick={addMode} />}>
-        <div className="list">
+        <div className="box-grid modes">
           {config.modes.map((mode) => {
             const isActive = mode.id === config.activeModeId;
             const steps = mode.policyIds.reduce((c, id) => c + (policyById(config, id)?.steps.length ?? 0), 0);
             return (
-              <div className={isActive ? "list-row active" : "list-row"} key={mode.id}>
-                <button className="list-main" type="button" onClick={() => onConfigChange({ ...config, activeModeId: mode.id })}>
-                  <span className="list-title">{mode.name}{isActive && <span className="badge">active</span>}</span>
-                  <small>{mode.description || "No description"}</small>
+              <div className={isActive ? "box-card active" : "box-card"} key={mode.id}>
+                <button className="box-card-main" type="button" onClick={() => onConfigChange({ ...config, activeModeId: mode.id })} aria-label={`Activate ${mode.name}`}>
+                  <span className="box-card-icon"><Icon name="layers" /></span>
+                  <span className="box-card-body">
+                    <span className="box-card-title"><span className="box-card-name">{mode.name}</span>{isActive && <span className="badge">active</span>}</span>
+                    <span className="box-card-sub">{mode.description || "No description"}</span>
+                  </span>
+                  <span className="box-card-meta">{count(mode.policyIds.length, "policy", "policies")} · {count(steps, "step")}</span>
                 </button>
-                <span className="list-meta">{count(mode.policyIds.length, "policy", "policies")} · {count(steps, "step")}</span>
-                <IconButton className="small" icon="edit" label={`Edit ${mode.name}`} onClick={() => setEditId(mode.id)} />
-                <IconButton className="danger small" icon="trash" label={`Delete ${mode.name}`} onClick={() => deleteMode(mode.id)} disabled={config.modes.length <= 1} />
+                <div className="box-card-actions">
+                  <IconButton className="small" icon="edit" label={`Edit ${mode.name}`} onClick={() => setEditId(mode.id)} />
+                  <IconButton className="danger small" icon="trash" label={`Delete ${mode.name}`} onClick={() => deleteMode(mode.id)} disabled={config.modes.length <= 1} />
+                </div>
               </div>
             );
           })}
