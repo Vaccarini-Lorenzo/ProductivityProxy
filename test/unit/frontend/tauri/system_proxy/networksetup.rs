@@ -4,7 +4,8 @@ use productivity_proxy_app::models::proxy::settings::ProxySettings;
 use productivity_proxy_app::services::system_proxy::{
     active_network_services_from_text, enable_commands_for_service, load_system_proxy_snapshot,
     proxy_snapshot_from_text, remove_system_proxy_snapshot, restore_commands_for_service,
-    save_system_proxy_snapshot, ProxySnapshot, ServiceProxySnapshot, SystemProxySnapshot,
+    sanitize_self_reference, save_system_proxy_snapshot, ProxySnapshot, ServiceProxySnapshot,
+    SystemProxySnapshot,
 };
 
 #[cfg(target_os = "macos")]
@@ -28,6 +29,41 @@ fn parses_proxy_snapshot() {
     assert_eq!(snapshot.server, "proxy.example");
     assert_eq!(snapshot.port, "3128");
     assert!(!snapshot.auth_enabled);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn sanitize_self_reference_clears_our_own_local_endpoint() {
+    // A snapshot pointing at our own local proxy must never be recorded as the
+    // user's original setting, or a later restore would re-enable the system
+    // proxy at a dead local port while the app is offline.
+    let ours = ProxySnapshot {
+        enabled: true,
+        server: "127.0.0.1".into(),
+        port: "8080".into(),
+        auth_enabled: false,
+    };
+
+    let sanitized = sanitize_self_reference(ours);
+
+    assert!(!sanitized.enabled);
+    assert_eq!(sanitized.server, "");
+    assert_eq!(sanitized.port, "");
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn sanitize_self_reference_keeps_a_real_external_proxy() {
+    let real = ProxySnapshot {
+        enabled: true,
+        server: "proxy.example".into(),
+        port: "3128".into(),
+        auth_enabled: false,
+    };
+
+    let kept = sanitize_self_reference(real.clone());
+
+    assert_eq!(kept, real);
 }
 
 #[cfg(target_os = "macos")]

@@ -10,8 +10,8 @@ pub fn capture_system_proxy_snapshot() -> Result<SystemProxySnapshot> {
     let mut snapshots = Vec::new();
 
     for service in services {
-        let web = get_proxy_snapshot(&service, "-getwebproxy")?;
-        let secure_web = get_proxy_snapshot(&service, "-getsecurewebproxy")?;
+        let web = sanitize_self_reference(get_proxy_snapshot(&service, "-getwebproxy")?);
+        let secure_web = sanitize_self_reference(get_proxy_snapshot(&service, "-getsecurewebproxy")?);
         reject_authenticated_snapshot(&service, &web, &secure_web)?;
         snapshots.push(ServiceProxySnapshot {
             service,
@@ -123,6 +123,22 @@ fn get_proxy_snapshot(service: &str, command: &str) -> Result<ProxySnapshot> {
         return Err(command_error(command, &output));
     }
     Ok(proxy_snapshot_from_text(&String::from_utf8_lossy(&output.stdout)))
+}
+
+/// Never record our own proxy endpoint as the user's "original" setting.
+/// If the system proxy already points at our local host, capturing it would let
+/// a later restore re-enable the system proxy at a dead local port while the
+/// proxy process is offline. Treat it as "no original proxy" instead.
+pub fn sanitize_self_reference(proxy: ProxySnapshot) -> ProxySnapshot {
+    if proxy.server.trim() == LOCAL_PROXY_HOST {
+        return ProxySnapshot {
+            enabled: false,
+            server: String::new(),
+            port: String::new(),
+            auth_enabled: false,
+        };
+    }
+    proxy
 }
 
 fn reject_authenticated_snapshot(

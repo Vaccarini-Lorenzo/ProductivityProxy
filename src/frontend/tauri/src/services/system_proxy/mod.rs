@@ -32,7 +32,7 @@ pub use lease::{
 pub use macos::{
     active_network_services_from_text, capture_system_proxy_snapshot, enable_commands_for_service,
     enable_system_proxy, proxy_snapshot_from_text, restore_commands_for_service,
-    restore_system_proxy,
+    restore_system_proxy, sanitize_self_reference,
 };
 
 #[cfg(not(target_os = "macos"))]

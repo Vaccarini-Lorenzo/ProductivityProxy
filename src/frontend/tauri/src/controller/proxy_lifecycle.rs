@@ -11,6 +11,7 @@ use std::time::Duration;
 pub fn start_proxy_monitor(
     proxy: Weak<Mutex<ProcessService>>,
     snapshot: Weak<Mutex<Option<SystemProxySnapshot>>>,
+    lifecycle: Weak<Mutex<()>>,
     snapshot_path: PathBuf,
 ) {
     thread::spawn(move || loop {
@@ -19,6 +20,14 @@ pub fn start_proxy_monitor(
             break;
         };
         let Some(snapshot) = snapshot.upgrade() else {
+            break;
+        };
+        let Some(lifecycle) = lifecycle.upgrade() else {
+            break;
+        };
+        // Same lock order as the commands (lifecycle before proxy) so the
+        // check-running + restore is atomic against start/stop/status.
+        let Ok(_lifecycle) = lifecycle.lock() else {
             break;
         };
         let running = match proxy.lock() {

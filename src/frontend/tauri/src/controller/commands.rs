@@ -22,6 +22,11 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State};
 
 pub struct AppState {
+    /// Serializes the whole start/stop/status lifecycle. Held for the entire
+    /// operation so the async commands cannot interleave their multi-step
+    /// capture/enable/restore sequences (which would let one observe the proxy
+    /// already pointed at us and persist a self-referential snapshot).
+    pub lifecycle: Arc<Mutex<()>>,
     pub proxy: Arc<Mutex<ProcessService>>,
     pub system_proxy_snapshot: Arc<Mutex<Option<SystemProxySnapshot>>>,
 }
@@ -29,6 +34,7 @@ pub struct AppState {
 impl Default for AppState {
     fn default() -> Self {
         Self {
+            lifecycle: Arc::new(Mutex::new(())),
             proxy: Arc::new(Mutex::new(ProcessService::new())),
             system_proxy_snapshot: Arc::new(Mutex::new(None)),
         }
@@ -123,6 +129,9 @@ pub fn read_custom_node(app: AppHandle, path: String) -> Result<String, String> 
 #[tauri::command(async)]
 pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Result<(), String> {
     require_env("POLICY_MAX_STEPS")?;
+    // Hold the lifecycle lock for the whole start sequence so a concurrent
+    // status poll or stop cannot interleave between capture, enable, and store.
+    let _lifecycle = state.lifecycle.lock().map_err(to_string)?;
     let paths = paths_for_app(&app)?;
     let report = validator::validate_config(&discover_repo_root()?, &config)?;
     if !report.ok {
@@ -174,6 +183,7 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
             start_proxy_monitor(
                 Arc::downgrade(&state.proxy),
                 Arc::downgrade(&state.system_proxy_snapshot),
+                Arc::downgrade(&state.lifecycle),
                 paths.system_proxy_snapshot_path,
             );
             Ok(())
@@ -191,6 +201,7 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
 
 #[tauri::command(async)]
 pub fn stop_proxy(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+    let _lifecycle = state.lifecycle.lock().map_err(to_string)?;
     let snapshot_path = system_proxy_snapshot_path_for_app(&app)?;
     restore_marked_system_proxy(&state.system_proxy_snapshot, &snapshot_path)?;
     state.proxy.lock().map_err(to_string)?.stop().map_err(to_string)
@@ -198,6 +209,7 @@ pub fn stop_proxy(app: AppHandle, state: State<AppState>) -> Result<(), String> 
 
 #[tauri::command(async)]
 pub fn proxy_status(app: AppHandle, state: State<AppState>) -> Result<ProxyStatus, String> {
+    let _lifecycle = state.lifecycle.lock().map_err(to_string)?;
     let snapshot_path = system_proxy_snapshot_path_for_app(&app)?;
     let running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;
     if !running {
@@ -244,6 +256,8 @@ fn require_env(name: &str) -> Result<(), String> {
 /// Best-effort cleanup on app exit: restore the captured system proxy state and
 /// stop mitmdump. Safe to call repeatedly (the snapshot is taken once).
 pub fn shutdown_cleanup(app: &AppHandle, state: &AppState) {
+    // Best-effort: serialize with any in-flight start/stop before restoring.
+    let _lifecycle = state.lifecycle.lock();
     match system_proxy_snapshot_path_for_app(app) {
         Ok(snapshot_path) => {
             if let Err(error) =
