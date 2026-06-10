@@ -20,24 +20,34 @@ cd src/frontend/react
 npm install
 ```
 
+## Environment
+
+Proxy evaluation requires a loop guard:
+
+```bash
+export POLICY_MAX_STEPS="1000"
+```
+
+The desktop app checks this variable before `start_proxy` launches `mitmdump`. The manual proxy helper loads it from `.env.example`.
+
 ## Run tests
 
 All Python tests:
 
 ```bash
-python3 -m unittest discover -s test -t . -p 'test_*.py'
+PYTHONPATH=src POLICY_MAX_STEPS=1000 python3 -m unittest discover -s test -t . -p 'test_*.py'
 ```
 
 Python unit tests only:
 
 ```bash
-python3 -m unittest discover -s test/unit -t . -p 'test_*.py'
+PYTHONPATH=src POLICY_MAX_STEPS=1000 python3 -m unittest discover -s test/unit -t . -p 'test_*.py'
 ```
 
 Python integration tests only:
 
 ```bash
-python3 -m unittest discover -s test/integration -t . -p 'test_*.py'
+PYTHONPATH=src POLICY_MAX_STEPS=1000 python3 -m unittest discover -s test/integration -t . -p 'test_*.py'
 ```
 
 Rust/Tauri tests:
@@ -65,6 +75,7 @@ npm run tauri build -- --debug --no-bundle
 ## Run the app
 
 ```bash
+export POLICY_MAX_STEPS="1000"
 cd src/frontend/react
 npm run tauri dev
 ```
@@ -80,7 +91,9 @@ set +a
 ./scripts/run_mitm.sh
 ```
 
-`.env.example` is only for this helper script. The Tauri app stores runtime config in the app data directory.
+The helper script uses `.env.example` for listener, runtime file paths, auth, and `POLICY_MAX_STEPS`. It creates `PRODUCTIVE_PROXY_CONFIG_PATH` from `src/proxy/defaults/default_config.json` when that file does not exist.
+
+If the config schema changes, delete the file at `PRODUCTIVE_PROXY_CONFIG_PATH` before running the helper so it regenerates from the current default config.
 
 ## Main source map
 
@@ -90,7 +103,8 @@ src/frontend/tauri/                Rust/Tauri shell and native commands
 src/frontend/react/                React dashboard
 test/unit/                         Python, React, and Rust unit tests
 test/integration/                  Python graph integration tests
-docs/                              architecture and usage docs
+docs/architecture/                 architecture and contracts
+docs/roadmap/                      readiness and remaining work
 ```
 
 ## Important conventions
@@ -98,7 +112,7 @@ docs/                              architecture and usage docs
 - Keep source files under 300 lines.
 - Prefer simple, linear code.
 - Do not add broad abstraction layers without a concrete need.
-- Environment variables are used by helper scripts; the desktop app uses config files.
+- Required runtime environment variables should fail fast when missing.
 - Custom Python blocks are intentionally not sandboxed.
 
 ## Backend development notes
@@ -143,11 +157,11 @@ npm run build
 ## Manual checks before daily use
 
 1. `mitmdump --version` works.
-2. Tauri app starts.
-3. Start proxy from Settings.
-4. macOS system proxy points at `127.0.0.1:<port>`.
-5. Browser traffic works.
-6. mitmproxy CA is trusted for HTTPS.
-7. Stop proxy restores previous macOS proxy settings.
-8. Python and Rust tests pass.
-9. React tests/build pass after UI changes.
+2. `POLICY_MAX_STEPS` is set in the shell that starts the desktop app.
+3. Tauri app starts.
+4. Start proxy from Settings.
+5. macOS system proxy points at `127.0.0.1:<port>`.
+6. Browser traffic works.
+7. mitmproxy CA is trusted for HTTPS.
+8. Stop proxy restores previous macOS proxy state.
+9. Python, Rust, and React tests pass.

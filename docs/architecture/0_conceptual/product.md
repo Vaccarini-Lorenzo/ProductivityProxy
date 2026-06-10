@@ -32,7 +32,7 @@ The default configuration has two modes:
   - Tracks Reddit usage.
   - Blocks Reddit after 30 minutes of tracked daily use.
 - **Chilling**
-  - Allows requests by passing directly from start to end.
+  - Has no active policies, so traffic is allowed.
 
 ## Non-goals for the current version
 
@@ -52,13 +52,4 @@ A user should only run custom nodes they trust.
 
 ## Current readiness summary
 
-The core local proxy flow is implemented and tested at unit/integration level. The project is useful for development and careful local trials on macOS.
-
-It is not yet a polished daily-use app because:
-
-- mitmproxy must be installed separately,
-- HTTPS interception requires installing/trusting the mitmproxy CA certificate,
-- custom Python nodes are unsandboxed,
-- policy loops are guarded by POLICY_MAX_STEPS,
-- app-process crashes can leave system proxy settings enabled until manually fixed,
-- Linux start currently fails because system proxy automation is unsupported.
+The core local proxy flow is implemented and tested enough for development and careful macOS trials. It is not yet a polished daily-use app; runtime prerequisites, packaging gaps, and recovery limits are documented in [Local Desktop Runtime](../3_deployment/local-desktop-runtime.md) and [Current Assumptions](../../assumptions/current-assumptions.md).

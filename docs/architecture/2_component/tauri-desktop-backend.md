@@ -22,20 +22,17 @@ The backend is a Tauri v2 Rust app. It exposes commands to the React dashboard a
 
 Both fields are protected with `Mutex` because Tauri commands can run concurrently.
 
-## Tauri commands
+## Command implementation
 
-| Command | Purpose |
-| --- | --- |
-| `read_app_config` | Ensure config exists, then read app config JSON. |
-| `write_app_config` | Persist app config JSON. |
-| `write_custom_node` | Write a Python custom node file under app data. Path traversal is stripped from the file name. |
-| `read_custom_node` | Read a Python custom node from app data or bundled default node paths. |
-| `start_proxy` | Save config, start `mitmdump`, enable macOS system proxy. |
-| `stop_proxy` | Restore macOS system proxy and stop `mitmdump`. |
-| `proxy_status` | Report whether `mitmdump` is still running; restore proxy settings if it died. |
-| `read_recent_events` | Read the last N JSONL event entries. |
-| `query_events` | Read recent JSONL event entries with frontend-friendly filters. |
-| `network_info` | Return `127.0.0.1` and best-effort LAN IP. |
+Stable command contracts live in [Command Contracts](../4_data_layer/command-contracts.md).
+
+Important implementation details:
+
+- `read_app_config` materializes the default config on first read.
+- `write_custom_node` writes under app data `custom_nodes/` and strips path traversal from the file name.
+- `read_custom_node` allows app-data custom nodes and bundled default-node paths.
+- `start_proxy` requires `POLICY_MAX_STEPS` in the environment before it writes config or starts the child process.
+- `proxy_status` restores system proxy settings if the child process died.
 
 ## App data paths
 
@@ -95,8 +92,11 @@ Start flow:
 Stop flow:
 
 1. Take the stored snapshot.
-2. Restore previous server, port, and enabled state for HTTP and HTTPS.
-3. If restore fails, put the snapshot back in state so a later stop/status call can retry.
+2. Restore previous enabled state for HTTP and HTTPS.
+3. Restore previous server and port only when the previous proxy was enabled and had endpoint data.
+4. If restore fails, put the snapshot back in state so a later stop/status call can retry.
+
+If a previous proxy was disabled or missing endpoint data, restore only turns that proxy state off; it may not restore the old server/port fields.
 
 Non-macOS behavior:
 
@@ -136,13 +136,4 @@ Rust test targets are registered in `src/frontend/tauri/Cargo.toml` and live und
 test/unit/frontend/tauri/
 ```
 
-Coverage includes:
-
-- file store,
-- runtime paths,
-- event log reads,
-- network info,
-- mitmdump arg generation,
-- process lifecycle,
-- tray action mapping,
-- macOS system proxy command construction/parsing.
+Coverage includes file store, runtime paths, event log reads, network info, mitmdump arg generation, process lifecycle, tray action mapping, and macOS system proxy command construction/parsing.

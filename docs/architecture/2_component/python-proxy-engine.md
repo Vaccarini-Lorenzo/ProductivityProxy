@@ -37,7 +37,7 @@ Responsibilities:
 - build a `RequestContext` for each request,
 - evaluate the active mode policies.
 
-Config is loaded during `configure`, not for every request. Changes made on disk are picked up after the proxy is restarted/reconfigured.
+The controller loads config during `configure`. On each request, it checks the config file mtime and hot-reloads if the file changed. Invalid reloads are rejected and the previous valid config keeps running.
 
 ## Config model
 
@@ -55,6 +55,7 @@ Important objects:
 Validation performed while parsing:
 
 - `activeModeId` must match an existing mode,
+- each `mode.policyIds[]` value must reference a top-level policy,
 - custom node paths must be absolute,
 - each policy must have exactly one `start` node,
 - policy step IDs must be unique,
@@ -73,7 +74,9 @@ Built-in nodes:
 - `start`,
 - `end`.
 
-Custom nodes are Python files with exactly this entrypoint:
+`start` can return `next` or `skip` based on its optional trigger params. `end` returns `end` and stops that policy.
+
+Custom nodes are trusted Python files with this entrypoint:
 
 ```python
 def run(input, context, params):
@@ -84,23 +87,35 @@ Rules:
 
 - `input` is the previous node return value,
 - the return value becomes the next input,
-- nodes route through the fixed `next` edge,
+- custom nodes always route through the fixed `next` edge,
 - side effects happen through `context`.
 
 ### Operators
 
-Operators route.
+Operators route by executing inline Python stored in `params["code"]`.
 
 Built-in operators:
 
 - `if`,
 - `switch`.
 
-`if` reads `params["path"]` from the current input and routes to `true` or `false`.
+`if` requires this function:
 
-`switch` reads `params["path"]` from the current input and routes to the selected value. If no exact edge exists, the evaluator tries the `default` edge.
+```python
+def if_condition(input):
+    return True
+```
 
-There is no separate `else` operator. `else` is the `false` branch.
+It routes to `then` when the function returns truthy and `else` otherwise.
+
+`switch` requires this function:
+
+```python
+def switch_condition(input):
+    return "case_label"
+```
+
+It routes to the returned string. If no exact route exists, the evaluator tries a `default` route.
 
 ## Request context
 
@@ -131,13 +146,13 @@ Loop protection is controlled by the required `POLICY_MAX_STEPS` environment var
 
 ## Default custom nodes
 
-Default custom nodes live in:
+Bundled node files live in:
 
 ```text
 src/proxy/defaults/nodes/
 ```
 
-Current defaults include:
+Current bundled files include:
 
 - `detect_youtube_shorts.py`,
 - `detect_platform.py`,
@@ -147,6 +162,8 @@ Current defaults include:
 - `redirect_request.py`,
 - `log_event.py`,
 - `notify.py`.
+
+Default-node parameter contracts live in [Data Layer](../4_data_layer/config-state-events.md#default-node-parameter-contracts).
 
 Security note: custom nodes are imported and executed directly. There is no sandbox, timeout, or permissions boundary.
 
@@ -160,17 +177,9 @@ Usage tracking counts elapsed time only when the previous request for a platform
 
 `EventLog` appends one JSON object per line to `events.jsonl`.
 
-Events are used for logs, usage tracking, notification requests, and observability.
+The evaluator emits config, request, policy, step, and error events. Custom nodes receive `context.log` for filterable custom events.
 
-The evaluator automatically emits config, request, policy, step, and error events with stable fields such as `category`, `type`, `level`, `requestId`, `modeId`, `policyId`, and `stepId`.
-
-Custom nodes receive `context.log` and can emit filterable events:
-
-```python
-def run(input, context, params):
-    context.log.info("custom decision", reason="matched")
-    return input
-```
+Event schemas and query contracts live in [Data Layer](../4_data_layer/config-state-events.md#event-log-schema).
 
 ## Tests
 
@@ -181,15 +190,4 @@ test/unit/
 test/integration/
 ```
 
-Coverage includes:
-
-- config loading,
-- policy parsing/routing,
-- operators,
-- custom node loading,
-- evaluator input passing,
-- loop guard,
-- state store usage tracking,
-- event log reads/writes,
-- mitmproxy addon/controller delegation,
-- default policy behavior.
+Coverage includes config loading, policy parsing/routing, operators, custom node loading, evaluator input passing, loop guard, state store usage tracking, event log reads/writes, addon/controller delegation, config hot reload, and default policy behavior.

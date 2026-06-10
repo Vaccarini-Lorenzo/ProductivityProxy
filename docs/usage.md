@@ -4,7 +4,7 @@
 
 ProductivityProxy starts a local `mitmdump` proxy and applies the active mode policies to proxied traffic.
 
-On macOS, starting the proxy also points system HTTP/HTTPS proxy settings at the local proxy. Stopping restores the previous proxy settings.
+On macOS, starting the proxy also points system HTTP/HTTPS proxy settings at the local proxy. Stopping restores the previous proxy state.
 
 ## Before running
 
@@ -25,6 +25,7 @@ Mitmproxy's CA is usually available after first run at:
 ## Start the desktop app
 
 ```bash
+export POLICY_MAX_STEPS="1000"
 cd src/frontend/react
 npm run tauri dev
 ```
@@ -37,20 +38,13 @@ The window starts hidden. Open it from the tray/menu-bar icon.
 2. Choose port, LAN, and authentication options.
 3. Click **Start proxy**.
 
-The backend will:
-
-1. save the current config,
-2. snapshot macOS proxy settings,
-3. start `mitmdump`,
-4. point macOS HTTP/HTTPS proxy settings to `127.0.0.1:<port>`.
-
-If setup fails, it stops `mitmdump` and restores the proxy snapshot.
+The backend saves the current config, starts the local proxy, and manages macOS proxy settings. If setup fails, it stops the local proxy and rolls back the captured proxy state.
 
 ## Stop the proxy
 
 Click **Stop proxy** or quit from the tray/menu-bar.
 
-The backend restores the captured macOS proxy settings and stops `mitmdump`.
+The backend restores captured macOS proxy state and stops `mitmdump`.
 
 ## Manual proxy mode
 
@@ -64,6 +58,8 @@ set +a
 ```
 
 This does not change system proxy settings. Configure your browser/device manually to use the listener from `.env.example`.
+
+The helper creates `PRODUCTIVE_PROXY_CONFIG_PATH` from the current default config when that file does not exist. If you have an old materialized config, delete it before running the helper.
 
 ## LAN devices
 
@@ -86,25 +82,18 @@ Notes:
 
 Policies live in named modes. Only the active mode is evaluated.
 
-A mode contains ordered policies. Each policy starts at one `start` node and follows edges. Nodes do work, operators route.
+A mode contains ordered policy IDs. Policies are edited on the Policy page and ordered inside a mode on the Modes page.
 
 Default modes:
 
-- `Productivity`: blocks YouTube Shorts and blocks Reddit after 30 minutes of daily tracked use.
-- `Chilling`: allows traffic.
+- **Productivity**: blocks YouTube Shorts and blocks Reddit after 30 minutes of daily tracked use.
+- **Chilling**: has no active policies, so traffic is allowed.
 
 ## Custom nodes
 
-Custom nodes are Python files with this entrypoint:
+Custom nodes are trusted Python files that can inspect or modify the mitmproxy flow. They run with local process permissions, so only use nodes you trust.
 
-```python
-def run(input, context, params):
-    return input
-```
-
-They can inspect and modify the mitmproxy flow. They run with local process permissions. Only use nodes you trust.
-
-Operators are built-in routing steps: `if` and `switch`.
+The technical execution contract is documented in [Python Proxy Engine](architecture/2_component/python-proxy-engine.md#semantic-model).
 
 ## Recovery if macOS proxy stays enabled
 

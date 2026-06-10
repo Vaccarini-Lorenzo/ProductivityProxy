@@ -21,9 +21,12 @@ Top-level shape:
   "activeModeId": "productivity",
   "proxy": {},
   "customNodes": [],
+  "policies": [],
   "modes": []
 }
 ```
+
+`Chilling` allows traffic by having an empty `policyIds` list. No start/end allow-all policy is required.
 
 ### Proxy config
 
@@ -45,11 +48,16 @@ Used by the Tauri backend to build `mitmdump` arguments and system proxy setting
 {
   "id": "productivity",
   "name": "Productivity",
-  "policies": []
+  "description": "Focused work mode",
+  "policyIds": ["block-youtube-shorts", "limit-reddit"]
 }
 ```
 
-`activeModeId` must match one mode `id`.
+Rules:
+
+- `activeModeId` must match one mode `id`.
+- Each `policyIds[]` value must reference a top-level policy in `policies`.
+- Policy order inside a mode is the order of `policyIds`.
 
 ### Policy config
 
@@ -81,6 +89,19 @@ The Python model uses `id`, `kind`, `type`, and `params`.
 
 `position` is used by the React graph editor and ignored by the Python model.
 
+A `start` node may include a trigger:
+
+```json
+{
+  "trigger": {
+    "hostPatterns": ["reddit.com", "www.reddit.com"],
+    "pathPatterns": ["/r/"]
+  }
+}
+```
+
+A start trigger returns `next` when matched and `skip` when not matched.
+
 ### Policy edge
 
 ```json
@@ -94,6 +115,8 @@ The Python model uses `id`, `kind`, `type`, and `params`.
 Routing rule:
 
 - exact `output` match is used,
+- custom nodes route through `next`,
+- `if` operators route through `then` / `else`,
 - `switch` may fall back to an explicit `default` edge,
 - no match stops policy evaluation.
 
@@ -108,6 +131,32 @@ Routing rule:
 ```
 
 A custom node step uses the custom node `id` as its `type`. Paths must be absolute in runtime config.
+
+## Default-node parameter contracts
+
+Bundled node files live under `src/proxy/defaults/nodes/`. A config must register a node before a policy can use it.
+
+| Node type | Required params | Return / side effect |
+| --- | --- | --- |
+| `block-response` | `status` number, `message` string | Sets `context.flow.response`; returns input. |
+| `track-time` | `platform` string, `idleSeconds` number | Updates usage state, appends `usage_tracked`, returns input plus `usage`. |
+| `is-usage-over-limit` | `platform` string, `seconds` number | Returns input plus `used` and `over_limit`. |
+| `detect-platform` | `hostSuffixes` string array, `platform` string | Returns input plus `match`; adds `platform` on match. |
+| `detect-youtube-shorts` | `hostSuffixes` string array, `markers` string array | Returns input plus `match`; adds `platform` and `kind` on match. |
+| `redirect-request` | `url` string | Rewrites request URL; returns input. |
+| `log-event` | `eventType` string, `message` string | Appends a log-like event; returns input. |
+| `notify` | `title` string, `body` string | Appends a notification event; returns input. |
+
+Custom nodes use the same general entrypoint:
+
+```python
+def run(input, context, params):
+    return input
+```
+
+## Tauri command contracts
+
+The command/API contract table lives in [Command Contracts](command-contracts.md).
 
 ## State schema
 
@@ -152,66 +201,23 @@ Common observability fields:
   "requestId": "...",
   "modeId": "productivity",
   "policyId": "reddit-limit-policy",
-  "policyName": "Reddit Limit",
   "stepId": "detect-reddit",
-  "stepKind": "node",
-  "stepType": "detect-platform",
   "url": "https://www.reddit.com/r/test",
   "host": "www.reddit.com",
   "path": "/r/test"
 }
 ```
 
-Known event types:
+Known event groups:
 
-### Log event
-
-```json
-{"type":"log","message":"...","url":"https://example.com"}
-```
-
-### Usage event
-
-```json
-{
-  "type": "usage_tracked",
-  "platform": "reddit",
-  "event": "activity",
-  "delta_seconds": 12.0,
-  "daily_seconds": 600.0,
-  "total_seconds": 1200.0
-}
-```
-
-### Notification event
-
-```json
-{
-  "type": "notification",
-  "title": "ProductivityProxy",
-  "body": "Message"
-}
-```
-
-The Tauri/React layer reads recent events and displays native notifications for unseen notification events.
-
-### Observability events
-
-The proxy automatically emits:
-
-- `config_loaded`
-- `config_rejected`
-- `request_started`
-- `request_finished`
-- `request_failed`
-- `policy_started`
-- `policy_step`
-- `policy_finished`
-- `policy_error`
+- log events from default/custom nodes,
+- `usage_tracked`,
+- `notification`,
+- observability events such as `config_loaded`, `config_rejected`, `request_started`, `request_finished`, `request_failed`, `policy_started`, `policy_step`, `policy_finished`, and `policy_error`.
 
 `request_finished.outcome` is `allowed` or `blocked`.
 
-`policy_step` contains `output`, `routeOutput`, `nextStepId`, `durationMs`, `responseSet`, and optionally `responseStatus`.
+`policy_step` contains routing fields such as `output`, `routeOutput`, `nextStepId`, `durationMs`, `responseSet`, and optionally `responseStatus`.
 
 ### Custom node logging API
 
@@ -222,22 +228,6 @@ def run(input, context, params):
     context.log.info("detected candidate", platform="reddit", score=0.91)
     context.log.event("my_custom_event", "custom decision", level="debug", reason="matched host")
     return input
-```
-
-Custom node logs use:
-
-```json
-{
-  "schema": "observability.v1",
-  "category": "custom_node",
-  "source": "custom_node",
-  "type": "custom_node_log",
-  "level": "info",
-  "message": "detected candidate",
-  "policyId": "...",
-  "stepId": "...",
-  "data": { "platform": "reddit", "score": 0.91 }
-}
 ```
 
 Supported helper methods are `debug`, `info`, `warning`, `warn`, `error`, and `event`.
@@ -277,7 +267,7 @@ The React dashboard sends the whole config to Tauri. Tauri writes pretty JSON to
 
 ### Start proxy
 
-Tauri writes the latest config before launching `mitmdump`. The Python addon loads that config during its configure step.
+Tauri writes the latest config before launching `mitmdump`. The Python addon loads that config during configure, then reloads it on request when the file mtime changes.
 
 ### Runtime request handling
 
@@ -294,5 +284,5 @@ Frontend validation is minimal. Python model parsing and runtime node execution 
 Current missing validations include:
 
 - full frontend parity with Python validation,
-- required params for each custom node,
-- safe file names for custom node writes.
+- required params for each built-in or custom node,
+- config migrations/versioning.

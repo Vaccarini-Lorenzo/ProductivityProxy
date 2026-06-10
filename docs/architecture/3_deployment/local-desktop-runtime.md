@@ -35,6 +35,14 @@ mitmproxy>=11.0.0
 
 The desktop app currently expects `mitmdump` to be available on `PATH`.
 
+## Required startup environment
+
+Desktop proxy startup and the manual proxy helper both require `POLICY_MAX_STEPS` in the environment. The value must be a positive integer and is used by the Python evaluator as the loop guard.
+
+The manual proxy helper also requires the `PRODUCTIVE_PROXY_*` variables shown in `.env.example`.
+
+Command examples live in [Development Guide](../../development.md) and [Usage Guide](../../usage.md).
+
 ## App data paths
 
 The backend uses Tauri's app data directory.
@@ -95,6 +103,7 @@ Failure modes to know:
 - If the app process is force-killed or crashes, Rust `Drop` may not run and macOS proxy settings may remain pointed at the local proxy.
 - If restore fails, the backend keeps the snapshot in memory and retries on a later stop/status path.
 - If the machine had an authenticated system proxy before start, the app refuses to start because macOS does not expose the saved password for safe restore.
+- If the previous proxy was disabled or missing endpoint data, restore turns the proxy state off but may not restore old server/port fields.
 
 Manual recovery on macOS:
 
@@ -104,24 +113,6 @@ networksetup -setsecurewebproxystate "Wi-Fi" off
 ```
 
 Replace `Wi-Fi` with the active network service name.
-
-## Development commands
-
-Run desktop app:
-
-```bash
-cd src/frontend/react
-npm run tauri dev
-```
-
-Run proxy directly with environment variables:
-
-```bash
-set -a
-source .env.example
-set +a
-./scripts/run_mitm.sh
-```
 
 ## Packaging status
 

@@ -13,7 +13,7 @@ This document describes the current source tree. The UI is actively changing, so
 ## Entry point
 
 - `src/main.tsx` mounts `<App />` into `#root`.
-- `src/App.tsx` owns top-level state and routes between dashboard views.
+- `src/App.tsx` owns top-level state, autosave, startup loading, notifications, and view routing.
 
 ## Main state owned by `App`
 
@@ -21,18 +21,14 @@ This document describes the current source tree. The UI is actively changing, so
 
 - active view: `settings`, `modes`, `policy`, `nodes`, or `observability`,
 - full app config,
+- last saved config for autosave comparison,
 - proxy running status,
 - detected local/LAN network info,
 - recent proxy events for notifications,
 - user-facing message string,
 - a set of notification events already shown.
 
-On mount it asks the Tauri backend for:
-
-- app config,
-- proxy status,
-- recent events,
-- network info.
+On mount it asks the Tauri backend for app config, proxy status, recent events, and network info.
 
 ## Views
 
@@ -70,6 +66,8 @@ Current responsibilities:
 - select the active mode,
 - create/delete modes,
 - edit mode name and description,
+- add/remove shared policies from a mode,
+- reorder policies inside a mode through `policyIds`,
 - show policy/step counts.
 
 ### Policy
@@ -78,11 +76,18 @@ Current responsibilities:
 
 Current responsibilities:
 
-- list ordered policies for the active mode,
-- create/rename/delete/reorder policies,
-- show the graph editor for the selected policy,
+- select one policy from the global policy list,
+- create/delete shared policies,
+- show where the selected policy is used,
+- host the graph editor for the selected policy,
 - add/delete nodes and operators,
-- edit route outputs and step params.
+- open the step inspector.
+
+Current limitations:
+
+- policy rename is not exposed in this view,
+- mode-specific policy ordering is handled in Modes,
+- edge output labels are displayed but not edited in the current UI.
 
 ### Observability
 
@@ -95,25 +100,19 @@ Current responsibilities:
 - inspect selected event JSON,
 - show a request timeline when `requestId` is present.
 
-## Graph editor
+## Graph editor and step inspector
 
-`components/GraphEditor.tsx` uses `@xyflow/react`.
+`components/GraphEditor.tsx` uses `@xyflow/react` and converts policy steps/edges to React Flow nodes/edges and back.
 
-It converts policy steps/edges to React Flow nodes/edges and back.
+Supporting pieces:
 
-Current add buttons:
+- `NodeLibrary.tsx` lists flow nodes, operators, and registered custom nodes that can be added to the graph.
+- `StepModal.tsx` edits start triggers, operator code, switch cases, and existing node params.
+- `PythonCodeEditor.tsx` backs operator code editing and custom-node code editing.
+- `operatorShapes.ts` defines operator port layout.
+- `services/nodes/defaultNodeSources.ts` supplies bundled read-only source fallback for browser preview.
 
-```text
-start, end, if, switch, registered custom nodes
-```
-
-Current limitations:
-
-- nodes can be moved,
-- edges can be added/removed,
-- edge labels default to `next`,
-- edge output labels can be edited in the Policies view,
-- step params can be edited as JSON in the Policies view.
+Detailed graph-editor behavior and performance rules live in [React Graph Editor](react-graph-editor.md).
 
 ## Frontend services
 
@@ -135,6 +134,7 @@ Thin wrapper around Tauri commands:
 Current checks:
 
 - active mode exists,
+- each `mode.policyIds[]` entry references an existing policy,
 - each policy has exactly one start node,
 - policy edges point to existing steps.
 
@@ -177,13 +177,4 @@ React/Vitest tests live under:
 test/unit/frontend/react/
 ```
 
-Coverage includes:
-
-- app smoke behavior,
-- config repository command calls,
-- validation,
-- default config,
-- graph editor rendering,
-- graph operations,
-- notification deduplication,
-- proxy repository command calls.
+Coverage includes app smoke behavior, config repository command calls, validation, default config, graph editor rendering, graph operations, notification deduplication, and proxy repository command calls.
