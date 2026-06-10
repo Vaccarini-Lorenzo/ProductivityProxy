@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppConfig } from "../models/config/types";
 import type { CommandClient } from "../services/config/configRepository";
 import { queryEvents, type EventQuery, type ProxyEvent } from "../services/proxy/proxyRepository";
-import { Card, Field, IconButton, Modal, PageHeader, Toggle, count } from "../components/ui";
+import { Card, Field, Icon, IconButton, Modal, PageHeader, Toggle, count } from "../components/ui";
 
 interface Props {
   client: CommandClient;
@@ -58,7 +58,7 @@ export function ObservabilityView({ client, config }: Props) {
 
   const toolbar = (
     <>
-      <span className="count-pill">{count(events.length, "event")}</span>
+      <span className="count-pill"><span className="dot" />{count(events.length, "event")}</span>
       <Toggle checked={autoRefresh} onChange={setAutoRefresh} label="Auto-refresh" />
       <IconButton icon="refresh" label="Refresh" onClick={load} />
     </>
@@ -68,7 +68,7 @@ export function ObservabilityView({ client, config }: Props) {
     <div className="page-stack">
       <PageHeader eyebrow="Observability" title="Policy trace" subtitle="Inspect requests, policy steps, and custom-node logs." />
 
-      <Card title="Filters" actions={toolbar}>
+      <Card title="Filters" icon="search" actions={toolbar}>
         <div className="form-grid dense-grid">
           <Field label="Limit"><input type="number" min="1" max="1000" value={filters.limit} onChange={(e) => update("limit", Number(e.target.value))} /></Field>
           <Field label="Category"><select value={filters.category} onChange={(e) => update("category", e.target.value)}><option value="">any</option><option value="observability">observability</option><option value="custom_node">custom_node</option></select></Field>
@@ -82,8 +82,11 @@ export function ObservabilityView({ client, config }: Props) {
         {message && <p className="inline-note">{message}</p>}
       </Card>
 
-      <Card title="Events" actions={<span className="count-pill">{count(events.length, "event")}</span>}>
+      <Card title="Events" actions={<span className="count-pill"><span className="dot" />{count(events.length, "event")}</span>}>
         <div className="event-table" role="list">
+          {events.length > 0 && (
+            <div className="event-head"><span>Timestamp</span><span>Event type</span><span>Source / Policy</span><span>Level</span></div>
+          )}
           {events.map((event, index) => (
             <button className="event-row" key={eventKey(event, index)} type="button" onClick={() => setOpenIndex(index)} role="listitem">
               <span>{formatTime(event)}</span>
@@ -92,7 +95,12 @@ export function ObservabilityView({ client, config }: Props) {
               <em>{text(event, "level")}</em>
             </button>
           ))}
-          {events.length === 0 && <p className="muted">No events match these filters. Start the proxy and browse to generate activity.</p>}
+          {events.length === 0 && (
+            <div className="empty-state">
+              <Icon name="inbox" />
+              <p>No events match these filters. Start the proxy and browse to generate activity.</p>
+            </div>
+          )}
         </div>
       </Card>
 

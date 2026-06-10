@@ -53,8 +53,8 @@ Start with:
 - [docs/README.md](docs/README.md) — documentation index.
 - [docs/usage.md](docs/usage.md) — running and using the app.
 - [docs/development.md](docs/development.md) — setup, tests, and workflows.
-- [docs/software-modules.md](docs/software-modules.md) — module map and API contracts.
-- [docs/building-plan.md](docs/building-plan.md) — roadmap and readiness.
+- [docs/architecture/4_data_layer/command-contracts.md](docs/architecture/4_data_layer/command-contracts.md) — React ↔ Tauri command contracts.
+- [docs/roadmap/readiness.md](docs/roadmap/readiness.md) — roadmap and readiness.
 
 ## Install prerequisites
 

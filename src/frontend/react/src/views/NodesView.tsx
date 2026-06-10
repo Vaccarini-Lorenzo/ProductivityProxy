@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { CustomNodeConfig } from "../models/config/types";
 import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
 import { PythonCodeEditor } from "../components/PythonCodeEditor";
-import { Card, Field, IconButton, Modal, PageHeader } from "../components/ui";
+import { Card, Field, IconButton, Modal, PageHeader, SearchInput } from "../components/ui";
 
 export interface SaveNodeInput {
   id?: string;
@@ -78,8 +78,8 @@ export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
     <div className="page-stack">
       <PageHeader eyebrow="Nodes" title="Custom nodes" subtitle="Reusable Python steps you can drop into any policy." />
 
-      <Card title="Installed nodes" actions={<IconButton className="primary" icon="plus" label="New node" onClick={newNode} />}>
-        <input className="library-search" placeholder="Search nodes…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search nodes" />
+      <Card title="Installed nodes" icon="hexagon" actions={<IconButton className="primary" icon="plus" label="New node" onClick={newNode} />}>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search nodes…" ariaLabel="Search nodes" />
         <div className="list" role="list">
           {visibleNodes.map((node) => (
             <div className="list-row" key={node.id} role="listitem">

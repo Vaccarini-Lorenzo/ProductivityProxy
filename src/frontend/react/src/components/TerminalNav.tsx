@@ -1,3 +1,5 @@
+import { Icon, type IconName } from "./ui";
+
 export type View = "settings" | "modes" | "policy" | "nodes" | "observability";
 
 interface Props {
@@ -6,12 +8,12 @@ interface Props {
   onNavigate: (view: View) => void;
 }
 
-const LINKS: { view: View; label: string }[] = [
-  { view: "settings", label: "Settings" },
-  { view: "modes", label: "Modes" },
-  { view: "policy", label: "Policy" },
-  { view: "nodes", label: "Nodes" },
-  { view: "observability", label: "Observability" },
+const LINKS: { view: View; label: string; icon: IconName }[] = [
+  { view: "settings", label: "Settings", icon: "gear" },
+  { view: "modes", label: "Modes", icon: "layers" },
+  { view: "policy", label: "Policy", icon: "shield" },
+  { view: "nodes", label: "Nodes", icon: "hexagon" },
+  { view: "observability", label: "Observability", icon: "search" },
 ];
 
 export function TerminalNav({ active, running, onNavigate }: Props) {
@@ -34,6 +36,7 @@ export function TerminalNav({ active, running, onNavigate }: Props) {
             onClick={() => onNavigate(link.view)}
             aria-current={active === link.view ? "page" : undefined}
           >
+            <Icon name={link.icon} />
             {link.label}
           </button>
         ))}

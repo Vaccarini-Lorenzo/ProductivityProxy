@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { TerminalNav, type View } from "./components/TerminalNav";
+import { Icon } from "./components/ui";
 import { ModesView } from "./views/ModesView";
 import { NodesView, type SaveNodeInput } from "./views/NodesView";
 import { ObservabilityView } from "./views/ObservabilityView";
@@ -124,7 +125,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     <div className="app-frame">
       <TerminalNav active={view} running={status.running} onNavigate={setView} />
       <main className="app-shell">
-        <div className="top-bar"><span className={message ? "message" : "muted"} role="status">{message || "Auto-save active"}</span></div>
+        <div className="top-bar"><span className={message ? "message" : "muted"} role="status">{message && <Icon name="info" />}{message || "Auto-save active"}</span></div>
         {renderView()}
       </main>
     </div>

@@ -12,7 +12,7 @@ import {
   ConnectionMode,
   useNodesState,
   useEdgesState,
-  getSmoothStepPath,
+  getBezierPath,
   type Node,
   type Edge,
   type Connection,
@@ -21,6 +21,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { PolicyConfig } from "../models/config/types";
+import { Icon, type IconName } from "./ui";
 import { operatorLayout, pointsAttr, labelPos, type Vec } from "./operatorShapes";
 
 const FIT_VIEW_OPTIONS = { maxZoom: 1.2, padding: 0.3 };
@@ -39,7 +40,7 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
   const [panMode, setPanMode] = useState(false);
 
   // Keep current policy + parent callbacks in refs so editor handlers stay stable
-  // (so the rebuild effects below never re-run mid-drag). See docs/react-flow-best-practices.md.
+  // (so the rebuild effects below never re-run mid-drag). See docs/architecture/2_component/react-graph-editor.md.
   const policyRef = useRef(policy);
   policyRef.current = policy;
   const cbRef = useRef({ onPolicyChange, onOpenStep, onDeleteStep });
@@ -114,11 +115,16 @@ const PolicyNode = memo(function PolicyNode({ data }: NodeProps) {
   const [hovered, setHovered] = useState(false);
   const isStart = kind === "node" && label === "start";
   const isEnd = kind === "node" && label === "end";
+  const typeClass = isStart ? "start" : isEnd ? "end" : "custom";
+  const typeIcon: IconName = isStart ? "play" : isEnd ? "stop" : "hexagon";
   return (
-    <div className={`policy-node ${isSelected ? "selected" : ""}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={() => onOpen(stepId)}>
+    <div className={`policy-node ${typeClass} ${isSelected ? "selected" : ""}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={() => onOpen(stepId)}>
       {!isStart && <Handle id="in" type="target" position={Position.Left} isConnectableStart={false} />}
-      <strong>{label}</strong>
-      <span>{stepId}</span>
+      <span className="policy-node-icon"><Icon name={typeIcon} /></span>
+      <span className="policy-node-text">
+        <strong>{label}</strong>
+        <span>{stepId}</span>
+      </span>
       {!isEnd && <Handle id="out" type="source" position={Position.Right} isConnectableEnd={false} />}
       {hovered && <button className="node-expand" type="button" title="Open" onPointerDown={(e) => { e.stopPropagation(); onOpen(stepId); }}>⤢</button>}
       {hovered && !isStart && <button className="node-delete" type="button" title="Delete" onPointerDown={(e) => { e.stopPropagation(); onDelete(stepId); }}>×</button>}
@@ -145,7 +151,7 @@ const OperatorNode = memo(function OperatorNode({ data }: NodeProps) {
 
 const DeletableEdge = memo(function DeletableEdge(props: EdgeProps) {
   const [hovered, setHovered] = useState(false);
-  const [path, labelX, labelY] = getSmoothStepPath(props);
+  const [path, labelX, labelY] = getBezierPath(props);
   const data = props.data as { onDelete?: (id: string) => void } | undefined;
   return <><BaseEdge path={path} markerEnd={props.markerEnd} style={props.style} interactionWidth={0} />
     <EdgeLabelRenderer><div className="edge-action-zone nodrag nopan" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} style={{ width: 60, height: 36, transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}>
@@ -178,7 +184,7 @@ function buildEdges(policy: PolicyConfig, onDelete: (id: string) => void): Edge[
     const sourceHandle = sourceStep?.kind === "operator" ? edge.output : "out";
     return {
       id: edgeId(edge, index), type: "deletable", source: edge.from, sourceHandle, target: edge.to, targetHandle: "in",
-      label: edge.output !== "next" ? edge.output : undefined, markerEnd: { type: MarkerType.ArrowClosed }, animated: true, data: { onDelete },
+      label: edge.output !== "next" ? edge.output : undefined, markerEnd: { type: MarkerType.ArrowClosed }, animated: false, data: { onDelete },
     };
   });
 }

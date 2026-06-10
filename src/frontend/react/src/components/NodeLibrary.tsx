@@ -1,14 +1,14 @@
 import { useState, type ReactNode } from "react";
 import type { CustomNodeConfig } from "../models/config/types";
-import { Icon, type IconName } from "./ui";
+import { Icon, SearchInput, type IconName } from "./ui";
 
 const FLOW_NODES = [
-  { type: "start", label: "Start", desc: "Entry point with optional trigger" },
-  { type: "end", label: "End", desc: "Stop this policy flow" },
+  { type: "start", label: "Start", desc: "Entry point with optional trigger", tone: "start", icon: "play" as IconName },
+  { type: "end", label: "End", desc: "Stop this policy flow", tone: "end", icon: "stop" as IconName },
 ];
 const OPERATORS = [
-  { type: "if", label: "If / Then / Else", desc: "One input, two outputs" },
-  { type: "switch", label: "Switch", desc: "One output per case" },
+  { type: "if", label: "If / Then / Else", desc: "One input, two outputs", tone: "operator", icon: "branch" as IconName },
+  { type: "switch", label: "Switch", desc: "One output per case", tone: "operator", icon: "switch" as IconName },
 ];
 
 interface Props {
@@ -27,15 +27,15 @@ export function NodeLibrary({ customNodes, hasStart, onAddStep }: Props) {
 
   return (
     <div className="library" aria-label="Node library">
-      <input className="library-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search nodes…" aria-label="Search nodes" />
+      <SearchInput value={search} onChange={setSearch} placeholder="Search nodes…" ariaLabel="Search nodes" />
       <Section title="Flow">
-        {flow.map((item) => <LibraryButton key={item.type} title={item.label} desc={item.desc} tone="flow" icon="flow" disabled={item.type === "start" && hasStart} onClick={() => onAddStep("node", item.type)} />)}
+        {flow.map((item) => <LibraryButton key={item.type} title={item.label} desc={item.desc} tone={item.tone} icon={item.icon} disabled={item.type === "start" && hasStart} onClick={() => onAddStep("node", item.type)} />)}
       </Section>
       <Section title="Logic">
-        {operators.map((item) => <LibraryButton key={item.type} title={item.label} desc={item.desc} tone="operator" icon="branch" onClick={() => onAddStep("operator", item.type)} />)}
+        {operators.map((item) => <LibraryButton key={item.type} title={item.label} desc={item.desc} tone={item.tone} icon={item.icon} onClick={() => onAddStep("operator", item.type)} />)}
       </Section>
       <Section title="Custom">
-        {nodes.map((node) => <LibraryButton key={node.id} title={node.name} desc={node.path.split("/").pop() ?? node.path} tone="custom" icon="node" onClick={() => onAddStep("node", node.id)} />)}
+        {nodes.map((node) => <LibraryButton key={node.id} title={node.name} desc={node.path.split("/").pop() ?? node.path} tone="custom" icon="hexagon" onClick={() => onAddStep("node", node.id)} />)}
         {nodes.length === 0 && <p className="muted library-empty">No matching nodes.</p>}
       </Section>
     </div>
@@ -49,7 +49,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function LibraryButton({ title, desc, tone, icon, disabled, onClick }: { title: string; desc: string; tone: string; icon: IconName; disabled?: boolean; onClick: () => void }) {
   return (
     <button className={`library-item ${tone}`} type="button" disabled={disabled} onClick={onClick} title={desc}>
-      <Icon name={icon} />
+      <span className="library-item-icon"><Icon name={icon} /></span>
       <span className="library-item-text">
         <strong>{title}</strong>
         <small>{desc}</small>
