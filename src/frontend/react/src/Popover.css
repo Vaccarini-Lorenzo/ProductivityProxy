@@ -103,4 +103,13 @@ html.popover-mode body {
 
 .pop-foot > button {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pop-foot > button .icon {
+  width: 1.05em;
+  height: 1.05em;
 }
