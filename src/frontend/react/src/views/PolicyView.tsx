@@ -3,7 +3,7 @@ import { GraphEditor } from "../components/GraphEditor";
 import { NodeLibrary } from "../components/NodeLibrary";
 import { StepModal } from "../components/StepModal";
 import { Modal } from "../components/Modal";
-import { PageHeader, count } from "../components/ui";
+import { PageHeader, IconButton, count } from "../components/ui";
 import type { AppConfig, PolicyConfig, PolicyStepKind } from "../models/config/types";
 import { createPolicy, slug } from "../services/config/configEditing";
 import { addStep, updateStepParams } from "../services/policy/policyOperations";
@@ -85,8 +85,8 @@ export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
             )}
           </div>
           <div className="actions">
-            <button className="small danger" type="button" onClick={() => activePolicy && deletePolicy(activePolicy.id)} disabled={!activePolicy}>Delete</button>
-            <button className="small" type="button" onClick={() => setShowNewPolicy(true)}>New policy</button>
+            <IconButton className="danger" icon="trash" label="Delete policy" onClick={() => activePolicy && deletePolicy(activePolicy.id)} disabled={!activePolicy} />
+            <IconButton className="primary" icon="plus" label="New policy" onClick={() => setShowNewPolicy(true)} />
           </div>
         </div>
 

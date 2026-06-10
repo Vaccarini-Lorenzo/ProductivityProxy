@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppConfig } from "../models/config/types";
 import type { CommandClient } from "../services/config/configRepository";
 import { queryEvents, type EventQuery, type ProxyEvent } from "../services/proxy/proxyRepository";
-import { Card, Field, Modal, PageHeader, Toggle, count } from "../components/ui";
+import { Card, Field, IconButton, Modal, PageHeader, Toggle, count } from "../components/ui";
 
 interface Props {
   client: CommandClient;
@@ -60,7 +60,7 @@ export function ObservabilityView({ client, config }: Props) {
     <>
       <span className="count-pill">{count(events.length, "event")}</span>
       <Toggle checked={autoRefresh} onChange={setAutoRefresh} label="Auto-refresh" />
-      <button type="button" onClick={load}>Refresh</button>
+      <IconButton icon="refresh" label="Refresh" onClick={load} />
     </>
   );
 

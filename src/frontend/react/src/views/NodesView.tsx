@@ -78,7 +78,7 @@ export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
     <div className="page-stack">
       <PageHeader eyebrow="Nodes" title="Custom nodes" subtitle="Reusable Python steps you can drop into any policy." />
 
-      <Card title="Installed nodes" actions={<button className="primary" type="button" onClick={newNode}>New node</button>}>
+      <Card title="Installed nodes" actions={<IconButton className="primary" icon="plus" label="New node" onClick={newNode} />}>
         <input className="library-search" placeholder="Search nodes…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search nodes" />
         <div className="list" role="list">
           {visibleNodes.map((node) => (
@@ -87,9 +87,8 @@ export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
                 <span className="list-title">{node.name}</span>
                 <small>{node.path}</small>
               </button>
-              <span className="badge muted-badge">{node.path.includes("/defaults/") ? "default" : "custom"}</span>
               <IconButton className="small" icon="edit" label={`Edit ${node.name}`} onClick={() => editNode(node)} />
-              <button className="danger small" type="button" onClick={() => onDelete(node.id)}>Delete</button>
+              <IconButton className="danger small" icon="trash" label={`Delete ${node.name}`} onClick={() => onDelete(node.id)} />
             </div>
           ))}
           {visibleNodes.length === 0 && <p className="muted">No matching nodes.</p>}

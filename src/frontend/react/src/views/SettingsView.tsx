@@ -1,6 +1,6 @@
 import type { ProxyConfig } from "../models/config/types";
 import type { NetworkInfo } from "../services/proxy/proxyRepository";
-import { Card, CheckRow, Field, PageHeader } from "../components/ui";
+import { Button, Card, CheckRow, Field, PageHeader } from "../components/ui";
 
 interface Props {
   proxy: ProxyConfig;
@@ -25,9 +25,9 @@ export function SettingsView({ proxy, running, network, onChange, onStart, onSto
           <div><dt>Authentication</dt><dd>{proxy.authEnabled ? "Enabled" : "Disabled"}</dd></div>
           <div><dt>LAN access</dt><dd>{proxy.allowLan ? "Enabled" : "Local only"}</dd></div>
         </div>
-        <div className="actions">
-          <button className="primary" type="button" onClick={onStart} disabled={running}>Start proxy</button>
-          <button type="button" onClick={onStop} disabled={!running}>Stop proxy</button>
+        <div className="actions hero-actions">
+          <Button icon="play" className="primary hero" onClick={onStart} disabled={running}>Start proxy</Button>
+          <Button icon="stop" className="hero" onClick={onStop} disabled={!running}>Stop proxy</Button>
         </div>
       </Card>
 

@@ -13,16 +13,12 @@ function policyById(config: AppConfig, id: string): PolicyConfig | undefined {
 }
 
 export function ModesView({ config, onConfigChange }: Props) {
-  const [newName, setNewName] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const editMode = config.modes.find((mode) => mode.id === editId) ?? null;
 
   function addMode() {
-    const name = newName.trim();
-    if (!name) return;
-    const mode = createMode(name, config.modes.map((item) => item.id));
-    onConfigChange({ ...config, activeModeId: mode.id, modes: [...config.modes, mode] });
-    setNewName("");
+    const mode = createMode("New mode", config.modes.map((item) => item.id));
+    onConfigChange({ ...config, modes: [...config.modes, mode] });
     setEditId(mode.id);
   }
 
@@ -33,18 +29,11 @@ export function ModesView({ config, onConfigChange }: Props) {
     onConfigChange({ ...config, activeModeId, modes });
   }
 
-  const addControl = (
-    <div className="add-control">
-      <input aria-label="New mode name" placeholder="New mode name" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addMode()} />
-      <button type="button" onClick={addMode} disabled={!newName.trim()}>Add mode</button>
-    </div>
-  );
-
   return (
     <div className="page-stack">
       <PageHeader eyebrow="Modes" title="Runtime modes" subtitle="A mode is an ordered set of policies. Only the active mode runs; policies are evaluated top to bottom and the first to respond wins." />
 
-      <Card title="Modes" actions={addControl}>
+      <Card title="Modes" actions={<IconButton className="primary" icon="plus" label="New mode" onClick={addMode} />}>
         <div className="list">
           {config.modes.map((mode) => {
             const isActive = mode.id === config.activeModeId;
@@ -57,7 +46,7 @@ export function ModesView({ config, onConfigChange }: Props) {
                 </button>
                 <span className="list-meta">{count(mode.policyIds.length, "policy", "policies")} · {count(steps, "step")}</span>
                 <IconButton className="small" icon="edit" label={`Edit ${mode.name}`} onClick={() => setEditId(mode.id)} />
-                <button className="danger small" type="button" onClick={() => deleteMode(mode.id)} disabled={config.modes.length <= 1}>Delete</button>
+                <IconButton className="danger small" icon="trash" label={`Delete ${mode.name}`} onClick={() => deleteMode(mode.id)} disabled={config.modes.length <= 1} />
               </div>
             );
           })}
@@ -97,7 +86,7 @@ function ModeEditor({ config, mode, onConfigChange }: { config: AppConfig; mode:
   return (
     <>
       <Field label="Name">
-        <input autoFocus value={mode.name} onChange={(e) => updateMode({ ...mode, name: e.target.value })} />
+        <input autoFocus onFocus={(e) => e.currentTarget.select()} value={mode.name} onChange={(e) => updateMode({ ...mode, name: e.target.value })} />
       </Field>
       <Field label="Description">
         <input value={mode.description ?? ""} onChange={(e) => updateMode({ ...mode, description: e.target.value })} />
@@ -113,7 +102,7 @@ function ModeEditor({ config, mode, onConfigChange }: { config: AppConfig; mode:
                 <span className="list-main"><span className="list-title">{index + 1}. {policy?.name ?? id}</span>{!policy && <small className="danger-text">missing policy</small>}</span>
                 <button className="small" type="button" onClick={() => move(index, -1)} disabled={index === 0} title="Move up">↑</button>
                 <button className="small" type="button" onClick={() => move(index, 1)} disabled={index === mode.policyIds.length - 1} title="Move down">↓</button>
-                <button className="danger small" type="button" onClick={() => setIds(mode.policyIds.filter((x) => x !== id))}>Remove</button>
+                <IconButton className="danger small" icon="trash" label="Remove policy from mode" onClick={() => setIds(mode.policyIds.filter((x) => x !== id))} />
               </div>
             );
           })}
