@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CustomNodeConfig } from "../models/config/types";
 import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
+import { PythonCodeEditor } from "../components/PythonCodeEditor";
 import { Card, Field, Modal, PageHeader } from "../components/ui";
 
 export interface SaveNodeInput {
@@ -98,7 +99,7 @@ export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
             </Field>
           </div>
           <Field label="Python code">
-            <textarea className="code-input node-code" value={draft.code} spellCheck={false} onChange={(e) => setDraft({ ...draft, code: e.target.value })} />
+            <PythonCodeEditor value={draft.code} minHeight={340} onChange={(code) => setDraft({ ...draft, code })} />
           </Field>
         </Modal>
       )}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
+import { PythonCodeEditor } from "./PythonCodeEditor";
 import { Field } from "./ui";
 import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
 import type { CustomNodeConfig, PolicyConfig, PolicyStep, StepParams } from "../models/config/types";
@@ -126,7 +127,7 @@ function OperatorEditor({ step, onChange }: { step: PolicyStep; onChange: (p: St
     <div className="inspector-form">
       <Field label="Condition" hint={isIf ? "Return True for the then port, False for else" : "Return a case label string"}>
         <div className="code-signature">{isIf ? "def if_condition(input) -> bool" : "def switch_condition(input) -> str"}</div>
-        <textarea className="code-input operator-code" value={code} spellCheck={false} onChange={(e) => onChange({ ...step.params, code: e.target.value })} />
+        <PythonCodeEditor value={code} minHeight={130} onChange={(next) => onChange({ ...step.params, code: next })} />
       </Field>
       {!isIf && <SwitchCases cases={cases} onChange={(next) => onChange({ ...step.params, cases: next })} />}
       <p className="inline-note">Changes are saved automatically. Use “Save config” to persist them to disk.</p>

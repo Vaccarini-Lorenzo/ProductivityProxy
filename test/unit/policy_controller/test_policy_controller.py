@@ -1,6 +1,8 @@
 import json
+import os
 import tempfile
 import textwrap
+import time
 import unittest
 from pathlib import Path
 
@@ -53,6 +55,55 @@ class PolicyProxyControllerTest(unittest.TestCase):
 
             controller.event_log.flush()
             self.assertIn("controller_seen", event_path.read_text(encoding="utf-8"))
+
+    def test_reloads_config_when_file_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "config.json"
+            block_path = Path(tmp) / "block.py"
+            block_path.write_text(
+                "def run(input, context, params):\n    context.flow.response = 'blocked'\n    return input\n",
+                encoding="utf-8",
+            )
+            config_path.write_text(json.dumps(_config("work", str(block_path))), encoding="utf-8")
+
+            controller = PolicyProxyController()
+            controller.configure(config_path, Path(tmp) / "state.json", Path(tmp) / "events.jsonl")
+
+            blocked = FakeFlow()
+            controller.request(blocked)
+            self.assertIsNotNone(blocked.response)
+
+            config_path.write_text(json.dumps(_config("off", str(block_path))), encoding="utf-8")
+            future = time.time() + 5
+            os.utime(config_path, (future, future))
+
+            allowed = FakeFlow()
+            controller.request(allowed)
+            controller.close()
+
+            self.assertIsNone(allowed.response)
+
+
+def _config(active_mode_id: str, block_path: str) -> dict:
+    return {
+        "activeModeId": active_mode_id,
+        "policies": [
+            {
+                "id": "p",
+                "name": "P",
+                "steps": [
+                    {"id": "start", "kind": "node", "type": "start"},
+                    {"id": "block", "kind": "node", "type": "block"},
+                ],
+                "edges": [{"from": "start", "output": "next", "to": "block"}],
+            }
+        ],
+        "modes": [
+            {"id": "work", "name": "Work", "policyIds": ["p"]},
+            {"id": "off", "name": "Off", "policyIds": []},
+        ],
+        "customNodes": [{"id": "block", "name": "Block", "path": block_path}],
+    }
 
 
 if __name__ == "__main__":

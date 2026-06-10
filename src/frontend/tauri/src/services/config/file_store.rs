@@ -23,6 +23,13 @@ impl FileStore {
             fs::create_dir_all(parent)?;
         }
         let text = serde_json::to_string_pretty(value)?;
-        fs::write(&self.path, text)
+        let file_name = self
+            .path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("file");
+        let tmp = self.path.with_file_name(format!("{file_name}.tmp"));
+        fs::write(&tmp, text)?;
+        fs::rename(&tmp, &self.path)
     }
 }

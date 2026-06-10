@@ -188,7 +188,6 @@ input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; padding: 0; a
 .route-row { display: flex; align-items: center; gap: 8px; }
 .route-tag { display: inline-block; min-width: 56px; text-align: center; padding: 2px 9px; border-radius: 999px; font-size: .72rem; color: var(--amber-2); background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3); }
 .code-signature { color: var(--green); font-size: .74rem; margin-bottom: 6px; }
-.operator-code { min-height: 130px; }
 .switch-cases { display: grid; gap: 8px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .switch-cases-head { display: flex; align-items: center; justify-content: space-between; }
 .param-row { display: flex; align-items: center; gap: 8px; }
@@ -230,7 +229,6 @@ input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; padding: 0; a
 
 /* --- Nodes page --- */
 .nodes-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 16px; align-items: start; }
-.node-code { min-height: 340px; }
 
 /* --- Observability --- */
 .event-table { display: grid; gap: 3px; }
