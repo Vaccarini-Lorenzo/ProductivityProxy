@@ -22,6 +22,9 @@ tauri = { version = "2.11.2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-log = "2"
 tauri-plugin-notification = "2"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = "0.2"
+
 [[test]]
 name = "tauri_file_store"
 path = "../../../test/unit/frontend/tauri/config/file_store.rs"

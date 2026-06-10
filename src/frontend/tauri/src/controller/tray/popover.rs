@@ -52,7 +52,36 @@ pub fn toggle_popover(app: &AppHandle, icon: Rect) {
     }
     let _ = position_below_icon(&window, icon);
     let _ = window.show();
+    #[cfg(target_os = "macos")]
+    bring_to_front(&window);
     let _ = window.set_focus();
+}
+
+/// On macOS a menu-bar popover must float above every other window — including
+/// other always-on-top windows and fullscreen apps — even though this is an
+/// accessory app that never becomes the active application. The config's
+/// `alwaysOnTop` only reaches the floating level, so raise the native window to
+/// the pop-up-menu level (what AppKit menus use) and order it to the front
+/// unconditionally, regardless of which app is currently active.
+#[cfg(target_os = "macos")]
+fn bring_to_front(window: &WebviewWindow) {
+    use objc::runtime::Object;
+    use objc::{msg_send, sel, sel_impl};
+
+    const NS_POPUP_MENU_WINDOW_LEVEL: i64 = 101;
+    // NSWindowCollectionBehaviorCanJoinAllSpaces | FullScreenAuxiliary.
+    const ALL_SPACES_OVER_FULLSCREEN: u64 = (1 << 0) | (1 << 8);
+
+    let Ok(ns_window) = window.ns_window() else {
+        return;
+    };
+    let ns_window = ns_window as *mut Object;
+    // SAFETY: `ns_window` is the live NSWindow backing this WebviewWindow.
+    unsafe {
+        let _: () = msg_send![ns_window, setLevel: NS_POPUP_MENU_WINDOW_LEVEL];
+        let _: () = msg_send![ns_window, setCollectionBehavior: ALL_SPACES_OVER_FULLSCREEN];
+        let _: () = msg_send![ns_window, orderFrontRegardless];
+    }
 }
 
 /// Center the popover horizontally under the tray icon, clamped to the screen.

@@ -2,8 +2,9 @@
 use productivity_proxy_app::models::proxy::settings::ProxySettings;
 #[cfg(target_os = "macos")]
 use productivity_proxy_app::services::system_proxy::{
-    active_network_services_from_text, enable_commands_for_service, proxy_snapshot_from_text,
-    restore_commands_for_service, ProxySnapshot, ServiceProxySnapshot,
+    active_network_services_from_text, enable_commands_for_service, load_system_proxy_snapshot,
+    proxy_snapshot_from_text, remove_system_proxy_snapshot, restore_commands_for_service,
+    save_system_proxy_snapshot, ProxySnapshot, ServiceProxySnapshot, SystemProxySnapshot,
 };
 
 #[cfg(target_os = "macos")]
@@ -91,6 +92,37 @@ fn builds_restore_commands_from_snapshot() {
     assert_eq!(commands[0], vec!["-setwebproxy", "Wi-Fi", "proxy.example", "3128", "off"]);
     assert_eq!(commands[1], vec!["-setwebproxystate", "Wi-Fi", "on"]);
     assert_eq!(commands[2], vec!["-setsecurewebproxystate", "Wi-Fi", "off"]);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn saves_loads_and_removes_system_proxy_snapshot() {
+    let path = std::env::temp_dir().join(format!(
+        "productivity-proxy-system-proxy-{}.json",
+        std::process::id()
+    ));
+    let snapshot = SystemProxySnapshot {
+        services: vec![ServiceProxySnapshot {
+            service: "Wi-Fi".into(),
+            web: ProxySnapshot {
+                enabled: true,
+                server: "proxy.example".into(),
+                port: "3128".into(),
+                auth_enabled: false,
+            },
+            secure_web: ProxySnapshot {
+                enabled: false,
+                server: "".into(),
+                port: "0".into(),
+                auth_enabled: false,
+            },
+        }],
+    };
+
+    save_system_proxy_snapshot(&path, &snapshot).unwrap();
+    assert_eq!(load_system_proxy_snapshot(&path).unwrap(), Some(snapshot));
+    remove_system_proxy_snapshot(&path).unwrap();
+    assert_eq!(load_system_proxy_snapshot(&path).unwrap(), None);
 }
 
 #[cfg(target_os = "macos")]

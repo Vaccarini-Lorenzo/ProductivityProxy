@@ -1,3 +1,6 @@
+use crate::controller::proxy_lifecycle::{
+    proxy_startup_grace, restore_marked_system_proxy, start_proxy_monitor,
+};
 use crate::models::proxy::settings::ProxySettings;
 use crate::services::config::bootstrap::{discover_repo_root, ensure_config_exists};
 use crate::services::config::file_store::FileStore;
@@ -8,15 +11,14 @@ use crate::services::network::network_info::{detect_network_info, NetworkInfo};
 use crate::services::proxy::mitmdump_args::build_mitmdump_args;
 use crate::services::proxy::process_service::ProcessService;
 use crate::services::system_proxy::{
-    capture_system_proxy_snapshot, enable_system_proxy, restore_system_proxy, SystemProxySnapshot,
+    capture_system_proxy_snapshot, enable_system_proxy, remove_system_proxy_snapshot,
+    restore_system_proxy, save_system_proxy_snapshot, SystemProxySnapshot,
 };
 use serde::Serialize;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, Weak};
-use std::thread;
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State};
 
 pub struct AppState {
@@ -130,24 +132,29 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
     if running {
         return Err("process already running".to_string());
     }
-    restore_marked_system_proxy(&state.system_proxy_snapshot)?;
+    restore_marked_system_proxy(&state.system_proxy_snapshot, &paths.system_proxy_snapshot_path)?;
 
     FileStore::new(paths.proxy.config_path.clone())
         .write_json(&config)
         .map_err(to_string)?;
     let settings = ProxySettings::from_app_config(&config).map_err(to_string)?;
     let snapshot = capture_system_proxy_snapshot().map_err(to_string)?;
+    save_system_proxy_snapshot(&paths.system_proxy_snapshot_path, &snapshot).map_err(to_string)?;
     let args = build_mitmdump_args(&settings, &paths.proxy);
 
-    state
-        .proxy
-        .lock()
-        .map_err(to_string)?
-        .start_args_and_confirm("mitmdump", &args, proxy_startup_grace())
-        .map_err(to_string)?;
+    let start_result = state.proxy.lock().map_err(to_string).and_then(|mut proxy| {
+        proxy
+            .start_args_and_confirm("mitmdump", &args, proxy_startup_grace())
+            .map_err(to_string)
+    });
+    if let Err(error) = start_result {
+        let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
+        return Err(error);
+    }
 
     if let Err(error) = enable_system_proxy(&settings, &snapshot) {
         let _ = restore_system_proxy(&snapshot);
+        let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
         if let Ok(mut proxy) = state.proxy.lock() {
             let _ = proxy.stop();
         }
@@ -157,6 +164,7 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
     let still_running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;
     if !still_running {
         let _ = restore_system_proxy(&snapshot);
+        let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
         return Err("proxy process exited during startup".to_string());
     }
 
@@ -166,11 +174,13 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
             start_proxy_monitor(
                 Arc::downgrade(&state.proxy),
                 Arc::downgrade(&state.system_proxy_snapshot),
+                paths.system_proxy_snapshot_path,
             );
             Ok(())
         }
         Err(error) => {
             let _ = restore_system_proxy(&snapshot);
+            let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
             if let Ok(mut proxy) = state.proxy.lock() {
                 let _ = proxy.stop();
             }
@@ -180,16 +190,18 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
 }
 
 #[tauri::command]
-pub fn stop_proxy(state: State<AppState>) -> Result<(), String> {
-    restore_marked_system_proxy(&state.system_proxy_snapshot)?;
+pub fn stop_proxy(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+    let paths = paths_for_app(&app)?;
+    restore_marked_system_proxy(&state.system_proxy_snapshot, &paths.system_proxy_snapshot_path)?;
     state.proxy.lock().map_err(to_string)?.stop().map_err(to_string)
 }
 
 #[tauri::command]
-pub fn proxy_status(state: State<AppState>) -> Result<ProxyStatus, String> {
+pub fn proxy_status(app: AppHandle, state: State<AppState>) -> Result<ProxyStatus, String> {
+    let paths = paths_for_app(&app)?;
     let running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;
     if !running {
-        restore_marked_system_proxy(&state.system_proxy_snapshot)?;
+        restore_marked_system_proxy(&state.system_proxy_snapshot, &paths.system_proxy_snapshot_path)?;
     }
     Ok(ProxyStatus { running })
 }
@@ -222,58 +234,19 @@ fn require_env(name: &str) -> Result<(), String> {
         .map_err(|_| format!("Missing {name}"))
 }
 
-fn start_proxy_monitor(
-    proxy: Weak<Mutex<ProcessService>>,
-    snapshot: Weak<Mutex<Option<SystemProxySnapshot>>>,
-) {
-    thread::spawn(move || loop {
-        thread::sleep(proxy_monitor_interval());
-        let Some(proxy) = proxy.upgrade() else {
-            break;
-        };
-        let Some(snapshot) = snapshot.upgrade() else {
-            break;
-        };
-        let running = match proxy.lock() {
-            Ok(mut proxy) => proxy.is_running().unwrap_or(false),
-            Err(_) => false,
-        };
-        if running {
-            continue;
-        }
-        match restore_marked_system_proxy(&snapshot) {
-            Ok(()) => break,
-            Err(error) => {
-                log::error!("failed to restore system proxy after proxy process exit: {error}");
-            }
-        }
-    });
-}
-
-fn proxy_startup_grace() -> Duration {
-    Duration::from_millis(800)
-}
-
-fn proxy_monitor_interval() -> Duration {
-    Duration::from_secs(2)
-}
-
-fn restore_marked_system_proxy(snapshot: &Mutex<Option<SystemProxySnapshot>>) -> Result<(), String> {
-    let captured = snapshot.lock().map_err(to_string)?.take();
-    if let Some(captured) = captured {
-        if let Err(error) = restore_system_proxy(&captured) {
-            *snapshot.lock().map_err(to_string)? = Some(captured);
-            return Err(to_string(error));
-        }
-    }
-    Ok(())
-}
-
 /// Best-effort cleanup on app exit: restore the captured system proxy state and
 /// stop mitmdump. Safe to call repeatedly (the snapshot is taken once).
-pub fn shutdown_cleanup(state: &AppState) {
-    if let Err(error) = restore_marked_system_proxy(&state.system_proxy_snapshot) {
-        log::error!("failed to restore system proxy on exit: {error}");
+pub fn shutdown_cleanup(app: &AppHandle, state: &AppState) {
+    match paths_for_app(app) {
+        Ok(paths) => {
+            if let Err(error) = restore_marked_system_proxy(
+                &state.system_proxy_snapshot,
+                &paths.system_proxy_snapshot_path,
+            ) {
+                log::error!("failed to restore system proxy on exit: {error}");
+            }
+        }
+        Err(error) => log::error!("failed to find system proxy snapshot on exit: {error}"),
     }
     if let Ok(mut proxy) = state.proxy.lock() {
         let _ = proxy.stop();

@@ -46,7 +46,7 @@ fn max_popover_height(window: &WebviewWindow) -> Option<f64> {
 /// proxy cleanup fails, to avoid leaving the system proxy enabled.
 #[tauri::command]
 pub fn quit_app(app: AppHandle, state: State<AppState>) -> Result<(), String> {
-    stop_proxy(state)?;
+    stop_proxy(app.clone(), state)?;
     app.exit(0);
     Ok(())
 }

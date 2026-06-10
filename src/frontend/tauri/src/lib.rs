@@ -69,7 +69,7 @@ pub fn run() {
             // Reliable cleanup hook on macOS, where the platform run loop
             // terminates the process without running AppState's Drop.
             if let RunEvent::Exit = event {
-                shutdown_cleanup(app_handle.state::<AppState>().inner());
+                shutdown_cleanup(app_handle, app_handle.state::<AppState>().inner());
             }
         });
 }

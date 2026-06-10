@@ -1,25 +1,32 @@
 #[cfg(target_os = "macos")]
 mod macos;
+mod lease;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SystemProxySnapshot {
     pub services: Vec<ServiceProxySnapshot>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ServiceProxySnapshot {
     pub service: String,
     pub web: ProxySnapshot,
     pub secure_web: ProxySnapshot,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProxySnapshot {
     pub enabled: bool,
     pub server: String,
     pub port: String,
     pub auth_enabled: bool,
 }
+
+pub use lease::{
+    load_system_proxy_snapshot, remove_system_proxy_snapshot, save_system_proxy_snapshot,
+};
 
 #[cfg(target_os = "macos")]
 pub use macos::{

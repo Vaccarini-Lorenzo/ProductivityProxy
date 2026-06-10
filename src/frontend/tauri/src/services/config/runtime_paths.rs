@@ -5,6 +5,7 @@ use std::path::PathBuf;
 pub struct RuntimePaths {
     pub proxy: ProxyPaths,
     pub custom_nodes_dir: PathBuf,
+    pub system_proxy_snapshot_path: PathBuf,
 }
 
 impl RuntimePaths {
@@ -17,6 +18,7 @@ impl RuntimePaths {
                 event_log_path: app_data_dir.join("events.jsonl"),
             },
             custom_nodes_dir: app_data_dir.join("custom_nodes"),
+            system_proxy_snapshot_path: app_data_dir.join("system_proxy_snapshot.json"),
         }
     }
 }
