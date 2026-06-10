@@ -4,12 +4,12 @@ pub mod services;
 
 use controller::commands::{
     network_info, proxy_status, query_events, read_app_config, read_custom_node, read_recent_events,
-    start_proxy, stop_proxy, write_app_config, write_custom_node, AppState,
+    shutdown_cleanup, start_proxy, stop_proxy, write_app_config, write_custom_node, AppState,
 };
 use controller::tray::actions::TrayAction;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{Manager, WindowEvent};
+use tauri::{Manager, RunEvent, WindowEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -49,8 +49,15 @@ pub fn run() {
                 api.prevent_close();
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running ProductivityProxy");
+        .build(tauri::generate_context!())
+        .expect("error while building ProductivityProxy")
+        .run(|app_handle, event| {
+            // Reliable cleanup hook on macOS, where the platform run loop
+            // terminates the process without running AppState's Drop.
+            if let RunEvent::Exit = event {
+                shutdown_cleanup(app_handle.state::<AppState>().inner());
+            }
+        });
 }
 
 fn create_tray(app: &mut tauri::App) -> tauri::Result<()> {

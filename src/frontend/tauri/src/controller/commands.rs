@@ -288,6 +288,17 @@ fn restore_marked_system_proxy(snapshot: &Mutex<Option<SystemProxySnapshot>>) ->
     Ok(())
 }
 
+/// Best-effort cleanup on app exit: restore the captured system proxy state and
+/// stop mitmdump. Safe to call repeatedly (the snapshot is taken once).
+pub fn shutdown_cleanup(state: &AppState) {
+    if let Err(error) = restore_marked_system_proxy(&state.system_proxy_snapshot) {
+        log::error!("failed to restore system proxy on exit: {error}");
+    }
+    if let Ok(mut proxy) = state.proxy.lock() {
+        let _ = proxy.stop();
+    }
+}
+
 fn to_string(error: impl ToString) -> String {
     error.to_string()
 }
