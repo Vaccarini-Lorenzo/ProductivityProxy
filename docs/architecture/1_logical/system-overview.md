@@ -53,7 +53,7 @@ When supported, the backend points the local machine's HTTP/HTTPS proxy settings
 ### Start proxy
 
 1. The dashboard sends the current config to the backend.
-2. The backend checks startup preconditions, including the required `POLICY_MAX_STEPS` environment variable.
+2. The backend checks startup preconditions, including the required loop-guard configuration.
 3. The backend persists the config and captures current system proxy state.
 4. The backend starts the local proxy process.
 5. The backend points system proxy settings at the local proxy.

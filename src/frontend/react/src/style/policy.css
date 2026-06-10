@@ -6,6 +6,10 @@
 .policy-bar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .policy-bar-meta { color: var(--muted); font-size: .8rem; line-height: 1.4; }
 .policy-split { flex: 1; min-height: 0; display: grid; grid-template-columns: 256px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); position: relative; z-index: 1; }
+/* While the canvas is full screen it is position:fixed, but its ancestor stacking
+   context (this grid, z-index:1) otherwise traps it under the policy bar (z-index:2),
+   leaking the bar's buttons/select on top. Lift the subtree above the bar. */
+.policy-split:has(.flow-canvas.fullscreen) { z-index: 130; }
 .policy-library { border-right: 1px solid var(--line); padding: 16px; overflow-y: auto; min-height: 0; }
 .policy-canvas { padding: 12px; min-width: 0; min-height: 0; display: flex; }
 .policy-empty { padding: 48px; text-align: center; }

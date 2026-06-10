@@ -48,13 +48,13 @@
 
 **Impact if wrong:** valid long-running policies may stop early, or bad loops may waste request time.
 
-## App process exits normally most of the time
+## The app is relaunched after a crash to finish proxy restore
 
-**Assumption:** stop/quit paths usually run, so system proxy settings are restored.
+**Assumption:** after a force-kill or crash, the app is opened again, so the persisted system-proxy snapshot is restored on the next start/stop/status.
 
-**Why:** the snapshot is stored in memory, not durably.
+**Why:** the snapshot is persisted to `system_proxy_snapshot.json`, so restore is durable across restarts instead of depending on the original process exiting cleanly.
 
-**Impact if wrong:** force-kill or crash can leave macOS proxy settings pointed at the local proxy until manually fixed.
+**Impact if wrong:** if the app is never reopened after a crash, macOS proxy settings can stay pointed at the local proxy until the user restores them manually.
 
 ## Source-tree runtime is acceptable for now
 

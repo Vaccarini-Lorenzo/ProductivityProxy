@@ -50,6 +50,6 @@ The app is intentionally powerful. It can inspect and modify proxied traffic, an
 
 A user should only run custom nodes they trust.
 
-## Current readiness summary
+## Current readiness
 
-The core local proxy flow is implemented and tested enough for development and careful macOS trials. It is not yet a polished daily-use app; runtime prerequisites, packaging gaps, and recovery limits are documented in [Local Desktop Runtime](../3_deployment/local-desktop-runtime.md) and [Current Assumptions](../../assumptions/current-assumptions.md).
+The core local proxy flow works for development and careful macOS trials; it is not yet a polished daily-use app. Status and remaining work live in [Roadmap and Readiness](../../roadmap/readiness.md).

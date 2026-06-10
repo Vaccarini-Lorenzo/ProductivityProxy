@@ -10,11 +10,13 @@ The dashboard is a Vite + React + TypeScript app embedded in the Tauri window.
 
 This document describes the current source tree. The UI is actively changing, so treat this as a snapshot of the present architecture.
 
-## Entry point
+## Entry points
 
-- `src/main.tsx` mounts `<App />` into `#root`.
+- `src/main.tsx` reads the current Tauri window label and mounts `<Popover />` when the label is `popover`, otherwise `<App />` into `#root` (adding a `popover-mode` class for the popover).
 - `src/main.tsx` imports the single React stylesheet entrypoint: `src/style/index.css`.
 - `src/App.tsx` owns top-level state, autosave, startup loading, notifications, and view routing.
+- `src/Popover.tsx` renders the compact menu-bar popover surface (start/stop and status), shown from the tray icon and hosted by the Tauri `popover` window.
+- `demo.html` → `src/demo/main.tsx` is a second entry point used for browser UI previews/demos; it runs the dashboard against demo data without Tauri.
 
 ## Styling
 
@@ -35,6 +37,11 @@ All React CSS lives under `src/frontend/react/src/style/`. Components and views 
 - a set of notification events already shown.
 
 On mount it asks the Tauri backend for app config, proxy status, recent events, and network info.
+
+## Navigation and shared components
+
+- `components/TerminalNav.tsx` is the primary navigation; it switches the active view in `App` (`onNavigate`) and reflects running state.
+- `components/Select.tsx` is the shared dropdown control reused across views.
 
 ## Views
 
@@ -112,18 +119,7 @@ Current responsibilities:
 
 ## Graph editor and step inspector
 
-`components/GraphEditor.tsx` uses `@xyflow/react` and converts policy steps/edges to React Flow nodes/edges and back.
-
-Supporting pieces:
-
-- `NodeLibrary.tsx` lists flow nodes, operators, and registered custom nodes that can be added to the graph.
-- `StepModal.tsx` edits start trigger code, operator code, switch cases, and existing node params.
-- `PythonCodeEditor.tsx` backs start trigger code, operator code, custom-node editing, syntax highlighting, autoindentation, full-screen expansion, and an API reference drawer.
-- `ApiReferenceDrawer.tsx` reads `services/apiReference/pythonApiReference.json` and fuzzy-searches the documented Python API. Entries expand to structured contract details; opening it from an editor seeds the search with the current function name.
-- `operatorShapes.ts` defines operator port layout.
-- `services/nodes/defaultNodeSources.ts` bundles the real default node `.py` files as read-only fallback for browser preview.
-
-Detailed graph-editor behavior and performance rules live in [React Graph Editor](react-graph-editor.md).
+`PolicyView` hosts `components/GraphEditor.tsx` for the selected policy. The graph editor's component roles (`NodeLibrary`, `StepModal`, `PythonCodeEditor`, `ApiReferenceDrawer`, `operatorShapes`, `defaultNodeSources`), graph/step behavior, and React Flow performance rules are documented in [React Graph Editor](react-graph-editor.md).
 
 ## Frontend services
 

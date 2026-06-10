@@ -52,19 +52,7 @@ Important objects:
 - `PolicyEdge`,
 - `CustomNode`.
 
-Validation is delegated to `proxy.services.config.validation.validate_config`, the single source of truth shared with the desktop save path (`validate_cli.py`). `AppConfig.from_dict` runs it and raises on any issue. Rules:
-
-- `activeModeId` must match an existing mode,
-- each `mode.policyIds[]` value must reference a top-level policy,
-- ids must be unique (modes, policies, custom nodes, and steps within a policy),
-- custom node paths must be absolute,
-- each policy must have exactly one `start` node,
-- edges must point to existing steps,
-- routes must be unique by `from` + `output`,
-- step types must be known built-in nodes, operators, or custom nodes,
-- every step must be reachable from `start` (no disconnected steps),
-- registered bundled nodes must have required params with basic expected types,
-- inline `start`/operator code must parse and define its required function.
+Validation is delegated to `proxy.services.config.validation.validate_config`, the single source of truth shared with the desktop save path (`validate_cli.py`). `AppConfig.from_dict` runs it and raises on any issue. The validation rule set lives in [Data Layer](../4_data_layer/config-state-events.md#validation-boundaries).
 
 ## Semantic model
 
@@ -151,7 +139,7 @@ Public `request` exposes HTTP fields/actions such as `host`, `url`, `headers`, `
 
 `context.state` is an in-memory key/value store shared by requests handled by the same evaluator; stored dict/list values are passed by reference and disappear when the proxy process restarts.
 
-`context.persistent_state` is a raw global JSON-backed store. It has `get(keyword)` and `set(keyword, data)`. `get` raises `KeyError` when the top-level key is absent. `set` accepts JSON-serializable values only and persists write-behind: the store is kept in memory and flushed to disk at most every `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`, and on shutdown. `get` returns the live in-memory value, so mutating a nested dict/list updates in-memory state but is only persisted once code calls `set` (which marks the store dirty).
+`context.persistent_state` is a raw global JSON-backed store with `get(keyword)` / `set(keyword, data)`. Its public get/set contract and write-behind semantics live in [Data Layer](../4_data_layer/config-state-events.md#state-schema).
 
 The evaluator does not merge node outputs into either state store. Custom nodes own their return shape.
 
@@ -189,17 +177,13 @@ Security note: custom nodes and inline start/operator Python are executed direct
 
 ## Persistent state
 
-`StateStore` stores persistent state data in JSON. The public API is `context.persistent_state.get(keyword)` and `context.persistent_state.set(keyword, data)`. State is read from disk once, mutated in memory, and flushed write-behind (within `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`, and on shutdown), so the event loop no longer rewrites the whole file on every request.
-
-Usage tracking counts elapsed time only when the previous request for a platform was within the configured idle window. Daily buckets use UTC dates. The registered `track-time` and `is-usage-over-limit` nodes use `context.persistent_state` for the top-level `usage` key.
+`StateStore` backs `context.persistent_state`. State is read from disk once, mutated in memory, and flushed write-behind (within `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`, and on shutdown), so the event loop no longer rewrites the whole file on every request. The registered `track-time` and `is-usage-over-limit` nodes use it for the top-level `usage` key. The state shape and usage-tracking rules (idle window, UTC daily buckets) live in [Data Layer](../4_data_layer/config-state-events.md#state-schema).
 
 ## Events
 
-`EventLog` appends one JSON object per line to `events.jsonl` from a background thread, so the event loop never blocks on disk I/O. The file is kept under `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`: when it grows past the budget the oldest half is dropped (compaction), bounding both file size and dashboard read cost.
+`EventLog` appends one JSON object per line to `events.jsonl` from a background thread, so the event loop never blocks on disk I/O. The file is kept under `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`: when it grows past the budget the oldest half is dropped (compaction), bounding both file size and dashboard read cost. Custom nodes call `context.log(type, message, level, **data)` for filterable custom events.
 
-By default the evaluator emits one request-level event per request, plus config, error, and custom-node events. Setting `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE=true` adds the full per-step policy trace. Custom nodes call `context.log(type, message, level, **data)` for filterable custom events.
-
-Event schemas and query contracts live in [Data Layer](../4_data_layer/config-state-events.md#event-log-schema).
+The event taxonomy (default vs `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE` events), schemas, and query contracts live in [Data Layer](../4_data_layer/config-state-events.md#event-log-schema).
 
 ## Tests
 

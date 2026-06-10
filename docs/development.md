@@ -31,7 +31,7 @@ export PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES="5000000" # event log byte budget (c
 export PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS="2"   # state write-behind interval
 ```
 
-The desktop app checks these variables before `start_proxy` launches `mitmdump`, and `mitmdump` inherits them from the app's environment. The manual proxy helper loads them from `.env.example`.
+The desktop app pre-checks only `POLICY_MAX_STEPS` before `start_proxy` launches `mitmdump`; the other three are enforced by the Python engine at runtime, so all four must be present in the environment the app starts `mitmdump` from. `mitmdump` inherits them from the app's environment. The manual proxy helper loads them from `.env.example`.
 
 ## Run tests
 
@@ -68,6 +68,27 @@ npm test
 npm run build
 ```
 
+## Benchmark
+
+`scripts/bench.py` measures the engine hot path (per-request latency, emitted telemetry volume, and observability read cost) for the current code, so it can be re-run as a regression check. Load the engine variables the same way as the proxy, then run the wrapper:
+
+```bash
+set -a; source .env.example; set +a
+./scripts/run_bench.sh
+```
+
+Workload size is set by `BENCH_N_BLOCK` and `BENCH_N_TRACK` (e.g. `BENCH_N_TRACK=50000 ./scripts/run_bench.sh`). Telemetry verbosity follows `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE`, so flipping it shows the per-step trace cost.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and on pull requests:
+
+- **python** — installs `requirements.txt` and runs the `unittest` suite.
+- **frontend** — `npm ci`, `npm test`, `npm run build` in `src/frontend/react`.
+- **benchmark** — runs `scripts/run_bench.sh` (after `python` passes). On pushes to `main` it commits the block-policy latency to `assets/pp-latency.json` (loop-guarded with `[skip ci]`, only when the value changes), which feeds the latency badge in the README. The number reflects the CI runner, so it is noisier/slower than a local run.
+
+The Tauri/Rust shell is not built in CI: it has no `#[test]` targets yet and compiling it needs webkit system dependencies. Add a job when Rust tests exist.
+
 Tauri compile check without bundling:
 
 ```bash
@@ -77,11 +98,9 @@ npm run tauri build -- --debug --no-bundle
 
 ## Run the app
 
+Export the engine variables from [Environment](#environment), then:
+
 ```bash
-export POLICY_MAX_STEPS="1000"
-export PRODUCTIVE_PROXY_TELEMETRY_VERBOSE="false"
-export PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES="5000000"
-export PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS="2"
 cd src/frontend/react
 npm run tauri dev
 ```

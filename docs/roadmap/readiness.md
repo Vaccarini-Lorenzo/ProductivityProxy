@@ -24,7 +24,6 @@ The main remaining blockers are:
 - clearer proxy startup diagnostics and process log capture,
 - visible HTTPS CA setup/help,
 - config migrations/versioning and custom-node parameter schemas (structural graph validation and registered bundled-node params are now validated in the Python backend),
-- durable crash recovery for macOS proxy settings,
 - Linux desktop-environment-specific proxy implementations,
 - installer signing/notarization after packaging is solved.
 
@@ -38,7 +37,7 @@ The main remaining blockers are:
 | Python policy engine | Implemented with loop guard, events, config hot reload, and default-policy tests. |
 | Default policies | Implemented for Productivity and Chilling defaults. |
 | React dashboard | Implemented for settings, modes, policies, nodes, autosave, backend-driven validation/reset, notifications, and observability. |
-| macOS system proxy support | Implemented with snapshot/restore and rollback paths. |
+| macOS system proxy support | Implemented with snapshot/restore, rollback paths, and a persisted snapshot that auto-restores after a crash on the next launch. |
 | Documentation | Current docs cover usage, development, architecture, contracts, assumptions, and readiness. |
 
 ## Recommended next work
@@ -49,7 +48,7 @@ The main remaining blockers are:
 4. Add config migrations/versioning before changing persisted shapes again.
 5. Add reset-to-defaults flow.
 6. Decide packaging strategy for mitmproxy/Python/addon files.
-7. Design durable crash recovery for macOS proxy settings.
+7. Harden crash-recovery edge cases (e.g. restoring without a relaunch).
 8. Plan Linux proxy support per desktop environment.
 
 ## Verification

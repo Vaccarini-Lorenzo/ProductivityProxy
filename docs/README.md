@@ -6,7 +6,6 @@ This folder documents the current project, not only the original plan.
 
 - [Usage guide](usage.md) — how to run the app, use the proxy, and understand macOS system proxy behavior.
 - [Development guide](development.md) — prerequisites, commands, tests, and common workflows.
-- [Command contracts](architecture/4_data_layer/command-contracts.md) — React ↔ Tauri command request/response contracts.
 - [Roadmap and readiness](roadmap/readiness.md) — what remains before comfortable daily use.
 
 ## Architecture views
@@ -18,6 +17,7 @@ This folder documents the current project, not only the original plan.
 - [React graph editor](architecture/2_component/react-graph-editor.md) — graph editor components and React Flow maintenance rules.
 - [Python proxy engine](architecture/2_component/python-proxy-engine.md) — mitmproxy addon, policy evaluator, nodes, and custom nodes.
 - [Local deployment runtime](architecture/3_deployment/local-desktop-runtime.md) — runtime topology, prerequisites, paths, packaging gaps.
+- [Command contracts](architecture/4_data_layer/command-contracts.md) — React ↔ Tauri command request/response contracts.
 - [Data layer](architecture/4_data_layer/config-state-events.md) — config, policies, state, events, and custom node storage.
 
 ## Assumptions

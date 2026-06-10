@@ -4,8 +4,8 @@
 # compiling the Tauri shell needs heavy webkit system dependencies. Add a job when
 # Rust tests exist.
 #
-# The benchmark publishes its latency to an orphan `badges` branch (no secrets,
-# uses the built-in GITHUB_TOKEN) so the README badge can show the current number.
+# The benchmark commits its latency to assets/pp-latency.json on main (loop-guarded
+# with [skip ci]) so the README badge can show the current number with no extra branch.
 
 name: CI
 
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: python
     permissions:
-      contents: write # publish the latency badge to the `badges` branch
+      contents: write # commit the latency badge file to assets/ on main
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -71,20 +71,20 @@ jobs:
         run: |
           ./scripts/run_bench.sh | tee bench.out
           echo "summary=$(sed -n 's/^bench-json //p' bench.out)" >> "$GITHUB_OUTPUT"
-      - name: Publish latency badge
+      - name: Update latency badge
         if: github.event_name == 'push'
         continue-on-error: true
         env:
           SUMMARY: ${{ steps.bench.outputs.summary }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           label=$(printf '%s' "$SUMMARY" | python3 -c "import json,sys;print(json.load(sys.stdin)['latency_label'])")
-          work=$(mktemp -d)
-          printf '{"schemaVersion":1,"label":"latency","message":"%s","color":"blue"}\n' "$label" > "$work/pp-latency.json"
-          cd "$work"
-          git init -q -b badges
+          printf '{"schemaVersion":1,"label":"latency","message":"%s","color":"blue"}\n' "$label" > assets/pp-latency.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pp-latency.json
-          git commit -q -m "bench: update latency badge [skip ci]"
-          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges
+          git add assets/pp-latency.json
+          if git diff --cached --quiet -- assets/pp-latency.json; then
+            echo "badge unchanged"
+            exit 0
+          fi
+          git commit -m "chore: update latency badge [skip ci]"
+          git push origin HEAD:main

@@ -48,18 +48,9 @@ The backend restores captured macOS proxy state and stops `mitmdump`.
 
 ## Manual proxy mode
 
-You can run the proxy without the Tauri app:
+You can run the proxy without the Tauri app via `./scripts/run_mitm.sh` — see [Development Guide](development.md#run-only-the-proxy) for the commands and the config-regeneration note.
 
-```bash
-set -a
-source .env.example
-set +a
-./scripts/run_mitm.sh
-```
-
-This does not change system proxy settings. Configure your browser/device manually to use the listener from `.env.example`.
-
-The helper creates `PRODUCTIVE_PROXY_CONFIG_PATH` from the current default config when that file does not exist. If you have an old materialized config, delete it before running the helper.
+This mode does not change system proxy settings: configure your browser/device manually to use the listener from `.env.example`.
 
 ## LAN devices
 
@@ -84,10 +75,7 @@ Policies live in named modes. Only the active mode is evaluated.
 
 A mode contains ordered policy IDs. Policies are edited on the Policy page and ordered inside a mode on the Modes page.
 
-Default modes:
-
-- **Productivity**: blocks YouTube Shorts and blocks Reddit after 30 minutes of daily tracked use.
-- **Chilling**: has no active policies, so traffic is allowed.
+The default modes — **Productivity** (blocks distractions) and **Chilling** (allows all traffic) — are detailed in [Conceptual Overview](architecture/0_conceptual/product.md#default-behavior).
 
 ## Custom nodes
 
@@ -97,7 +85,7 @@ The technical execution contract is documented in [Python Proxy Engine](architec
 
 ## Recovery if macOS proxy stays enabled
 
-If the app is force-killed or crashes, macOS proxy settings may remain enabled.
+After a force-kill or crash, the app restores macOS proxy settings automatically the next time it launches. To clear them manually before then:
 
 List network services:
 
@@ -116,10 +104,12 @@ Replace `Wi-Fi` with your active service name.
 
 ## Current limitations
 
-- Linux system proxy automation is not implemented.
-- Desktop proxy start currently fails on non-macOS because system proxy enable is unsupported.
-- mitmproxy is not bundled.
-- HTTPS CA setup is manual.
-- App crash recovery for system proxy settings is manual.
-- Custom Python nodes are unsandboxed.
-- Policy loops are stopped by required `POLICY_MAX_STEPS`.
+User-facing caveats:
+
+- Desktop proxy start currently fails on non-macOS, because system proxy enable is unsupported there.
+- HTTPS needs a manually installed and trusted mitmproxy CA.
+- Custom Python nodes run unsandboxed (see [Custom nodes](#custom-nodes)).
+
+After a crash, the macOS proxy is restored automatically on the next launch; the manual steps above are a fallback.
+
+Full project status and remaining work live in [Roadmap and Readiness](roadmap/readiness.md).

@@ -4,11 +4,14 @@
 
 ### Turn *“just one more video”* into a `403 Forbidden`.
 
+[![CI](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/ci.yml/badge.svg)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/ci.yml)
+[![latency](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/pp-latency.json)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/ci.yml)
+
 ProductivityProxy is a menu‑bar app that runs a local proxy and enforces **your** rules on **your** traffic — built as visual, node‑based policies. Block YouTube Shorts, put a daily timer on Reddit, or bounce every distraction to a “get back to work” page. No subscriptions, no cloud, no telemetry. It all runs on your machine.
 
-<img src="assets/build-a-rule.gif" alt="Building a policy from blocks in the visual editor" width="900" />
+<video src="https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/hero.mp4" poster="https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/hero-poster.png" width="900" controls autoplay loop muted playsinline></video>
 
-<sub>Building a rule from blocks: name it, set a trigger, drop in an action, configure it.</sub>
+<sub>Visual node-based policies, real Python underneath, one-click modes — all enforced by a local proxy. (<a href="https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/hero.mp4">play the video</a>)</sub>
 
 </div>
 
@@ -68,15 +71,15 @@ Building blocks you get out of the box:
 
 **Modes** — your one‑click presets. The active mode glows; everything else is dormant.
 
-<img src="assets/modes.png" alt="Modes page" width="820" />
+<img src="assets/modes.gif" alt="Switching the active mode and reordering its policies" width="820" />
 
 **Policy** — the visual editor. Drag blocks from the library onto the canvas and click a node to configure it.
 
-<img src="assets/policy.png" alt="Policy graph editor" width="820" />
+<img src="assets/policy.gif" alt="The visual policy graph editor with a Switch and If branch" width="820" />
 
 **Nodes** — your library of reusable Python building blocks.
 
-<img src="assets/nodes.png" alt="Custom nodes page" width="820" />
+<img src="assets/nodes.gif" alt="Editing a Python node with autocomplete and the API reference drawer" width="820" />
 
 **Observability** — a filterable trace of every request, policy step, and custom‑node log.
 
@@ -130,10 +133,36 @@ Add the file on the **Nodes** page, then drop it into any policy from the librar
 
 ---
 
+## Requirements
+
+> **You need [mitmproxy](https://mitmproxy.org/) installed and its CA certificate trusted.** ProductivityProxy drives `mitmdump` — it does not bundle it.
+
+- **macOS** for automatic system-proxy control (it snapshots and restores your HTTP/HTTPS proxy settings). On Linux you can still run the proxy manually and point your browser at it.
+- **mitmproxy** on your `PATH`:
+  ```bash
+  brew install mitmproxy
+  ```
+- **Trust the mitmproxy CA certificate** to filter **HTTPS** traffic. After the first `mitmdump` run it lives at:
+  ```text
+  ~/.mitmproxy/mitmproxy-ca-cert.pem
+  ```
+  Install and trust it on every device you proxy (macOS Keychain or your browser/OS trust store). **Without it, HTTPS sites can't be inspected or blocked.**
+- **Rust, Node.js, and npm** to build and run the desktop app.
+- **Required environment variables** — the app refuses to start the proxy without them:
+
+  | Variable | Purpose |
+  |---|---|
+  | `POLICY_MAX_STEPS` | Hard cap on policy steps per request (loop guard). |
+  | `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE` | `true` adds the full per-step policy trace to events. |
+  | `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES` | Event-log size budget before old events are compacted. |
+  | `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS` | How often usage state is flushed to disk. |
+
+---
+
 ## Quick start
 
 ```bash
-# 1. Prerequisite
+# 1. Prerequisite (see Requirements above)
 brew install mitmproxy
 
 # 2. Run the desktop app (Rust, Node, and npm required)
@@ -184,6 +213,15 @@ cd src/frontend/react && npm test && npm run build
 
 # Rust / Tauri backend
 cd src/frontend/tauri && cargo test
+```
+
+## Benchmark
+
+A re-runnable hot-path benchmark (per-request latency, telemetry volume, observability read cost):
+
+```bash
+set -a; source .env.example; set +a
+./scripts/run_bench.sh                      # BENCH_N_TRACK=50000 ./scripts/run_bench.sh to scale
 ```
 
 ## Docs

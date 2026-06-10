@@ -18,9 +18,11 @@ The backend is a Tauri v2 Rust app. It exposes commands to the React dashboard a
 `AppState` stores:
 
 - `ProcessService` for the `mitmdump` child process,
-- an optional `SystemProxySnapshot` captured before enabling the macOS system proxy.
+- an optional in-memory `SystemProxySnapshot` captured before enabling the macOS system proxy.
 
 Both fields are protected with `Mutex` because Tauri commands can run concurrently.
+
+The snapshot is also **persisted to disk** (`system_proxy_snapshot.json`, written by `services/system_proxy/lease.rs`) so the previous system proxy state survives a crash or force-kill and can be restored on the next launch. See [macOS system proxy handling](#macos-system-proxy-handling).
 
 ## Command implementation
 
@@ -42,6 +44,7 @@ Important implementation details:
 config.json
 state.json
 events.jsonl
+system_proxy_snapshot.json
 custom_nodes/
 ```
 
@@ -91,12 +94,23 @@ Start flow:
 
 Stop flow:
 
-1. Take the stored snapshot.
+1. Take the snapshot (the in-memory one, or load `system_proxy_snapshot.json` from disk when memory is empty).
 2. Restore previous enabled state for HTTP and HTTPS.
 3. Restore previous server and port only when the previous proxy was enabled and had endpoint data.
-4. If restore fails, put the snapshot back in state so a later stop/status call can retry.
+4. On success, delete `system_proxy_snapshot.json`. If restore fails, keep both the in-memory snapshot and the file so a later stop/status call (or the next launch) can retry.
 
 If a previous proxy was disabled or missing endpoint data, restore only turns that proxy state off; it may not restore the old server/port fields.
+
+### Durable restore across crashes
+
+`start_proxy` writes `system_proxy_snapshot.json` right after capturing the snapshot (`save_system_proxy_snapshot`) and removes it on every rollback path, so restore is durable:
+
+- `controller/proxy_lifecycle.rs::restore_marked_system_proxy` restores from the in-memory snapshot, or loads the file from disk when memory is empty (e.g. after a restart), then deletes it.
+- `start_proxy`, `stop_proxy`, and `proxy_status` (when the child is not running) all call `restore_marked_system_proxy`, so a crashed session is recovered on the next app launch.
+- `start_proxy_monitor` runs a background thread that restores the system proxy if `mitmdump` dies unexpectedly.
+- On app exit, `lib.rs` handles `RunEvent::Exit` by calling `shutdown_cleanup` (restore system proxy + stop the child).
+
+Manual `networksetup` recovery is a fallback, not the primary path.
 
 Non-macOS behavior:
 
@@ -108,16 +122,25 @@ Because `start_proxy` always enables the system proxy, starting the desktop prox
 
 ## Tray and window behavior
 
-The app starts with the main window hidden.
+The app starts with the main window hidden. `tauri.conf.json` declares two windows: the hidden `main` dashboard and a decorationless, transparent, always-on-top `popover`.
 
-Tray/menu items:
+Tray interactions:
 
-- `Open Dashboard` shows and focuses the main window.
-- `Quit` calls `stop_proxy` before exiting.
+- **Left-click** toggles the menu-bar **popover** window (`show_menu_on_left_click(false)`).
+- **Right-click** opens the native menu with `Open Dashboard` and `Quit`.
+- `Open Dashboard` shows and focuses the main window (and hides the popover).
+- `Quit` stops the proxy and restores system proxy settings before exiting, and **refuses to exit if that cleanup fails**, so it never leaves the system proxy enabled.
 
-Closing the window hides it instead of quitting.
+### Popover window
 
-On macOS the activation policy is set to accessory mode, so the app behaves like a menu-bar app.
+`controller/tray/popover.rs` owns the popover surface:
+
+- `toggle_popover` shows/hides it from the tray left-click.
+- it is centered below the tray icon, clamped to the monitor work area with a small edge margin and a gap from the icon.
+- it auto-dismisses when it loses focus (click outside), with a short reopen guard so the dismissing click does not immediately reopen it.
+- `resize_popover` resizes it to the webview content height (capped to the work area); `show_main_window` hides it when revealing the dashboard.
+
+Closing the main window hides it instead of quitting. On macOS the activation policy is set to accessory mode, so the app behaves like a menu-bar app.
 
 ## Error handling model
 

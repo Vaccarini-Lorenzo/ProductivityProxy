@@ -17,6 +17,7 @@ import {
   type Connection,
   type NodeProps,
   type EdgeProps,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import type { PolicyConfig } from "../models/config/types";
 import { Icon, type IconName } from "./ui";
@@ -48,6 +49,7 @@ interface Props {
 export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, onDeleteStep, readOnly = false, invalidStepIds }: Props) {
   const [panMode, setPanMode] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const rfRef = useRef<ReactFlowInstance | null>(null);
   const invalidKey = invalidStepIds ? [...invalidStepIds].sort().join("|") : "";
 
   // Keep current policy + parent callbacks in refs so editor handlers stay stable
@@ -87,6 +89,16 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
     return () => window.removeEventListener("keydown", close);
   }, [fullscreen]);
 
+  // React Flow only auto-fits on init. Re-fit when the canvas resizes (full
+  // screen toggle) or the policy changes so the graph always stays centered.
+  // Defer past layout so the fixed full-screen size is measured first.
+  useEffect(() => {
+    const instance = rfRef.current;
+    if (!instance) return;
+    const id = window.setTimeout(() => instance.fitView(FIT_VIEW_OPTIONS), 140);
+    return () => window.clearTimeout(id);
+  }, [fullscreen, policy.id]);
+
   const onNodeDragStop = useCallback((_e: unknown, node: Node) => {
     const p = policyRef.current;
     cbRef.current.onPolicyChange({ ...p, steps: p.steps.map((s) => (s.id === node.id ? { ...s, position: node.position } : s)) });
@@ -106,6 +118,7 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
         <ReactFlow
           nodes={nodes} edges={edges}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+          onInit={(instance) => { rfRef.current = instance; }}
           onConnect={readOnly ? undefined : onConnect} onNodeDragStop={onNodeDragStop}
           onNodeClick={readOnly ? undefined : (_event, node) => handleOpen(node.id)}
           nodeTypes={nodeTypes} edgeTypes={edgeTypes}

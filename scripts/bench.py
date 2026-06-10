@@ -178,7 +178,7 @@ def main() -> None:
         "track_us": round(track["us_per_req"], 1),
         "block_events": round(block["events_per_req"], 2),
         "track_events": round(track["events_per_req"], 2),
-        "latency_label": f"{round(block['us_per_req'])} µs/req",
+        "latency_label": f"~{round(block['us_per_req'] / 5) * 5} µs/req",
     }
     print("bench-json " + json.dumps(summary))
 

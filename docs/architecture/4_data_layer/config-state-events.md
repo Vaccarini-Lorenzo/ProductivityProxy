@@ -10,7 +10,10 @@ All persistent data is stored locally.
 | Usage state | JSON | Python proxy | app data `state.json` |
 | Event log | JSONL | Python proxy writes, Tauri reads | app data `events.jsonl` |
 | Custom nodes | Python files | Tauri writes, Python imports | app data `custom_nodes/` |
+| System proxy snapshot | JSON | Tauri | app data `system_proxy_snapshot.json` |
 | Default config | JSON | repo source | `src/proxy/defaults/default_config.json` |
+
+The **system proxy snapshot** (`system_proxy_snapshot.json`) is written by the Tauri backend before it enables the macOS system proxy and removed after a successful restore. It records the previous per-service HTTP/HTTPS proxy enabled state and endpoint so the prior settings can be restored — including on the next launch after a crash. Lifecycle details live in [Tauri Desktop Backend](../2_component/tauri-desktop-backend.md#macos-system-proxy-handling).
 
 ## App config schema
 
@@ -63,8 +66,8 @@ Rules:
 
 ```json
 {
-  "id": "reddit-limit",
-  "name": "Reddit limit",
+  "id": "limit-reddit",
+  "name": "Limit Reddit",
   "steps": [],
   "edges": []
 }
@@ -97,7 +100,7 @@ A `start` node may include inline Python trigger code:
 }
 ```
 
-The Python evaluator executes `triggered_by(request)`. A truthy result routes to `next`; a falsy result routes to `skip`.
+The valid `start` outputs are `next` and `skip`; how the evaluator runs `triggered_by` is described in [Python Proxy Engine](../2_component/python-proxy-engine.md#semantic-model).
 
 ### Policy edge
 
@@ -109,13 +112,7 @@ The Python evaluator executes `triggered_by(request)`. A truthy result routes to
 }
 ```
 
-Routing rule:
-
-- exact `output` match is used,
-- custom nodes route through `next`,
-- `if` operators route through `then` / `else`,
-- `switch` may fall back to an explicit `default` edge,
-- no match stops policy evaluation.
+Valid `output` labels by step kind: custom nodes use `next`; `start` uses `next`/`skip`; `if` uses `then`/`else`; `switch` uses a case label or `default`. The routing and execution semantics (exact-match, `default` fallthrough, stop on no match) live in [Python Proxy Engine](../2_component/python-proxy-engine.md#semantic-model).
 
 ### Custom node config
 
@@ -246,7 +243,7 @@ Tauri exposes `query_events` with this query shape:
   "level": "debug",
   "source": "python_proxy",
   "modeId": "productivity",
-  "policyId": "reddit-limit-policy",
+  "policyId": "limit-reddit",
   "stepId": "detect-reddit",
   "requestId": "...",
   "search": "reddit",

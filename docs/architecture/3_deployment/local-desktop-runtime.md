@@ -54,6 +54,7 @@ macOS shape:
   config.json
   state.json
   events.jsonl
+  system_proxy_snapshot.json
   custom_nodes/
 ```
 
@@ -64,6 +65,7 @@ Linux shape intended by Tauri:
   config.json
   state.json
   events.jsonl
+  system_proxy_snapshot.json
   custom_nodes/
 ```
 
@@ -94,25 +96,9 @@ The app does not yet automate CA installation.
 
 ## macOS system proxy lifecycle
 
-When starting, the app snapshots enabled network services' HTTP and HTTPS proxy settings, then points them to the local proxy.
+While the proxy runs, the system HTTP/HTTPS proxy points at `127.0.0.1:<port>`; stopping or quitting restores the previous settings. The snapshot/restore mechanics, the authenticated-proxy refusal, and the disabled/missing-endpoint behavior are documented in [Tauri Desktop Backend](../2_component/tauri-desktop-backend.md#macos-system-proxy-handling).
 
-When stopping or quitting through the tray, it restores the snapshot.
-
-Failure modes to know:
-
-- If the app process is force-killed or crashes, Rust `Drop` may not run and macOS proxy settings may remain pointed at the local proxy.
-- If restore fails, the backend keeps the snapshot in memory and retries on a later stop/status path.
-- If the machine had an authenticated system proxy before start, the app refuses to start because macOS does not expose the saved password for safe restore.
-- If the previous proxy was disabled or missing endpoint data, restore turns the proxy state off but may not restore old server/port fields.
-
-Manual recovery on macOS:
-
-```bash
-networksetup -setwebproxystate "Wi-Fi" off
-networksetup -setsecurewebproxystate "Wi-Fi" off
-```
-
-Replace `Wi-Fi` with the active network service name.
+Runtime durability: the snapshot is persisted to `system_proxy_snapshot.json`, so a force-kill or crash is recovered automatically on the next app launch (the dashboard's `proxy_status` call, or a later start/stop, restores from the file). Manual `networksetup` recovery is only a fallback — see [Usage Guide](../../usage.md#recovery-if-macos-proxy-stays-enabled).
 
 ## Packaging status
 
