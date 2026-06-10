@@ -7,7 +7,7 @@
 [![Tests](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/tests.yml/badge.svg)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/tests.yml)
 [![latency](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/pp-latency.json)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/benchmark.yml)
 
-<a href="assets/hero.mp4"><img src="assets/hero-poster.png" alt="ProductivityProxy: visual policies enforced by a local proxy" width="900" /></a>
+<img src="assets/hero-poster.png" alt="ProductivityProxy: visual policies enforced by a local proxy" width="900" />
 
 <sub>Simple demo showcasing two custom rules: Youtube shorts block and freedium redirect (we can do much more...)</sub>
 
