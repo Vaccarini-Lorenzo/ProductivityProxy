@@ -4,8 +4,8 @@
 
 **Focus on what you want (... or need) with a click.**
 
-[![CI](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/ci.yml/badge.svg)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/ci.yml)
-[![latency](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/pp-latency.json)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/ci.yml)
+[![Tests](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/tests.yml/badge.svg)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/tests.yml)
+[![latency](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Vaccarini-Lorenzo/ProductivityProxy/main/assets/pp-latency.json)](https://github.com/Vaccarini-Lorenzo/ProductivityProxy/actions/workflows/benchmark.yml)
 
 <a href="assets/hero.mp4"><img src="assets/hero-poster.png" alt="ProductivityProxy: visual policies enforced by a local proxy" width="900" /></a>
 
