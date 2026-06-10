@@ -24,6 +24,7 @@ interface Props {
 }
 
 const AUTOSAVE_DELAY_MS = 600;
+const STATUS_POLL_MS = 2000;
 
 export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [view, setView] = useState<View>("settings");
@@ -41,6 +42,17 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     getProxyStatus(client).then(setStatus).catch(showError);
     getNetworkInfo(client).then(setNetwork).catch(showError);
     readRecentEvents(client, 50).then(setEvents).catch(showError);
+  }, [client]);
+
+  // Keep the proxy state honest even when it changes elsewhere (the menu-bar
+  // popover, or the process exiting on its own). The backend is the source of truth.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      getProxyStatus(client)
+        .then((next) => setStatus((prev) => (prev.running === next.running ? prev : next)))
+        .catch(() => {});
+    }, STATUS_POLL_MS);
+    return () => window.clearInterval(id);
   }, [client]);
 
   useEffect(() => {

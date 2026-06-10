@@ -1,5 +1,5 @@
 {
-  "version": "1",
+  "version": "2",
   "intro": "Reference for the Python you write in nodes and operators. Import types with: from proxy.api import RequestContext",
   "groups": [
     {
@@ -8,10 +8,50 @@
       "icon": "terminal",
       "summary": "The functions you implement. Their names are fixed.",
       "entries": [
-        { "name": "run(input, context, params)", "type": "Any", "summary": "Custom node body. Whatever you return becomes the next step's input." },
-        { "name": "triggered_by(context)", "type": "bool", "summary": "Start node. Return True to run this policy for the request, False to skip it." },
-        { "name": "if_condition(input)", "type": "bool", "summary": "If operator. True takes the then branch, False the else branch." },
-        { "name": "switch_condition(input)", "type": "str", "summary": "Switch operator. Return a case label to choose the matching output port." }
+        {
+          "name": "run(input, context, params)",
+          "type": "Any",
+          "summary": "Custom node body. Whatever you return becomes the next step's input.",
+          "details": [
+            { "label": "Contract", "text": "Runs once for each request that reaches this node." },
+            { "label": "Input", "text": "input: the previous step's return (often a dict). context: the live RequestContext. params: this step's configured values." },
+            { "label": "Output", "text": "Any value. It is handed to the next step as its input." },
+            { "label": "Side effects", "text": "Optional: set context.flow.response, update context.state, or write events via context.log / context.event_log." }
+          ]
+        },
+        {
+          "name": "triggered_by(context)",
+          "type": "bool",
+          "summary": "Start node. Return True to run this policy for the request, False to skip it.",
+          "details": [
+            { "label": "Contract", "text": "Gate for the whole policy. Evaluated at the start node before any other step." },
+            { "label": "Input", "text": "context: the live RequestContext for the current request." },
+            { "label": "Output", "text": "bool. True continues into the policy; False skips it." },
+            { "label": "Side effects", "text": "Keep it a pure check. Do not modify the request here." }
+          ]
+        },
+        {
+          "name": "if_condition(input)",
+          "type": "bool",
+          "summary": "If operator. True takes the then branch, False the else branch.",
+          "details": [
+            { "label": "Contract", "text": "Routes an If operator. It only chooses a branch; it never changes the value." },
+            { "label": "Input", "text": "input: the value returned by the previous step." },
+            { "label": "Output", "text": "bool. True routes to the then port, False to the else port." },
+            { "label": "Side effects", "text": "None. The same input is passed onward unchanged." }
+          ]
+        },
+        {
+          "name": "switch_condition(input)",
+          "type": "str",
+          "summary": "Switch operator. Return a case label to choose the matching output port.",
+          "details": [
+            { "label": "Contract", "text": "Routes a Switch operator by returning a case label." },
+            { "label": "Input", "text": "input: the value returned by the previous step." },
+            { "label": "Output", "text": "str case label. If no port matches, routing falls back to the default port." },
+            { "label": "Side effects", "text": "None. The same input is passed onward unchanged." }
+          ]
+        }
       ]
     },
     {
@@ -20,14 +60,59 @@
       "icon": "layers",
       "summary": "The context argument. The live state for one request.",
       "entries": [
-        { "name": "context.flow", "type": "HTTPFlow", "summary": "The intercepted request/response (mitmproxy flow)." },
+        {
+          "name": "context.flow",
+          "type": "HTTPFlow",
+          "summary": "The intercepted request/response (mitmproxy flow).",
+          "details": [
+            { "label": "Output", "text": "mitmproxy HTTPFlow with .request and .response." },
+            { "label": "Side effects", "text": "Assign flow.response to block or replace the response and short-circuit the policy." }
+          ]
+        },
         { "name": "context.config", "type": "AppConfig", "summary": "The active proxy configuration (modes, policies, nodes)." },
-        { "name": "context.state", "type": "StateStore", "summary": "Persistent per-platform usage store on disk." },
-        { "name": "context.event_log", "type": "EventLog", "summary": "Append-only JSONL event log." },
-        { "name": "context.data", "type": "dict", "summary": "Mutable scratch dict. Not merged between steps automatically." },
-        { "name": "context.now()", "type": "float", "summary": "Current UNIX time in seconds (UTC)." },
+        {
+          "name": "context.state",
+          "type": "StateStore",
+          "summary": "Persistent per-platform usage store on disk.",
+          "details": [
+            { "label": "Contract", "text": "Per-platform usage counters that survive across requests and restarts." },
+            { "label": "Notes", "text": "Use track_usage / usage_today and pass context.now() as the clock." }
+          ]
+        },
+        {
+          "name": "context.event_log",
+          "type": "EventLog",
+          "summary": "Append-only JSONL event log.",
+          "details": [
+            { "label": "Side effects", "text": "append(event) writes one JSON line, visible in Observability." }
+          ]
+        },
+        {
+          "name": "context.data",
+          "type": "dict",
+          "summary": "Mutable scratch dict. Not merged between steps automatically.",
+          "details": [
+            { "label": "Notes", "text": "Scratch space for your own use. The engine does not copy step return values into it." }
+          ]
+        },
+        {
+          "name": "context.now()",
+          "type": "float",
+          "summary": "Current UNIX time in seconds (UTC).",
+          "details": [
+            { "label": "Output", "text": "float seconds since the UNIX epoch. Pass it to StateStore methods." }
+          ]
+        },
         { "name": "context.request_id", "type": "str", "summary": "Unique id for this request evaluation." },
-        { "name": "context.log", "type": "Logger", "summary": "Structured logger that writes filterable events." }
+        {
+          "name": "context.log",
+          "type": "Logger",
+          "summary": "Structured logger that writes filterable events.",
+          "details": [
+            { "label": "Contract", "text": "Structured logging surfaced in the Observability view." },
+            { "label": "Notes", "text": "Levels: debug, info, warning, error. Use event(type, ...) for a custom event type." }
+          ]
+        }
       ]
     },
     {
@@ -37,12 +122,26 @@
       "summary": "Read and change the HTTP request through context.flow.",
       "entries": [
         { "name": "flow.request", "type": "Request", "summary": "The HTTP request object." },
-        { "name": "flow.response", "type": "Response | None", "summary": "Assign a response to block or short-circuit the request." },
+        {
+          "name": "flow.response",
+          "type": "Response | None",
+          "summary": "Assign a response to block or short-circuit the request.",
+          "details": [
+            { "label": "Side effects", "text": "Set it to stop the policy and return your response; leave None to let the request pass through." }
+          ]
+        },
         { "name": "request.method", "type": "str", "summary": "HTTP method, e.g. GET or POST." },
         { "name": "request.pretty_host", "type": "str", "summary": "Request host, e.g. www.youtube.com." },
         { "name": "request.pretty_url", "type": "str", "summary": "Full reconstructed URL." },
         { "name": "request.path", "type": "str", "summary": "Path and query string." },
-        { "name": "request.headers", "type": "Headers", "summary": "Case-insensitive header map. Use .get(name, default)." },
+        {
+          "name": "request.headers",
+          "type": "Headers",
+          "summary": "Case-insensitive header map. Use .get(name, default).",
+          "details": [
+            { "label": "Notes", "text": "Case-insensitive. Example: request.headers.get('referer', '')." }
+          ]
+        },
         { "name": "request.url", "type": "str", "summary": "Settable URL; assign to redirect the request." }
       ]
     },
@@ -52,8 +151,25 @@
       "icon": "save",
       "summary": "Track time per platform across requests (context.state).",
       "entries": [
-        { "name": "state.track_usage(platform, idle_seconds, now)", "type": "dict", "summary": "Add active time for a platform; returns the updated usage record." },
-        { "name": "state.usage_today(platform, now)", "type": "float", "summary": "Seconds used today (UTC) for a platform." }
+        {
+          "name": "state.track_usage(platform, idle_seconds, now)",
+          "type": "dict",
+          "summary": "Add active time for a platform; returns the updated usage record.",
+          "details": [
+            { "label": "Input", "text": "platform: str. idle_seconds: int gap that still counts as one session. now: float (context.now())." },
+            { "label": "Output", "text": "dict with event, delta_seconds, daily_seconds and total_seconds." },
+            { "label": "Side effects", "text": "Writes the state file on disk." }
+          ]
+        },
+        {
+          "name": "state.usage_today(platform, now)",
+          "type": "float",
+          "summary": "Seconds used today (UTC) for a platform.",
+          "details": [
+            { "label": "Input", "text": "platform: str. now: float (context.now())." },
+            { "label": "Output", "text": "float seconds counted for the current UTC day." }
+          ]
+        }
       ]
     },
     {
@@ -62,7 +178,15 @@
       "icon": "inbox",
       "summary": "Record raw events (context.event_log).",
       "entries": [
-        { "name": "event_log.append(event)", "type": "None", "summary": "Append one JSON event dict to the log." }
+        {
+          "name": "event_log.append(event)",
+          "type": "None",
+          "summary": "Append one JSON event dict to the log.",
+          "details": [
+            { "label": "Input", "text": "event: dict. Include a 'type' key so it can be filtered." },
+            { "label": "Side effects", "text": "Appends one line to events.jsonl." }
+          ]
+        }
       ]
     },
     {
@@ -75,7 +199,15 @@
         { "name": "log.debug(message, **data)", "type": "None", "summary": "Log a debug event." },
         { "name": "log.warning(message, **data)", "type": "None", "summary": "Log a warning event." },
         { "name": "log.error(message, **data)", "type": "None", "summary": "Log an error event." },
-        { "name": "log.event(type, message, level, **data)", "type": "None", "summary": "Log a custom event type at the given level." }
+        {
+          "name": "log.event(type, message, level, **data)",
+          "type": "None",
+          "summary": "Log a custom event type at the given level.",
+          "details": [
+            { "label": "Input", "text": "type: str event name. message: str. level: str (info by default). **data: extra fields." },
+            { "label": "Side effects", "text": "Writes a custom_node event visible in Observability." }
+          ]
+        }
       ]
     },
     {
@@ -84,7 +216,16 @@
       "icon": "gear",
       "summary": "Values configured on the step in the UI.",
       "entries": [
-        { "name": "params[key]", "type": "Any", "summary": "Read a configured parameter. Missing keys raise KeyError." }
+        {
+          "name": "params[key]",
+          "type": "Any",
+          "summary": "Read a configured parameter.",
+          "details": [
+            { "label": "Input", "text": "key: str. The parameter name shown in the step's form." },
+            { "label": "Raises", "text": "KeyError if the parameter is not configured." },
+            { "label": "Notes", "text": "Cast values yourself, e.g. int(params['seconds'])." }
+          ]
+        }
       ]
     }
   ]

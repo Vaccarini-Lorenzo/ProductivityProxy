@@ -1,9 +1,15 @@
 import reference from "./pythonApiReference.json";
 
+export interface ApiDetail {
+  label: string;
+  text: string;
+}
+
 export interface ApiEntry {
   name: string;
   type: string;
   summary: string;
+  details?: ApiDetail[];
 }
 
 export interface ApiGroup {
@@ -33,7 +39,12 @@ export function searchApiReference(query: string): ApiGroup[] {
   for (const group of apiReference.groups) {
     const groupHit = fuzzyMatch(q, group.title);
     const entries = group.entries.filter(
-      (entry) => groupHit || fuzzyMatch(q, entry.name) || entry.type.toLowerCase().includes(q) || entry.summary.toLowerCase().includes(q),
+      (entry) =>
+        groupHit ||
+        fuzzyMatch(q, entry.name) ||
+        entry.type.toLowerCase().includes(q) ||
+        entry.summary.toLowerCase().includes(q) ||
+        (entry.details ?? []).some((detail) => `${detail.label} ${detail.text}`.toLowerCase().includes(q)),
     );
     if (entries.length > 0) groups.push({ ...group, entries });
   }

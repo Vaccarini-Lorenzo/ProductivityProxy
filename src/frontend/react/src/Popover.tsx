@@ -29,10 +29,10 @@ export function Popover({ client = tauriClient }: Props) {
     const reloadConfig = () => loadConfig(client).then(setConfig).catch(showError);
     reloadConfig();
     refreshStatus();
-    // Only poll while the popover is on screen; refresh again whenever it reopens.
-    const poll = window.setInterval(() => {
-      if (document.visibilityState === "visible") refreshStatus();
-    }, STATUS_POLL_MS);
+    // Poll the backend unconditionally: it is the single source of truth for
+    // whether the proxy is actually running (it may be started/stopped from the
+    // dashboard, or exit on its own).
+    const poll = window.setInterval(refreshStatus, STATUS_POLL_MS);
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       refreshStatus();
