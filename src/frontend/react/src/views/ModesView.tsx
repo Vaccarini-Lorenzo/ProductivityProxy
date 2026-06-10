@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { AppConfig, ModeConfig, PolicyConfig } from "../models/config/types";
 import { createMode } from "../services/config/configEditing";
-import { Card, Field, Modal, PageHeader, count } from "../components/ui";
+import { Card, Field, IconButton, Modal, PageHeader, count } from "../components/ui";
 
 interface Props {
   config: AppConfig;
@@ -56,7 +56,7 @@ export function ModesView({ config, onConfigChange }: Props) {
                   <small>{mode.description || "No description"}</small>
                 </button>
                 <span className="list-meta">{count(mode.policyIds.length, "policy", "policies")} · {count(steps, "step")}</span>
-                <button className="small" type="button" onClick={() => setEditId(mode.id)}>Edit</button>
+                <IconButton className="small" icon="edit" label={`Edit ${mode.name}`} onClick={() => setEditId(mode.id)} />
                 <button className="danger small" type="button" onClick={() => deleteMode(mode.id)} disabled={config.modes.length <= 1}>Delete</button>
               </div>
             );

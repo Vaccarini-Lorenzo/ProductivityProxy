@@ -1,6 +1,36 @@
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 export { Modal } from "./Modal";
+
+type IconName = "edit" | "save";
+
+function Icon({ name }: { name: IconName }) {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 20 20">
+      {name === "edit" ? (
+        <>
+          <path d="M4 15.5l3.6-.8 7.8-7.8a1.8 1.8 0 0 0-2.5-2.5L5.1 12.2 4 15.5z" />
+          <path d="M11.7 5.6l2.7 2.7" />
+        </>
+      ) : (
+        <>
+          <path d="M4 3.5h9.2L16 6.3v10.2H4z" />
+          <path d="M7 3.5v5h6v-5" />
+          <path d="M7 16.5v-5h6v5" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/** Icon-only action button with accessible label and the same terminal styling. */
+export function IconButton({ icon, label, className, title, type = "button", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { icon: IconName; label: string }) {
+  return (
+    <button {...props} type={type} className={className ? `icon-button ${className}` : "icon-button"} aria-label={label} title={title ?? label}>
+      <Icon name={icon} />
+    </button>
+  );
+}
 
 /** Page header: small uppercase eyebrow, title, optional subtitle. Reused on every page. */
 export function PageHeader({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle?: string }) {

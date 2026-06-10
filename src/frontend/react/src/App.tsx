@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { TerminalNav, type View } from "./components/TerminalNav";
+import { IconButton } from "./components/ui";
 import { ModesView } from "./views/ModesView";
 import { NodesView, type SaveNodeInput } from "./views/NodesView";
 import { ObservabilityView } from "./views/ObservabilityView";
@@ -25,6 +26,7 @@ interface Props {
 export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [view, setView] = useState<View>("settings");
   const [config, setConfig] = useState<AppConfig>(() => createDefaultConfig());
+  const [savedConfig, setSavedConfig] = useState<AppConfig>(() => createDefaultConfig());
   const [status, setStatus] = useState<ProxyStatus>({ running: false });
   const [network, setNetwork] = useState<NetworkInfo>();
   const [events, setEvents] = useState<ProxyEvent[]>([]);
@@ -32,7 +34,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const seenNotifications = useRef(new Set<string>());
 
   useEffect(() => {
-    loadConfig(client).then(setConfig).catch(showError);
+    loadConfig(client).then((loaded) => { setConfig(loaded); setSavedConfig(loaded); }).catch(showError);
     getProxyStatus(client).then(setStatus).catch(showError);
     getNetworkInfo(client).then(setNetwork).catch(showError);
     readRecentEvents(client, 50).then(setEvents).catch(showError);
@@ -49,10 +51,13 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     setMessage(text.includes("invoke") ? "Browser preview — Tauri unavailable" : text);
   }
 
+  const hasConfigChanges = JSON.stringify(config) !== JSON.stringify(savedConfig);
+
   async function handleSave() {
+    if (!hasConfigChanges) return;
     const errors = validateAppConfig(config);
     if (errors.length > 0) { setMessage(errors.join(". ")); return; }
-    await saveConfig(client, config).then(() => setMessage("Config saved")).catch(showError);
+    await saveConfig(client, config).then(() => { setSavedConfig(config); setMessage("Config saved"); }).catch(showError);
   }
 
   async function handleStart() {
@@ -107,7 +112,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
       <TerminalNav active={view} running={status.running} onNavigate={setView} />
       <main className="app-shell">
         <div className="top-bar">
-          <button className="primary" type="button" onClick={handleSave}>Save config</button>
+          <IconButton className={hasConfigChanges ? "primary save-button" : "save-button save-clean"} icon="save" label="Save config" title={hasConfigChanges ? "Save config" : "No changes to save"} onClick={handleSave} disabled={!hasConfigChanges} />
           {message && <span className="message" role="status">{message}</span>}
         </div>
         {renderView()}
