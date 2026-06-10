@@ -22,7 +22,8 @@ export function TerminalNav({ active, running, onNavigate }: Props) {
       <div className="title-row">
         <button className="brand-button" type="button" onClick={() => onNavigate("settings")}>ProductivityProxy</button>
         <span className={running ? "run-state on" : "run-state"} aria-live="polite">
-          <span className="led" aria-hidden="true" /> Proxy: {running ? "RUNNING" : "STOPPED"}
+          <span className="led" aria-hidden="true" />
+          <span className="run-text">Proxy: {running ? "RUNNING" : "STOPPED"}</span>
         </span>
         <span className="version">v0.1.0-local</span>
       </div>
@@ -36,7 +37,7 @@ export function TerminalNav({ active, running, onNavigate }: Props) {
             aria-current={active === link.view ? "page" : undefined}
           >
             <Icon name={link.icon} />
-            {link.label}
+            <span className="tab-label">{link.label}</span>
           </button>
         ))}
       </nav>

@@ -13,43 +13,43 @@
           "type": "Any",
           "summary": "Custom node body. Return the value for the next step.",
           "details": [
-            { "label": "Contract", "text": "Runs once when a request reaches this node." },
-            { "label": "Input", "text": "input is the previous node output or None. request is the HTTP request. context has state/log/notify helpers. params are this node's configured values." },
-            { "label": "Output", "text": "Any value. The next node/operator receives it as input." },
-            { "label": "Side effects", "text": "May update context.state, log, notify, redirect the request, or block it." }
+            { "label": "When", "text": "Called exactly once per request that reaches this node in the policy graph." },
+            { "label": "Args", "text": "- `input` — output of the previous node, or `None` at the start\n- `request` — the current HTTP request (read/redirect/block)\n- `context` — shared state + logging + notifications\n- `params` — dict of values configured on this node in the UI" },
+            { "label": "Returns", "text": "Any value you want. The next node or operator receives it as its `input`." },
+            { "label": "Side effects", "text": "- Call `request.block(...)` to stop the request with an HTTP response\n- Call `request.redirect(...)` to change the outbound URL\n- Write to `context.state` to share data with later nodes\n- Call `context.log(...)` to emit an event to Observability\n- Call `context.notify(...)` to send a UI notification" }
           ]
         },
         {
           "name": "triggered_by(request)",
           "type": "bool",
-          "summary": "Start node gate. Return True to run the policy.",
+          "summary": "Start node gate. Return True to run the policy, False to skip.",
           "details": [
-            { "label": "Contract", "text": "Runs before the policy starts." },
-            { "label": "Input", "text": "Only request. No context and no previous input." },
-            { "label": "Output", "text": "True routes to next. False skips the policy." },
-            { "label": "Side effects", "text": "None. Keep it a pure request check." }
+            { "label": "When", "text": "Evaluated before the policy runs. If it returns `False`, the entire policy is skipped for this request." },
+            { "label": "Args", "text": "- `request` — the current HTTP request (read-only here; don't block or redirect)" },
+            { "label": "Returns", "text": "`True` to enter the policy (routes to `next`), `False` to skip it." },
+            { "label": "Side effects", "text": "None. Keep this a pure check — no mutations, no logging." }
           ]
         },
         {
           "name": "if_condition(input)",
           "type": "bool",
-          "summary": "If operator. Choose then or else.",
+          "summary": "If operator. True → then branch, False → else branch.",
           "details": [
-            { "label": "Contract", "text": "Routes an If operator." },
-            { "label": "Input", "text": "Only input, the previous node output." },
-            { "label": "Output", "text": "True routes to then. False routes to else." },
-            { "label": "Side effects", "text": "None. Operators only choose a route." }
+            { "label": "When", "text": "Called when the policy reaches an If operator. It only picks a branch — it cannot change `input`." },
+            { "label": "Args", "text": "- `input` — output of the previous node" },
+            { "label": "Returns", "text": "`True` routes to the `then` port, `False` routes to the `else` port." },
+            { "label": "Side effects", "text": "None. Operators only route; the same `input` is forwarded unchanged." }
           ]
         },
         {
           "name": "switch_condition(input)",
           "type": "str",
-          "summary": "Switch operator. Return the output case label.",
+          "summary": "Switch operator. Return a case label to choose the output port.",
           "details": [
-            { "label": "Contract", "text": "Routes a Switch operator." },
-            { "label": "Input", "text": "Only input, the previous node output." },
-            { "label": "Output", "text": "Case label string. If no route matches, default is used when present." },
-            { "label": "Side effects", "text": "None. Operators only choose a route." }
+            { "label": "When", "text": "Called when the policy reaches a Switch operator. It picks which output port to follow." },
+            { "label": "Args", "text": "- `input` — output of the previous node" },
+            { "label": "Returns", "text": "A string matching one of the configured case labels. If no match, the `default` port is used (when present)." },
+            { "label": "Side effects", "text": "None. Operators only route; the same `input` is forwarded unchanged." }
           ]
         }
       ]
@@ -63,74 +63,65 @@
         {
           "name": "request.method",
           "type": "str",
-          "summary": "HTTP method such as GET or POST.",
-          "details": [
-            { "label": "Contract", "text": "Read-only request metadata." },
-            { "label": "Output", "text": "String method, or empty string if unavailable." }
-          ]
+          "summary": "HTTP method (GET, POST, etc.)."
         },
         {
           "name": "request.host",
           "type": "str",
           "summary": "Host name, e.g. www.youtube.com.",
           "details": [
-            { "label": "Contract", "text": "Use for platform/domain matching." },
-            { "label": "Output", "text": "String host without the scheme." }
+            { "label": "Example", "text": "`request.host.endswith(\".reddit.com\")`" }
           ]
         },
         {
           "name": "request.url",
           "type": "str",
-          "summary": "Full URL. Assigning redirects the request.",
+          "summary": "Full URL. Assign to redirect.",
           "details": [
-            { "label": "Contract", "text": "Read the full URL or assign a new URL." },
-            { "label": "Output", "text": "String URL." },
-            { "label": "Side effects", "text": "Setting request.url changes the outbound request target." }
+            { "label": "Read", "text": "Returns the complete URL including scheme, host, path, and query." },
+            { "label": "Write", "text": "Setting `request.url = \"...\"` redirects the outbound request to that URL." }
           ]
         },
         {
           "name": "request.path",
           "type": "str",
-          "summary": "Path and query string.",
+          "summary": "Path + query string, e.g. /shorts/abc?v=1.",
           "details": [
-            { "label": "Contract", "text": "Use for path-based rules." },
-            { "label": "Output", "text": "String path, often starting with /." }
+            { "label": "Example", "text": "`\"/shorts\" in request.path`" }
           ]
         },
         {
           "name": "request.headers",
           "type": "mapping",
-          "summary": "HTTP headers. Use request.headers.get(name, default).",
+          "summary": "HTTP headers. Use .get(name, default).",
           "details": [
-            { "label": "Contract", "text": "Read request headers by name." },
-            { "label": "Output", "text": "Header mapping." }
+            { "label": "Example", "text": "`request.headers.get(\"referer\", \"\")`" }
           ]
         },
         {
           "name": "request.text()",
           "type": "str",
-          "summary": "Request body decoded as text.",
+          "summary": "Request body decoded as UTF-8 text.",
           "details": [
-            { "label": "Contract", "text": "Use only when body content matters." },
-            { "label": "Output", "text": "Decoded text. Returns empty string if unavailable." }
+            { "label": "Returns", "text": "The decoded body string. Returns `\"\"` if the body is empty or unreadable." }
           ]
         },
         {
           "name": "request.redirect(url)",
           "type": "None",
-          "summary": "Redirect the outbound request to another URL.",
+          "summary": "Change the outbound request target.",
           "details": [
-            { "label": "Input", "text": "url: target URL string." },
-            { "label": "Side effects", "text": "Changes the request URL." }
+            { "label": "Args", "text": "- `url` — the new destination URL (string)" },
+            { "label": "Effect", "text": "The proxy sends the request to this URL instead of the original." }
           ]
         },
         {
           "name": "request.block(status, message)",
           "type": "None",
-          "summary": "Stop the request and return a plain-text response.",
+          "summary": "Stop the request and return a plain-text response to the client.",
           "details": [
-            { "label": "Input", "text": "status: HTTP status code. message: plain-text response body." },
-            { "label": "Side effects", "text": "Sets the response and stops the policy mode after this step." }
+            { "label": "Args", "text": "- `status` — HTTP status code (e.g. `403`)\n- `message` — plain-text body sent back to the client" },
+            { "label": "Effect", "text": "The request never reaches the internet. The policy stops after the current node." }
           ]
         }
       ]
@@ -139,53 +130,51 @@
       "id": "context",
       "title": "context",
       "icon": "layers",
-      "summary": "Helpers shared by nodes: state, logging, notifications.",
+      "summary": "Shared helpers: in-memory state, logging, and notifications.",
       "entries": [
         {
           "name": "context.state[key]",
           "type": "Any",
           "summary": "Shared in-memory key/value store.",
           "details": [
-            { "label": "Contract", "text": "Use it to share mutable data structures between nodes and requests handled by the same evaluator." },
-            { "label": "Input", "text": "key: string." },
-            { "label": "Output", "text": "The stored value. Values are kept by reference, so mutating a stored dict/list is visible to later nodes." }
+            { "label": "What", "text": "A dict-like store that persists across nodes and requests within the same proxy session." },
+            { "label": "Usage", "text": "- `context.state[\"counter\"] = 0` — write a value\n- `val = context.state[\"counter\"]` — read a value (raises `KeyError` if missing)\n- Values are kept by reference: mutating a stored list/dict is visible to all later nodes" }
           ]
         },
         {
           "name": "context.state.get(key, default)",
           "type": "Any",
-          "summary": "Read state safely with a default.",
+          "summary": "Read state safely, returning default when key is missing.",
           "details": [
-            { "label": "Input", "text": "key: string. default: returned when key is missing." },
-            { "label": "Output", "text": "Stored value or default." }
+            { "label": "Args", "text": "- `key` — string key\n- `default` — value returned when key is absent" },
+            { "label": "Example", "text": "`count = context.state.get(\"visits\", 0)`" }
           ]
         },
         {
           "name": "context.state.setdefault(key, value)",
           "type": "Any",
-          "summary": "Create shared state once and return it.",
+          "summary": "Get existing value or insert a default and return it.",
           "details": [
-            { "label": "Input", "text": "key: string. value: initial value when missing." },
-            { "label": "Output", "text": "Existing or newly stored value." },
-            { "label": "Side effects", "text": "Adds value to context.state if key was missing." }
+            { "label": "Args", "text": "- `key` — string key\n- `value` — initial value to store if key is missing" },
+            { "label": "Example", "text": "`hits = context.state.setdefault(\"hits\", [])`\n`hits.append(request.url)`" }
           ]
         },
         {
           "name": "context.log(type, message, level, **data)",
           "type": "None",
-          "summary": "Write a structured event to Observability.",
+          "summary": "Emit a structured event visible in Observability.",
           "details": [
-            { "label": "Input", "text": "type: event type. message: human text. level defaults to info. **data is structured metadata." },
-            { "label": "Side effects", "text": "Appends one event to the event log." }
+            { "label": "Args", "text": "- `type` — event type string (shows in the Type column)\n- `message` — human-readable description\n- `level` — `\"info\"` (default), `\"debug\"`, `\"warning\"`, or `\"error\"`\n- `**data` — any extra keyword args become structured metadata" },
+            { "label": "Example", "text": "`context.log(\"match\", \"Reddit detected\", platform=\"reddit\")`" }
           ]
         },
         {
           "name": "context.notify(type, message, level, **data)",
           "type": "None",
-          "summary": "Send a UI notification and log it.",
+          "summary": "Send a native UI notification and log it.",
           "details": [
-            { "label": "Input", "text": "type: notification title/type. message: body. level defaults to info. **data is structured metadata." },
-            { "label": "Side effects", "text": "Appends a notification event. The UI shows it as a native notification when enabled." }
+            { "label": "Args", "text": "- `type` — notification title / category\n- `message` — notification body text\n- `level` — `\"info\"` (default), `\"debug\"`, `\"warning\"`, or `\"error\"`\n- `**data` — any extra keyword args become structured metadata" },
+            { "label": "Effect", "text": "The dashboard shows a native OS notification (when permissions are granted) and the event appears in Observability." }
           ]
         }
       ]
@@ -194,16 +183,17 @@
       "id": "params",
       "title": "params",
       "icon": "gear",
-      "summary": "Configured values for the current node.",
+      "summary": "Configured values for the current node (set in the UI).",
       "entries": [
         {
           "name": "params[key]",
           "type": "Any",
-          "summary": "Read a node parameter configured in the UI.",
+          "summary": "Read a configured parameter by name.",
           "details": [
-            { "label": "Input", "text": "key: parameter name." },
-            { "label": "Output", "text": "Configured value." },
-            { "label": "Raises", "text": "KeyError if the parameter is missing." }
+            { "label": "Args", "text": "- `key` — parameter name as shown in the node's config form" },
+            { "label": "Returns", "text": "The configured value. Could be a string, number, list, or dict depending on the node." },
+            { "label": "Raises", "text": "`KeyError` if the parameter was not configured." },
+            { "label": "Tip", "text": "Cast values yourself when needed: `int(params[\"seconds\"])`" }
           ]
         }
       ]

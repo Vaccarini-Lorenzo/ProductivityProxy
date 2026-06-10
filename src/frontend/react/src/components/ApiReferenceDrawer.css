@@ -37,6 +37,10 @@
 .api-detail-row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: start; }
 .api-detail-row dt { color: var(--amber-2); font-size: .66rem; text-transform: uppercase; letter-spacing: .05em; padding-top: 2px; }
 .api-detail-row dd { color: var(--text); font-size: .76rem; line-height: 1.45; }
+.api-detail-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.api-detail-list li { position: relative; padding-left: 12px; }
+.api-detail-list li::before { content: "•"; position: absolute; left: 0; color: var(--muted); }
+.api-inline-code { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.15); border-radius: 4px; padding: 0 4px; font-size: .72rem; font-family: "SFMono-Regular", "Menlo", "Consolas", monospace; color: var(--amber-2); white-space: nowrap; }
 
 @media (max-width: 640px) { .api-drawer { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { .api-drawer-overlay, .api-drawer { animation: none; } }

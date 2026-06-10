@@ -93,11 +93,39 @@ function EntryView({ entry, autoExpand }: { entry: ApiEntry; autoExpand: boolean
           {entry.details!.map((detail) => (
             <div className="api-detail-row" key={detail.label}>
               <dt>{detail.label}</dt>
-              <dd>{detail.text}</dd>
+              <dd><DetailText text={detail.text} /></dd>
             </div>
           ))}
         </dl>
       )}
     </div>
   );
+}
+
+/** Renders detail text with inline `code` and bullet lists (lines starting with "- "). */
+function DetailText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const isList = lines.length > 1 && lines.every((line) => line.startsWith("- "));
+  if (isList) {
+    return (
+      <ul className="api-detail-list">
+        {lines.map((line, i) => <li key={i}>{renderInlineCode(line.slice(2))}</li>)}
+      </ul>
+    );
+  }
+  return <>{renderInlineCode(text)}</>;
+}
+
+function renderInlineCode(text: string): (string | JSX.Element)[] {
+  const parts: (string | JSX.Element)[] = [];
+  const regex = /`([^`]+)`/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    parts.push(<code key={match.index} className="api-inline-code">{match[1]}</code>);
+    last = regex.lastIndex;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
 }

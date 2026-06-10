@@ -119,10 +119,7 @@ export function NodesView({ nodes, onSave, onRead, onValidateCode, onDelete }: P
                 <span className="node-card-name">{node.name}</span>
                 <span className="node-card-file">{node.path.split("/").pop()}</span>
               </button>
-              <div className="node-card-actions">
-                <IconButton className="small" icon="edit" label={`Edit ${node.name}`} onClick={() => editNode(node)} />
-                <IconButton className="danger small" icon="trash" label={`Delete ${node.name}`} onClick={() => onDelete(node.id)} />
-              </div>
+              <IconButton className="node-card-del danger small" icon="trash" label={`Delete ${node.name}`} onClick={() => onDelete(node.id)} />
             </div>
           ))}
           {visibleNodes.length === 0 && <p className="muted">No matching nodes.</p>}
