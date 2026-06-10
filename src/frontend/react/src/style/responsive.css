@@ -14,7 +14,7 @@
   .tab { gap: 0; }
 }
 @media (max-width: 680px) { .version { display: none; } }
-@media (max-width: 520px) { .run-text { display: none; } .list-meta { display: none; } }
+@media (max-width: 520px) { .run-text { display: none; } }
 @media (max-width: 640px) {
   .app-frame { padding: 6px 8px 10px; }
   .card-head { flex-direction: column; align-items: stretch; }

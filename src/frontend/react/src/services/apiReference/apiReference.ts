@@ -1,3 +1,4 @@
+import { fuzzyMatch, includesSearch } from "../search/search";
 import reference from "./pythonApiReference.json";
 
 export interface ApiDetail {
@@ -42,24 +43,11 @@ export function searchApiReference(query: string): ApiGroup[] {
       (entry) =>
         groupHit ||
         fuzzyMatch(q, entry.name) ||
-        entry.type.toLowerCase().includes(q) ||
-        entry.summary.toLowerCase().includes(q) ||
-        (entry.details ?? []).some((detail) => `${detail.label} ${detail.text}`.toLowerCase().includes(q)),
+        includesSearch(q, entry.type) ||
+        includesSearch(q, entry.summary) ||
+        (entry.details ?? []).some((detail) => includesSearch(q, `${detail.label} ${detail.text}`)),
     );
     if (entries.length > 0) groups.push({ ...group, entries });
   }
   return groups;
-}
-
-/** Subsequence fuzzy match: every query char appears in order in the text. */
-export function fuzzyMatch(query: string, text: string): boolean {
-  const t = text.toLowerCase();
-  let index = 0;
-  for (const ch of query.toLowerCase()) {
-    if (ch === " ") continue;
-    const next = t.indexOf(ch, index);
-    if (next === -1) return false;
-    index = next + 1;
-  }
-  return true;
 }

@@ -21,7 +21,7 @@
 }
 * { box-sizing: border-box; margin: 0; }
 body { min-width: 360px; background: radial-gradient(ellipse at 50% -16%, rgba(245,158,11,.08), transparent 36rem), var(--bg); }
-button, input, select, textarea { font: inherit; }
+button, input, textarea { font: inherit; }
 h1, h2, h3, p { margin: 0; }
 small { color: var(--muted); font-size: .82rem; }
 pre { overflow: auto; white-space: pre-wrap; color: #f2d4a1; font-size: .8rem; }

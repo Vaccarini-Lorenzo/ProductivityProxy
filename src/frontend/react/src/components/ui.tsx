@@ -6,7 +6,8 @@ export type IconName =
   | "edit" | "save" | "play" | "stop" | "trash" | "plus" | "refresh"
   | "branch" | "switch" | "hexagon"
   | "gear" | "layers" | "shield"
-  | "info" | "terminal" | "link" | "lock" | "eye" | "eyeOff" | "search" | "inbox";
+  | "info" | "terminal" | "link" | "lock" | "eye" | "eyeOff" | "search" | "inbox"
+  | "chevron" | "check";
 
 const ICON_PATHS: Record<IconName, ReactNode> = {
   edit: <><path d="M4 15.5l3.6-.8 7.8-7.8a1.8 1.8 0 0 0-2.5-2.5L5.1 12.2 4 15.5z" /><path d="M11.7 5.6l2.7 2.7" /></>,
@@ -30,6 +31,8 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
   eyeOff: <><path d="M8.3 5.1A6.8 6.8 0 0 1 10 4.7c4.6 0 7.6 5.3 7.6 5.3a13.4 13.4 0 0 1-2.3 2.8M5.2 6.1A13.4 13.4 0 0 0 2.4 10S5.4 15.3 10 15.3a6.8 6.8 0 0 0 3-.7" /><path d="M8.3 8.3a2.5 2.5 0 0 0 3.5 3.5" /><path d="M3 3l14 14" /></>,
   search: <><circle cx="8.5" cy="8.5" r="4.9" /><path d="M12.1 12.1l3.9 3.9" /></>,
   inbox: <><path d="M3.2 10.6l2.3-5.3a1.4 1.4 0 0 1 1.3-.8h6.4a1.4 1.4 0 0 1 1.3.8l2.3 5.3v4.1a1.3 1.3 0 0 1-1.3 1.3H4.5a1.3 1.3 0 0 1-1.3-1.3z" /><path d="M3.2 10.6h3.6l1 2h4.4l1-2h3.6" /></>,
+  chevron: <path d="M5.5 8l4.5 4.5L14.5 8" />,
+  check: <path d="M4.5 10.5l3.4 3.4 7.6-8" />,
 };
 
 export function Icon({ name, className }: { name: IconName; className?: string }) {

@@ -3,7 +3,8 @@ import { GraphEditor } from "../components/GraphEditor";
 import { NodeLibrary } from "../components/NodeLibrary";
 import { StepModal } from "../components/StepModal";
 import { Modal } from "../components/Modal";
-import { PageHeader, IconButton, count } from "../components/ui";
+import { Select } from "../components/Select";
+import { Field, PageHeader, IconButton, count } from "../components/ui";
 import type { AppConfig, PolicyConfig, PolicyStepKind, StepParams, ValidationIssue } from "../models/config/types";
 import { createPolicy, slug } from "../services/config/configEditing";
 import { addStep, updateStepParams } from "../services/policy/policyOperations";
@@ -90,9 +91,14 @@ export function PolicyView({ config, savedConfig, issues, onConfigChange, onRead
       <div className="policy-box">
         <div className="policy-bar">
           <div className="policy-bar-row">
-            <select className="policy-select" aria-label="Select policy" value={activePolicy?.id ?? ""} onChange={(e) => selectPolicy(e.target.value)} disabled={config.policies.length === 0}>
-              {config.policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <Select
+              className="policy-select"
+              ariaLabel="Select policy"
+              value={activePolicy?.id ?? ""}
+              options={config.policies.map((p) => ({ value: p.id, label: p.name }))}
+              onChange={selectPolicy}
+              disabled={config.policies.length === 0}
+            />
             <div className="policy-bar-actions">
               {policyIssues.length > 0 && <IconButton className="danger" icon="refresh" label="Reset policy to last saved" onClick={() => setShowReset(true)} disabled={!activePolicy} />}
               <IconButton className="danger" icon="trash" label="Delete policy" onClick={() => activePolicy && deletePolicy(activePolicy.id)} disabled={!activePolicy} />
@@ -161,10 +167,9 @@ export function PolicyView({ config, savedConfig, issues, onConfigChange, onRead
           onClose={() => setShowNewPolicy(false)}
           footer={<><button type="button" onClick={() => setShowNewPolicy(false)}>Cancel</button><button className="primary" type="button" onClick={addPolicy} disabled={!newPolicyName.trim()}>Create policy</button></>}
         >
-          <label className="field">
-            <span className="field-label">Policy name</span>
+          <Field label="Policy name">
             <input autoFocus value={newPolicyName} onChange={(e) => setNewPolicyName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addPolicy()} placeholder="Block social media" />
-          </label>
+          </Field>
           <p className="inline-note">New policies are added to the shared library. Add them to a mode on the Modes page to make them run.</p>
         </Modal>
       )}

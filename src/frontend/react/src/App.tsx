@@ -14,6 +14,8 @@ import { uniqueSlug } from "./services/config/configEditing";
 import { rememberNotificationEvents, showNotificationEvents, type Notifier } from "./services/notifications/notificationService";
 import { tauriNotifier } from "./services/notifications/tauriNotifier";
 import { getNetworkInfo, getProxyStatus, readRecentEvents, startProxy, stopProxy, type NetworkInfo, type ProxyEvent, type ProxyStatus } from "./services/proxy/proxyRepository";
+import { EVENT_POLL_MS, STATUS_POLL_MS } from "./services/proxy/polling";
+import { errorMessage } from "./services/errors/errorMessage";
 import { tauriClient } from "./services/tauri/tauriClient";
 
 interface Props {
@@ -22,9 +24,6 @@ interface Props {
 }
 
 const AUTOSAVE_DELAY_MS = 600;
-const STATUS_POLL_MS = 2000;
-const EVENT_POLL_MS = 3000;
-
 export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [view, setView] = useState<View>("settings");
   const [config, setConfig] = useState<AppConfig>(() => createDefaultConfig());
@@ -72,8 +71,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   }, [events, notifier]);
 
   function showError(error: unknown) {
-    const text = error instanceof Error ? error.message : String(error);
-    setMessage(text.includes("invoke") ? "Browser preview — Tauri unavailable" : text);
+    setMessage(errorMessage(error));
   }
 
   const hasConfigChanges = JSON.stringify(config) !== JSON.stringify(savedConfig);

@@ -1,26 +1,18 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { CustomNodeConfig, StepParams } from "../models/config/types";
-import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
+import { readNodeSource } from "../services/nodes/defaultNodeSources";
+import { fuzzyMatch } from "../services/search/search";
+import { IF_CONDITION_CODE, START_TRIGGER_CODE, SWITCH_CONDITION_CODE } from "../services/policy/codeTemplates";
 import { PythonCodeEditor } from "./PythonCodeEditor";
 import { FieldGroup, Icon, IconButton, Modal, SearchInput, type IconName } from "./ui";
 
-const START_CODE = `def triggered_by(request: Request) -> bool:
-    return True
-`;
-const IF_CODE = `def if_condition(input) -> bool:
-    return False
-`;
-const SWITCH_CODE = `def switch_condition(input) -> str:
-    return "default"
-`;
-
 const FLOW_NODES: LibraryItem[] = [
-  { kind: "node", type: "start", label: "Start", desc: "Entry point with Python triggered_by(request) code", tone: "start", icon: "play", code: START_CODE },
+  { kind: "node", type: "start", label: "Start", desc: "Entry point with Python triggered_by(request) code", tone: "start", icon: "play", code: START_TRIGGER_CODE },
   { kind: "node", type: "end", label: "End", desc: "Stop this policy flow", tone: "end", icon: "stop" },
 ];
 const OPERATORS: LibraryItem[] = [
-  { kind: "operator", type: "if", label: "If / Then / Else", desc: "One input, two outputs. Routes by Python if_condition(input).", tone: "operator", icon: "branch", code: IF_CODE },
-  { kind: "operator", type: "switch", label: "Switch", desc: "One input, one output per case. Routes by Python switch_condition(input).", tone: "operator", icon: "switch", code: SWITCH_CODE },
+  { kind: "operator", type: "if", label: "If / Then / Else", desc: "One input, two outputs. Routes by Python if_condition(input).", tone: "operator", icon: "branch", code: IF_CONDITION_CODE },
+  { kind: "operator", type: "switch", label: "Switch", desc: "One input, one output per case. Routes by Python switch_condition(input).", tone: "operator", icon: "switch", code: SWITCH_CONDITION_CODE },
 ];
 
 interface Props {
@@ -45,11 +37,9 @@ export function NodeLibrary({ customNodes, hasStart, onAddStep, onReadNode }: Pr
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<LibraryItem | null>(null);
   const [previewCode, setPreviewCode] = useState("");
-  const query = search.trim().toLowerCase();
-  const matches = (text: string) => !query || text.toLowerCase().includes(query);
-  const flow = FLOW_NODES.filter((item) => matches(`${item.label} ${item.desc}`));
-  const operators = OPERATORS.filter((item) => matches(`${item.label} ${item.desc}`));
-  const nodes = customNodes.map(customItem).filter((node) => matches(`${node.label} ${node.type} ${node.desc}`));
+  const flow = FLOW_NODES.filter((item) => fuzzyMatch(search, `${item.label} ${item.desc}`));
+  const operators = OPERATORS.filter((item) => fuzzyMatch(search, `${item.label} ${item.desc}`));
+  const nodes = customNodes.map(customItem).filter((node) => fuzzyMatch(search, `${node.label} ${node.type} ${node.desc}`));
   const addDisabled = selected?.type === "start" && hasStart;
   const canEditCode = selected?.kind === "operator" || selected?.type === "start";
 
@@ -58,9 +48,8 @@ export function NodeLibrary({ customNodes, hasStart, onAddStep, onReadNode }: Pr
     if (!selected.path) { setPreviewCode(selected.code ?? ""); return; }
     let active = true;
     setPreviewCode("Loading source…");
-    onReadNode(selected.path)
-      .then((source) => { if (active) setPreviewCode(source); })
-      .catch(() => { if (active) setPreviewCode(bundledNodeSource(selected.path ?? "") ?? "# Source unavailable in browser preview."); });
+    readNodeSource(onReadNode, selected.path)
+      .then(({ source }) => { if (active) setPreviewCode(source); });
     return () => { active = false; };
   }, [selected, onReadNode]);
 

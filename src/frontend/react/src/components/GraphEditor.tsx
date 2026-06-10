@@ -215,4 +215,3 @@ function labelStyle(p: Vec): CSSProperties { const l = labelPos(p); return { lef
 
 type PolicyEdgeType = PolicyConfig["edges"][number];
 function edgeId(edge: PolicyEdgeType, index: number): string { return `${edge.from}-${edge.output}-${edge.to}-${index}`; }
-export function paramsToText(params: Record<string, unknown> | undefined): string { return JSON.stringify(params ?? {}, null, 2); }

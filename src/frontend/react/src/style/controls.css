@@ -20,12 +20,10 @@ button.primary.hero:hover:not(:disabled) { box-shadow: 0 10px 30px rgba(245,158,
 :focus-visible { outline: 2px solid var(--amber-2); outline-offset: 2px; }
 
 /* --- Inputs --- */
-input, select, textarea { width: 100%; min-height: 36px; border: 1px solid var(--line); border-radius: 7px; padding: 8px 11px; color: var(--text); background: #0e0c0a; transition: border-color .15s; }
-select { appearance: none; -webkit-appearance: none; padding-right: 34px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23ffbd5a' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 10px 6px; }
-select:disabled { opacity: .5; }
+input, textarea { width: 100%; min-height: 36px; border: 1px solid var(--line); border-radius: 7px; padding: 8px 11px; color: var(--text); background: #0e0c0a; transition: border-color .15s; }
 input::placeholder, textarea::placeholder { color: var(--dim); }
-input:hover, select:hover, textarea:hover { border-color: #463d31; }
-input:focus, select:focus, textarea:focus { border-color: var(--amber); outline: none; }
+input:hover, textarea:hover { border-color: #463d31; }
+input:focus, textarea:focus { border-color: var(--amber); outline: none; }
 textarea { min-height: 100px; resize: vertical; line-height: 1.5; }
 input[type="checkbox"] { width: 18px; height: 18px; min-height: 0; padding: 0; accent-color: var(--amber); cursor: pointer; flex-shrink: 0; }
 input[type="checkbox"].switch { appearance: none; -webkit-appearance: none; width: 44px; height: 24px; min-height: 24px; border-radius: 999px; background: #241f18; border: 1px solid var(--line); position: relative; cursor: pointer; transition: background .15s, border-color .15s; }

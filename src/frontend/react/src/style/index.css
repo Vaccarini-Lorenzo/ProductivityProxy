@@ -1,6 +1,7 @@
 @import "@xyflow/react/dist/style.css";
 @import "./base.css";
 @import "./controls.css";
+@import "./select.css";
 @import "./layout.css";
 @import "./policy.css";
 @import "./modal.css";

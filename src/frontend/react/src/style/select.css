@@ -1,0 +1,21 @@
+/* --- Themed select (custom dropdown matching the app UI) --- */
+.select { position: relative; display: block; width: 100%; }
+.select-trigger { width: 100%; display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 7px; background: #0e0c0a; color: var(--text); font-weight: 400; }
+.select-trigger:hover:not(:disabled) { border-color: #463d31; background: #0e0c0a; color: var(--text); }
+.select-trigger:focus-visible { border-color: var(--amber); outline: none; box-shadow: 0 0 0 2px rgba(245,158,11,.3); }
+.select[data-open="true"] .select-trigger { border-color: var(--amber); }
+.select-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-value.is-placeholder { color: var(--muted); }
+.select-caret { width: 11px; height: 11px; color: var(--amber-2); flex-shrink: 0; transition: transform .15s ease; }
+.select[data-open="true"] .select-caret { transform: rotate(180deg); }
+
+.select-menu { position: absolute; z-index: 30; left: 0; top: calc(100% + 6px); min-width: 100%; max-width: 340px; margin: 0; padding: 5px; list-style: none; display: grid; gap: 2px; max-height: 280px; overflow-y: auto; background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 16px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(245,158,11,.05); transform-origin: top; animation: select-pop .14s ease-out; }
+.select-option { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 34px; padding: 7px 10px; border-radius: 6px; color: var(--text); font-size: .86rem; cursor: pointer; }
+.select-menu .select-option:hover { background: rgba(245,158,11,.1); }
+.select-menu .select-option:focus-visible { background: rgba(245,158,11,.12); outline: 2px solid var(--amber); outline-offset: -2px; }
+.select-option.is-selected { color: var(--amber-2); }
+.select-option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-option-check { width: 14px; height: 14px; color: var(--amber-2); flex-shrink: 0; }
+
+@keyframes select-pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .select-menu { animation: none; } .select-caret { transition: none; } }

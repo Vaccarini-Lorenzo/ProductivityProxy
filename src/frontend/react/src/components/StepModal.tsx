@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { PythonCodeEditor } from "./PythonCodeEditor";
 import { Field, FieldGroup } from "./ui";
-import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
+import { readNodeSource } from "../services/nodes/defaultNodeSources";
+import { paramInputType, paramsWithDefaults } from "../services/nodes/nodeParams";
+import { START_TRIGGER_CODE } from "../services/policy/codeTemplates";
 import type { CustomNodeConfig, PolicyConfig, PolicyStep, StepParams } from "../models/config/types";
-import nodeParamSpecs from "../../../../proxy/defaults/node_params.json";
 
 interface Props {
   policy: PolicyConfig;
@@ -14,13 +15,6 @@ interface Props {
   onReadNode: (path: string) => Promise<string>;
   onClose: () => void;
 }
-
-type NodeParamSpec = { params?: Record<string, { type?: string; default: unknown }> };
-const DEFAULT_NODE_PARAMS = nodeParamSpecs as Record<string, NodeParamSpec>;
-
-const DEFAULT_START_TRIGGER_CODE = `def triggered_by(request: Request) -> bool:
-    return True
-`;
 
 /** Step configuration popup. Operators edit their logic (autosave); nodes show read-only code + editable params. */
 export function StepModal({ policy, step, customNodes, onParamsChange, onReadNode, onClose }: Props) {
@@ -64,9 +58,8 @@ function NodeView({ node, step, onChange, onReadNode }: { node: CustomNodeConfig
 
   useEffect(() => {
     let active = true;
-    onReadNode(node.path)
-      .then((source) => { if (active) setCode(source); })
-      .catch(() => { if (active) setCode(bundledNodeSource(node.path) ?? "# Source unavailable in browser preview."); });
+    readNodeSource(onReadNode, node.path)
+      .then(({ source }) => { if (active) setCode(source); });
     return () => { active = false; };
   }, [node.path, onReadNode]);
 
@@ -81,7 +74,7 @@ function NodeView({ node, step, onChange, onReadNode }: { node: CustomNodeConfig
 }
 
 function TriggerEditor({ step, onChange }: { step: PolicyStep; onChange: (p: StepParams) => void }) {
-  const code = typeof step.params?.code === "string" ? step.params.code : DEFAULT_START_TRIGGER_CODE;
+  const code = typeof step.params?.code === "string" ? step.params.code : START_TRIGGER_CODE;
   const setCode = (next: string) => onChange({ ...step.params, code: next });
 
   return (
@@ -111,17 +104,6 @@ function ParamsEditor({ step, onChange }: { step: PolicyStep; onChange: (p: Step
       ))}
     </div>
   );
-}
-
-function paramsWithDefaults(step: PolicyStep): StepParams {
-  const spec = DEFAULT_NODE_PARAMS[step.type]?.params;
-  if (!spec) return step.params ?? {};
-  const defaults = Object.fromEntries(Object.entries(spec).map(([key, item]) => [key, item.default]));
-  return { ...defaults, ...step.params };
-}
-
-function paramInputType(type: string, key: string): string {
-  return DEFAULT_NODE_PARAMS[type]?.params?.[key]?.type === "number" ? "number" : "text";
 }
 
 function OperatorEditor({ step, onChange }: { step: PolicyStep; onChange: (p: StepParams) => void }) {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CustomNodeConfig, ValidationIssue, ValidationReport } from "../models/config/types";
-import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
+import { readNodeSource } from "../services/nodes/defaultNodeSources";
+import { fuzzyMatch } from "../services/search/search";
 import { PythonCodeEditor } from "../components/PythonCodeEditor";
 import { Card, Field, FieldGroup, Icon, IconButton, Modal, PageHeader, SearchInput } from "../components/ui";
 
@@ -39,7 +40,7 @@ export function NodesView({ nodes, onSave, onRead, onValidateCode, onDelete }: P
   const [nodeIssues, setNodeIssues] = useState<ValidationIssue[]>([]);
   const [showReset, setShowReset] = useState(false);
   const validateRun = useRef(0);
-  const visibleNodes = nodes.filter((node) => `${node.name} ${node.path}`.toLowerCase().includes(search.toLowerCase()));
+  const visibleNodes = nodes.filter((node) => fuzzyMatch(search, `${node.name} ${node.path}`));
   const draftDirty = !!draft && (!draftBase || JSON.stringify(draft) !== JSON.stringify(draftBase));
   const nodeInvalid = nodeIssues.length > 0;
 
@@ -84,18 +85,11 @@ export function NodesView({ nodes, onSave, onRead, onValidateCode, onDelete }: P
     setMessage("Loading source…");
     setDraft(loadingDraft);
     setDraftBase(loadingDraft);
-    try {
-      const loadedDraft = nodeDraft(node, await onRead(node.path));
-      setDraft(loadedDraft);
-      setDraftBase(loadedDraft);
-      setMessage("");
-    } catch (error) {
-      const bundled = bundledNodeSource(node.path);
-      const fallbackDraft = nodeDraft(node, bundled ?? `# Could not load node source:\n# ${error instanceof Error ? error.message : String(error)}\n`);
-      setDraft(fallbackDraft);
-      setDraftBase(fallbackDraft);
-      setMessage(bundled ? "Showing bundled default source" : "Could not load node source");
-    }
+    const result = await readNodeSource(onRead, node.path);
+    const loadedDraft = nodeDraft(node, result.source);
+    setDraft(loadedDraft);
+    setDraftBase(loadedDraft);
+    setMessage(result.status === "bundled" ? "Showing bundled default source" : result.status === "unavailable" ? "Could not load node source" : "");
   }
 
   async function saveNode() {
@@ -139,7 +133,7 @@ export function NodesView({ nodes, onSave, onRead, onValidateCode, onDelete }: P
             {message && <span className="message footer-message">{message}</span>}
             {nodeInvalid && <button type="button" className="danger" onClick={() => setShowReset(true)}>Reset</button>}
             <button type="button" onClick={closeDraft}>Cancel</button>
-            <IconButton className={draftDirty && !nodeInvalid ? "primary save-button" : "save-button save-clean"} icon="save" label={draft.id ? "Update node" : "Save node"} onClick={saveNode} disabled={!draftDirty || nodeInvalid} />
+            <IconButton className={draftDirty && !nodeInvalid ? "primary" : "save-clean"} icon="save" label={draft.id ? "Update node" : "Save node"} onClick={saveNode} disabled={!draftDirty || nodeInvalid} />
           </>}
         >
           <div className="form-grid">

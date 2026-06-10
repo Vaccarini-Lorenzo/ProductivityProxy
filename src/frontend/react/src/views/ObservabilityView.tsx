@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppConfig } from "../models/config/types";
 import type { CommandClient } from "../services/config/configRepository";
 import { queryEvents, type EventQuery, type ProxyEvent } from "../services/proxy/proxyRepository";
-import { Card, Field, Icon, IconButton, Modal, PageHeader, SearchInput, Toggle, count } from "../components/ui";
+import { EVENT_POLL_MS } from "../services/proxy/polling";
+import { errorMessage } from "../services/errors/errorMessage";
+import { Select } from "../components/Select";
+import { Card, Field, FieldGroup, Icon, IconButton, Modal, PageHeader, SearchInput, Toggle, count } from "../components/ui";
 
 interface Props {
   client: CommandClient;
@@ -22,6 +25,9 @@ interface Filters {
 
 const DEFAULT_FILTERS: Filters = { limit: 100, category: "", type: "", level: "", policyId: "", requestId: "", search: "", windowMinutes: "" };
 const EVENT_TYPES = ["", "config_loaded", "config_rejected", "request_started", "request_finished", "request_failed", "policy_started", "policy_step", "policy_finished", "policy_error", "custom_node_log", "notification"];
+const EVENT_TYPE_OPTIONS = EVENT_TYPES.map((type) => ({ value: type, label: type || "any" }));
+const LEVEL_OPTIONS = ["", "debug", "info", "warning", "error"].map((level) => ({ value: level, label: level || "any" }));
+const CATEGORY_OPTIONS = ["", "observability", "custom_node"].map((category) => ({ value: category, label: category || "any" }));
 
 export function ObservabilityView({ client, config }: Props) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -29,7 +35,7 @@ export function ObservabilityView({ client, config }: Props) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [message, setMessage] = useState("");
-  const policies = useMemo(() => config.policies, [config.policies]);
+  const policyOptions = useMemo(() => [{ value: "", label: "any" }, ...config.policies.map((p) => ({ value: p.id, label: p.name }))], [config.policies]);
   const selected = openIndex === null ? undefined : events[openIndex];
   const requestId = text(selected, "requestId");
   const timeline = requestId ? events.filter((e) => text(e, "requestId") === requestId) : [];
@@ -40,15 +46,14 @@ export function ObservabilityView({ client, config }: Props) {
       setEvents(result);
       setMessage("");
     } catch (error) {
-      const value = error instanceof Error ? error.message : String(error);
-      setMessage(value.includes("invoke") ? "Browser preview — Tauri unavailable" : value);
+      setMessage(errorMessage(error));
     }
   }, [client, filters]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!autoRefresh) return;
-    const id = window.setInterval(load, 3000);
+    const id = window.setInterval(load, EVENT_POLL_MS);
     return () => window.clearInterval(id);
   }, [autoRefresh, load]);
 
@@ -70,10 +75,10 @@ export function ObservabilityView({ client, config }: Props) {
       <Card title="Filters" icon="search" actions={toolbar}>
         <SearchInput value={filters.search} onChange={(v) => update("search", v)} placeholder="Search events…" ariaLabel="Search events" />
         <div className="filter-grid">
-          <Field label="Type"><select value={filters.type} onChange={(e) => update("type", e.target.value)}>{EVENT_TYPES.map((t) => <option key={t} value={t}>{t || "any"}</option>)}</select></Field>
-          <Field label="Level"><select value={filters.level} onChange={(e) => update("level", e.target.value)}><option value="">any</option><option value="debug">debug</option><option value="info">info</option><option value="warning">warning</option><option value="error">error</option></select></Field>
-          <Field label="Category"><select value={filters.category} onChange={(e) => update("category", e.target.value)}><option value="">any</option><option value="observability">observability</option><option value="custom_node">custom_node</option></select></Field>
-          <Field label="Policy"><select value={filters.policyId} onChange={(e) => update("policyId", e.target.value)}><option value="">any</option>{policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
+          <FieldGroup label="Type"><Select ariaLabel="Filter by event type" value={filters.type} options={EVENT_TYPE_OPTIONS} onChange={(v) => update("type", v)} /></FieldGroup>
+          <FieldGroup label="Level"><Select ariaLabel="Filter by level" value={filters.level} options={LEVEL_OPTIONS} onChange={(v) => update("level", v)} /></FieldGroup>
+          <FieldGroup label="Category"><Select ariaLabel="Filter by category" value={filters.category} options={CATEGORY_OPTIONS} onChange={(v) => update("category", v)} /></FieldGroup>
+          <FieldGroup label="Policy"><Select ariaLabel="Filter by policy" value={filters.policyId} options={policyOptions} onChange={(v) => update("policyId", v)} /></FieldGroup>
           <Field label="Request ID"><input value={filters.requestId} onChange={(e) => update("requestId", e.target.value)} placeholder="hex" /></Field>
           <Field label="Minutes"><input value={filters.windowMinutes} onChange={(e) => update("windowMinutes", e.target.value)} placeholder="15" /></Field>
           <Field label="Limit"><input type="number" min="1" max="1000" value={filters.limit} onChange={(e) => update("limit", Number(e.target.value))} /></Field>

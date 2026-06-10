@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { AppConfig, ModeConfig, PolicyConfig } from "../models/config/types";
 import { createMode } from "../services/config/configEditing";
+import { Select } from "../components/Select";
 import { Card, Field, Icon, IconButton, Modal, PageHeader, count } from "../components/ui";
 
 interface Props {
@@ -113,10 +114,15 @@ function ModeEditor({ config, mode, onConfigChange }: { config: AppConfig; mode:
           })}
           {mode.policyIds.length === 0 && <p className="muted">No policies yet. Add one below.</p>}
         </div>
-        <select className="policy-add-select" aria-label="Add an existing policy" value="" onChange={(e) => addExisting(e.target.value)} disabled={available.length === 0}>
-          <option value="" disabled hidden>{available.length ? "Add an existing policy…" : "All policies are already added"}</option>
-          {available.map((policy) => <option key={policy.id} value={policy.id}>{policy.name}</option>)}
-        </select>
+        <Select
+          className="policy-add-select"
+          ariaLabel="Add an existing policy"
+          value=""
+          placeholder={available.length ? "Add an existing policy…" : "All policies are already added"}
+          options={available.map((policy) => ({ value: policy.id, label: policy.name }))}
+          onChange={addExisting}
+          disabled={available.length === 0}
+        />
         <p className="inline-note">Policies are shared across modes. Create and edit them on the Policy page. Changes here save automatically.</p>
       </div>
     </>

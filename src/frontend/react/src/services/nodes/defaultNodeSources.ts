@@ -19,3 +19,15 @@ function basename(path: string): string {
 export function bundledNodeSource(path: string): string | undefined {
   return SOURCES[basename(path)];
 }
+
+export type NodeSourceStatus = "loaded" | "bundled" | "unavailable";
+
+export async function readNodeSource(read: (path: string) => Promise<string>, path: string): Promise<{ source: string; status: NodeSourceStatus }> {
+  try {
+    return { source: await read(path), status: "loaded" };
+  } catch (error) {
+    const bundled = bundledNodeSource(path);
+    if (bundled) return { source: bundled, status: "bundled" };
+    return { source: `# Could not load node source:\n# ${error instanceof Error ? error.message : String(error)}\n`, status: "unavailable" };
+  }
+}

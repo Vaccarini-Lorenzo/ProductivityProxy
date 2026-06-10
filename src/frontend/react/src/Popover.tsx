@@ -3,10 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Card, CheckRow, Icon, count } from "./components/ui";
 import type { AppConfig } from "./models/config/types";
 import { loadConfig, saveConfig, type CommandClient } from "./services/config/configRepository";
+import { errorMessage } from "./services/errors/errorMessage";
+import { STATUS_POLL_MS } from "./services/proxy/polling";
 import { getProxyStatus, startProxy, stopProxy } from "./services/proxy/proxyRepository";
 import { tauriClient } from "./services/tauri/tauriClient";
-
-const STATUS_POLL_MS = 2000;
 
 interface Props {
   client?: CommandClient;
@@ -62,8 +62,7 @@ export function Popover({ client = tauriClient }: Props) {
   }, [client]);
 
   function showError(error: unknown) {
-    const text = error instanceof Error ? error.message : String(error);
-    setMessage(text.includes("invoke") ? "Tauri unavailable" : text);
+    setMessage(errorMessage(error, "Tauri unavailable"));
   }
 
   async function toggleProxy(next: boolean) {
