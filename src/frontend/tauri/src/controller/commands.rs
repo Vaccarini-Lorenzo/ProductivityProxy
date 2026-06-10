@@ -191,17 +191,17 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
 
 #[tauri::command]
 pub fn stop_proxy(app: AppHandle, state: State<AppState>) -> Result<(), String> {
-    let paths = paths_for_app(&app)?;
-    restore_marked_system_proxy(&state.system_proxy_snapshot, &paths.system_proxy_snapshot_path)?;
+    let snapshot_path = system_proxy_snapshot_path_for_app(&app)?;
+    restore_marked_system_proxy(&state.system_proxy_snapshot, &snapshot_path)?;
     state.proxy.lock().map_err(to_string)?.stop().map_err(to_string)
 }
 
 #[tauri::command]
 pub fn proxy_status(app: AppHandle, state: State<AppState>) -> Result<ProxyStatus, String> {
-    let paths = paths_for_app(&app)?;
+    let snapshot_path = system_proxy_snapshot_path_for_app(&app)?;
     let running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;
     if !running {
-        restore_marked_system_proxy(&state.system_proxy_snapshot, &paths.system_proxy_snapshot_path)?;
+        restore_marked_system_proxy(&state.system_proxy_snapshot, &snapshot_path)?;
     }
     Ok(ProxyStatus { running })
 }
@@ -228,6 +228,13 @@ fn paths_for_app(app: &AppHandle) -> Result<RuntimePaths, String> {
     Ok(RuntimePaths::new(app_data, discover_repo_root()?))
 }
 
+fn system_proxy_snapshot_path_for_app(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map(|path| path.join("system_proxy_snapshot.json"))
+        .map_err(to_string)
+}
+
 fn require_env(name: &str) -> Result<(), String> {
     std::env::var(name)
         .map(|_| ())
@@ -237,12 +244,11 @@ fn require_env(name: &str) -> Result<(), String> {
 /// Best-effort cleanup on app exit: restore the captured system proxy state and
 /// stop mitmdump. Safe to call repeatedly (the snapshot is taken once).
 pub fn shutdown_cleanup(app: &AppHandle, state: &AppState) {
-    match paths_for_app(app) {
-        Ok(paths) => {
-            if let Err(error) = restore_marked_system_proxy(
-                &state.system_proxy_snapshot,
-                &paths.system_proxy_snapshot_path,
-            ) {
+    match system_proxy_snapshot_path_for_app(app) {
+        Ok(snapshot_path) => {
+            if let Err(error) =
+                restore_marked_system_proxy(&state.system_proxy_snapshot, &snapshot_path)
+            {
                 log::error!("failed to restore system proxy on exit: {error}");
             }
         }
