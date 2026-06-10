@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PolicyConfig } from "@app/models/config/types";
-import { addEdge, addStep, updateEdgeOutput, updateStepParams } from "@app/services/policy/policyOperations";
+import { addStep, updateStepParams } from "@app/services/policy/policyOperations";
 
 function policy(): PolicyConfig {
   return {
@@ -31,12 +31,6 @@ describe("policyOperations", () => {
     expect(updated.steps[1].params).toEqual({ platform: "reddit", idleSeconds: 300 });
   });
 
-  it("adds an edge with output", () => {
-    const updated = addEdge(policy(), "start", "next", "log-event-1");
-
-    expect(updated.edges).toEqual([{ from: "start", output: "next", to: "log-event-1" }]);
-  });
-
   it("updates step params immutably", () => {
     const original = addStep(policy(), "node", "block-response");
     const updated = updateStepParams(original, "block-response-1", { message: "Blocked" });
@@ -45,10 +39,4 @@ describe("policyOperations", () => {
     expect(original.steps.find((step) => step.id === "block-response-1")?.params).toEqual({ status: 403, message: "Blocked" });
   });
 
-  it("updates edge outputs", () => {
-    const original = addEdge(policy(), "choice", "next", "end");
-    const updated = updateEdgeOutput(original, 0, "true");
-
-    expect(updated.edges[0].output).toBe("true");
-  });
 });

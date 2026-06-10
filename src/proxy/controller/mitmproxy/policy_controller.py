@@ -48,6 +48,8 @@ class PolicyProxyController:
         self.evaluator.evaluate(context)
 
     def close(self) -> None:
+        if self.state is not None:
+            self.state.close()
         if self.event_log is not None:
             self.event_log.close()
 

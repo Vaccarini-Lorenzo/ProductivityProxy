@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { apiReference, fuzzyMatch, searchApiReference } from "@app/services/apiReference/apiReference";
+import { apiReference, searchApiReference } from "@app/services/apiReference/apiReference";
+import { fuzzyMatch } from "@app/services/search/search";
 
 describe("apiReference", () => {
   it("documents non-empty groups and entries", () => {

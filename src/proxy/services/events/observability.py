@@ -53,17 +53,23 @@ def request_started(context) -> None:
     _append(context.event_log, context, "request_started", "debug", "Request evaluation started", {})
 
 
-def request_finished(context, outcome: str) -> None:
-    _append(context.event_log, context, "request_finished", "info", f"Request {outcome}", {
+def request_finished(context, outcome: str, policy=None) -> None:
+    details = {
         "outcome": outcome,
+        **_request_fields(context),
         **_response_fields(context),
-    })
+    }
+    if policy is not None:
+        details["decidingPolicyId"] = policy.id
+        details["decidingPolicyName"] = policy.name
+    _append(context.event_log, context, "request_finished", "info", f"Request {outcome}", details)
 
 
 def request_failed(context, error: Exception) -> None:
     _append(context.event_log, context, "request_failed", "error", "Request evaluation failed", {
         "errorType": type(error).__name__,
         "error": str(error),
+        **_request_fields(context),
         **_response_fields(context),
     })
 
@@ -80,7 +86,6 @@ def policy_finished(context, policy, reason: str) -> None:
         "policyId": policy.id,
         "policyName": policy.name,
         "reason": reason,
-        **_response_fields(context),
     })
 
 
@@ -105,7 +110,6 @@ def policy_step(context, policy, step, output: str, route_output: str, next_step
         "routeOutput": route_output,
         "nextStepId": next_step_id,
         "durationMs": round(duration_ms, 3),
-        **_response_fields(context),
     })
 
 
@@ -144,11 +148,11 @@ def _timestamp(context) -> float:
 
 
 def _context_fields(context) -> dict[str, Any]:
+    # Keep per-event payloads light: only the correlation id and active mode go
+    # on every event. Heavy request fields (url/host/path/method) are attached
+    # to request-level events only.
     config = getattr(context, "config", None)
-    fields = {
-        "requestId": context.request_id,
-        **_request_fields(context),
-    }
+    fields: dict[str, Any] = {"requestId": context.request_id}
     if config is not None:
         fields["modeId"] = config.active_mode_id
     return fields

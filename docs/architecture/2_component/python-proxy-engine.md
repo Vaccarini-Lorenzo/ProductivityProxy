@@ -151,7 +151,7 @@ Public `request` exposes HTTP fields/actions such as `host`, `url`, `headers`, `
 
 `context.state` is an in-memory key/value store shared by requests handled by the same evaluator; stored dict/list values are passed by reference and disappear when the proxy process restarts.
 
-`context.persistent_state` is a raw global JSON-backed store. It has `get(keyword)` and `set(keyword, data)`. `get` raises `KeyError` when the top-level key is absent. `set` writes immediately and accepts JSON-serializable values only. Mutating a nested dict/list returned by `get` has no durable side effect until code calls `set` with the updated top-level value.
+`context.persistent_state` is a raw global JSON-backed store. It has `get(keyword)` and `set(keyword, data)`. `get` raises `KeyError` when the top-level key is absent. `set` accepts JSON-serializable values only and persists write-behind: the store is kept in memory and flushed to disk at most every `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`, and on shutdown. `get` returns the live in-memory value, so mutating a nested dict/list updates in-memory state but is only persisted once code calls `set` (which marks the store dirty).
 
 The evaluator does not merge node outputs into either state store. Custom nodes own their return shape.
 
@@ -177,22 +177,11 @@ Bundled node files live in:
 src/proxy/defaults/nodes/
 ```
 
-Current bundled files include:
+Current bundled files are the registered default nodes visible in the default node library:
 
-- `detect_youtube_shorts.py`,
-- `detect_platform.py`,
-- `block_response.py`,
-- `track_time.py`,
-- `is_usage_over_limit.py`,
-- `redirect_request.py`,
-- `log_event.py`,
-- `notify.py`.
-
-Only these three bundled nodes are registered in the default config and visible in the default node library:
-
-- `block-response`,
-- `track-time`,
-- `is-usage-over-limit`.
+- `block_response.py` (`block-response`),
+- `track_time.py` (`track-time`),
+- `is_usage_over_limit.py` (`is-usage-over-limit`).
 
 Default-node parameter contracts live in [Data Layer](../4_data_layer/config-state-events.md#default-node-parameter-contracts). The required-param/default map for registered bundled nodes lives in `src/proxy/defaults/node_params.json`.
 
@@ -200,15 +189,15 @@ Security note: custom nodes and inline start/operator Python are executed direct
 
 ## Persistent state
 
-`StateStore` stores persistent state data in JSON. The public API is `context.persistent_state.get(keyword)` and `context.persistent_state.set(keyword, data)`.
+`StateStore` stores persistent state data in JSON. The public API is `context.persistent_state.get(keyword)` and `context.persistent_state.set(keyword, data)`. State is read from disk once, mutated in memory, and flushed write-behind (within `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`, and on shutdown), so the event loop no longer rewrites the whole file on every request.
 
 Usage tracking counts elapsed time only when the previous request for a platform was within the configured idle window. Daily buckets use UTC dates. The registered `track-time` and `is-usage-over-limit` nodes use `context.persistent_state` for the top-level `usage` key.
 
 ## Events
 
-`EventLog` appends one JSON object per line to `events.jsonl`.
+`EventLog` appends one JSON object per line to `events.jsonl` from a background thread, so the event loop never blocks on disk I/O. The file is kept under `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`: when it grows past the budget the oldest half is dropped (compaction), bounding both file size and dashboard read cost.
 
-The evaluator emits config, request, policy, step, and error events. Custom nodes call `context.log(type, message, level, **data)` for filterable custom events.
+By default the evaluator emits one request-level event per request, plus config, error, and custom-node events. Setting `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE=true` adds the full per-step policy trace. Custom nodes call `context.log(type, message, level, **data)` for filterable custom events.
 
 Event schemas and query contracts live in [Data Layer](../4_data_layer/config-state-events.md#event-log-schema).
 

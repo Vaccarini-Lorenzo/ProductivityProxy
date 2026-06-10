@@ -22,13 +22,16 @@ npm install
 
 ## Environment
 
-Proxy evaluation requires a loop guard:
+The proxy engine requires these environment variables and fails fast when any is missing:
 
 ```bash
-export POLICY_MAX_STEPS="1000"
+export POLICY_MAX_STEPS="1000"                    # evaluator loop guard
+export PRODUCTIVE_PROXY_TELEMETRY_VERBOSE="false" # "true" emits the full per-step trace
+export PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES="5000000" # event log byte budget (compacted)
+export PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS="2"   # state write-behind interval
 ```
 
-The desktop app checks this variable before `start_proxy` launches `mitmdump`. The manual proxy helper loads it from `.env.example`.
+The desktop app checks these variables before `start_proxy` launches `mitmdump`, and `mitmdump` inherits them from the app's environment. The manual proxy helper loads them from `.env.example`.
 
 ## Run tests
 
@@ -76,6 +79,9 @@ npm run tauri build -- --debug --no-bundle
 
 ```bash
 export POLICY_MAX_STEPS="1000"
+export PRODUCTIVE_PROXY_TELEMETRY_VERBOSE="false"
+export PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES="5000000"
+export PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS="2"
 cd src/frontend/react
 npm run tauri dev
 ```
@@ -91,7 +97,7 @@ set +a
 ./scripts/run_mitm.sh
 ```
 
-The helper script uses `.env.example` for listener, runtime file paths, auth, and `POLICY_MAX_STEPS`. It creates `PRODUCTIVE_PROXY_CONFIG_PATH` from `src/proxy/defaults/default_config.json` when that file does not exist.
+The helper script uses `.env.example` for listener, runtime file paths, auth, and the engine variables (`POLICY_MAX_STEPS`, `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE`, `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`, `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`). It creates `PRODUCTIVE_PROXY_CONFIG_PATH` from `src/proxy/defaults/default_config.json` when that file does not exist.
 
 If the config schema changes, delete the file at `PRODUCTIVE_PROXY_CONFIG_PATH` before running the helper so it regenerates from the current default config.
 
@@ -158,7 +164,7 @@ npm run build
 ## Manual checks before daily use
 
 1. `mitmdump --version` works.
-2. `POLICY_MAX_STEPS` is set in the shell that starts the desktop app.
+2. The required proxy environment variables (`POLICY_MAX_STEPS`, `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE`, `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`, `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`) are set in the shell that starts the desktop app.
 3. Tauri app starts.
 4. Start proxy from Settings.
 5. macOS system proxy points at `127.0.0.1:<port>`.

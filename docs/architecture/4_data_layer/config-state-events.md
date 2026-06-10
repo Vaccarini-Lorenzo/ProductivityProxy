@@ -131,7 +131,7 @@ A custom node step uses the custom node `id` as its `type`. Paths must be absolu
 
 ## Default-node parameter contracts
 
-Bundled node files live under `src/proxy/defaults/nodes/`. A config must register a node before a policy can use it. The current default config registers only three bundled nodes; other files in that folder are not visible in the node library unless a config registers them.
+Bundled node files live under `src/proxy/defaults/nodes/`. A config must register a node before a policy can use it. The current default config registers all bundled default nodes.
 
 The small required-param/default map for registered bundled nodes lives in `src/proxy/defaults/node_params.json`.
 
@@ -175,7 +175,7 @@ Rules:
 - daily keys are UTC dates,
 - `last_seen_at` is a UNIX timestamp,
 - elapsed time is counted only when the gap from last seen is within `idleSeconds`,
-- state is rewritten as pretty JSON on each save.
+- state is held in memory and flushed to disk as pretty JSON at most every `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS` (write-behind), and on shutdown.
 
 Public custom-node API:
 
@@ -184,13 +184,17 @@ value = context.persistent_state.get("usage")
 context.persistent_state.set("usage", value)
 ```
 
-`get(keyword)` reads a top-level key and raises `KeyError` when missing. `set(keyword, data)` writes a JSON-serializable top-level value immediately. Mutating a nested dict/list returned by `get()` is not durable until code calls `set()` with the updated value.
+`get(keyword)` reads a top-level key and raises `KeyError` when missing. `set(keyword, data)` updates a JSON-serializable top-level value in memory and persists it write-behind (within `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS`, and on shutdown). A crash can lose at most the last flush interval of updates. `get()` returns the live in-memory value, so mutating a nested dict/list returned by `get()` updates in-memory state but is only persisted once code calls `set()` (which marks the store dirty).
 
 ## Event log schema
 
-Events are JSON lines. Each line is one object. Events are intentionally shaped for filtering in the frontend.
+Events are JSON lines. Each line is one object. Events are intentionally shaped for filtering in the frontend. The file is kept under `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`: once it grows past the budget the oldest half is dropped (compaction), so the file stays a bounded, recent window rather than growing without limit.
 
-Common observability fields:
+By default (`PRODUCTIVE_PROXY_TELEMETRY_VERBOSE=false`) the engine writes one `request_finished` event per request, plus config, error, and custom-node events. Setting `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE=true` adds the full per-step trace (`request_started`, `policy_started`, `policy_step`, `policy_finished`).
+
+Most events carry only the light correlation fields (`requestId`, `modeId`); the heavier request fields (`url`, `host`, `path`, `method`) are attached to request-level events only, and the frontend joins steps back to a request by `requestId`.
+
+Common fields on every event:
 
 ```json
 {
@@ -198,16 +202,11 @@ Common observability fields:
   "timestamp": 1781020000.0,
   "category": "observability",
   "source": "python_proxy",
-  "type": "policy_step",
-  "level": "debug",
-  "message": "Step detect-reddit returned next",
+  "type": "request_finished",
+  "level": "info",
+  "message": "Request blocked",
   "requestId": "...",
-  "modeId": "productivity",
-  "policyId": "reddit-limit-policy",
-  "stepId": "detect-reddit",
-  "url": "https://www.reddit.com/r/test",
-  "host": "www.reddit.com",
-  "path": "/r/test"
+  "modeId": "productivity"
 }
 ```
 
@@ -218,9 +217,9 @@ Known event groups:
 - `notification`,
 - observability events such as `config_loaded`, `config_rejected`, `request_started`, `request_finished`, `request_failed`, `policy_started`, `policy_step`, `policy_finished`, and `policy_error`.
 
-`request_finished.outcome` is `allowed` or `blocked`.
+`request_finished.outcome` is `allowed` or `blocked`. When blocked, it also carries `decidingPolicyId`, `decidingPolicyName`, and `responseStatus`, plus the request fields (`url`, `host`, `path`, `method`).
 
-`policy_step` contains routing fields such as `output`, `routeOutput`, `nextStepId`, `durationMs`, `responseSet`, and optionally `responseStatus`.
+`policy_step` (verbose only) contains routing fields such as `output`, `routeOutput`, `nextStepId`, and `durationMs`.
 
 ### Custom node logging API
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import queue
 import threading
 from pathlib import Path
@@ -13,14 +14,18 @@ class EventLog:
     """Appends events to a JSONL file from a background thread.
 
     Writes are enqueued and flushed off the caller's thread, so the mitmproxy
-    event loop never blocks on disk I/O. Call flush() to force a sync point
-    before reading in-process (read_recent does this automatically).
+    event loop never blocks on disk I/O. The file is kept under a byte budget:
+    once it grows past max_bytes the worker compacts it in place, dropping the
+    oldest half, so reads (and the dashboard) stay bounded. Call flush() to force
+    a sync point before reading in-process (read_recent does this automatically).
     """
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, max_bytes: int | None = None):
         self.path = Path(path)
+        self.max_bytes = max_bytes if max_bytes is not None else _max_bytes_from_env()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._file = self.path.open("a", encoding="utf-8")
+        self._bytes = self.path.stat().st_size
         self._queue: queue.Queue = queue.Queue()
         self._closed = False
         self._worker = threading.Thread(target=self._drain, daemon=True)
@@ -48,12 +53,29 @@ class EventLog:
             try:
                 if event is _CLOSE:
                     return
-                self._file.write(json.dumps(event, sort_keys=True, default=str) + "\n")
-                self._file.flush()
+                line = json.dumps(event, sort_keys=True, default=str) + "\n"
+                self._file.write(line)
+                self._bytes += len(line.encode("utf-8"))
+                if self._queue.empty():
+                    self._file.flush()
+                if self._bytes >= self.max_bytes:
+                    self._compact()
             except Exception:
                 pass
             finally:
                 self._queue.task_done()
+
+    def _compact(self) -> None:
+        self._file.flush()
+        self._file.close()
+        lines = [line for line in self.path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        kept = lines[len(lines) // 2:]
+        text = ("\n".join(kept) + "\n") if kept else ""
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, self.path)
+        self._file = self.path.open("a", encoding="utf-8")
+        self._bytes = len(text.encode("utf-8"))
 
     def read_recent(self, limit: int) -> list[dict[str, Any]]:
         self.flush()
@@ -61,3 +83,12 @@ class EventLog:
             return []
         lines = self.path.read_text(encoding="utf-8").splitlines()
         return [json.loads(line) for line in lines[-limit:] if line.strip()]
+
+
+def _max_bytes_from_env() -> int:
+    if "PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES" not in os.environ:
+        raise RuntimeError("Missing PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES")
+    value = int(os.environ["PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES"])
+    if value <= 0:
+        raise ValueError("PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES must be greater than zero")
+    return value

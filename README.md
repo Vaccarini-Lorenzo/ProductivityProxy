@@ -138,6 +138,9 @@ brew install mitmproxy
 
 # 2. Run the desktop app (Rust, Node, and npm required)
 export POLICY_MAX_STEPS="1000"
+export PRODUCTIVE_PROXY_TELEMETRY_VERBOSE="false"
+export PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES="5000000"
+export PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS="2"
 cd src/frontend/react
 npm install
 npm run tauri dev

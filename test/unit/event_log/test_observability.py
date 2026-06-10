@@ -37,7 +37,7 @@ class ObservabilityTest(unittest.TestCase):
                 request_id="request-1",
             )
 
-            PolicyEvaluator(config, max_steps=10).evaluate(context)
+            PolicyEvaluator(config, max_steps=10, verbose=True).evaluate(context)
 
             context.event_log.flush()
             events = read_events(event_path)

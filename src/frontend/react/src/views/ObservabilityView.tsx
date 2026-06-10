@@ -50,7 +50,10 @@ export function ObservabilityView({ client, config }: Props) {
     }
   }, [client, filters]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = window.setTimeout(load, 250);
+    return () => window.clearTimeout(id);
+  }, [load]);
   useEffect(() => {
     if (!autoRefresh) return;
     const id = window.setInterval(load, EVENT_POLL_MS);

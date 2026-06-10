@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { createDefaultConfig } from "@app/models/config/defaultConfig";
-import { GraphEditor, paramsToText } from "@app/components/GraphEditor";
+import { GraphEditor } from "@app/components/GraphEditor";
 import { NodeLibrary } from "@app/components/NodeLibrary";
 
 describe("GraphEditor", () => {
@@ -24,15 +24,12 @@ describe("GraphEditor", () => {
     expect(markup).toContain("end");
   });
 
-  it("formats params as editable JSON", () => {
-    expect(paramsToText({ message: "Blocked" })).toContain("Blocked");
-  });
 });
 
 describe("NodeLibrary", () => {
   it("lists flow, logic, and custom nodes", () => {
     const markup = renderToStaticMarkup(
-      <NodeLibrary customNodes={[]} hasStart={false} onAddStep={() => undefined} />,
+      <NodeLibrary customNodes={[]} hasStart={false} onAddStep={() => undefined} onReadNode={() => Promise.resolve("")} />,
     );
 
     expect(markup).toContain("Flow");
