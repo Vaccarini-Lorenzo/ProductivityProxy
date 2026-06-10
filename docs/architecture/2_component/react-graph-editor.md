@@ -20,7 +20,7 @@ The editor is part of the React dashboard. It uses `@xyflow/react` for canvas re
 - `operatorShapes.ts` defines operator shape geometry and output port label positions.
 - `Modal.tsx` and `ui.tsx` provide shared shell controls used by the editor and inspector.
 - `services/nodes/defaultNodeSources.ts` bundles the real `src/proxy/defaults/nodes/*.py` files (via Vite glob) as read-only fallback source when Tauri source reads are unavailable, so previews never drift from the actual files.
-- `styles.css` owns visual styling for nodes, operators, routes, library items, and inspector forms.
+- `src/frontend/react/src/style/` owns all React CSS. Graph-specific rules live in `style/graph.css` and policy/editor surrounding rules live in `style/policy.css`.
 
 ## Current graph behavior
 

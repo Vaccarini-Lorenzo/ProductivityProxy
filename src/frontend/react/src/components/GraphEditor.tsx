@@ -19,8 +19,6 @@ import {
   type NodeProps,
   type EdgeProps,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
-import "./GraphEditor.css";
 import type { PolicyConfig } from "../models/config/types";
 import { Icon, type IconName } from "./ui";
 import { operatorLayout, pointsAttr, labelPos, type Vec } from "./operatorShapes";
@@ -28,6 +26,15 @@ import { operatorLayout, pointsAttr, labelPos, type Vec } from "./operatorShapes
 const FIT_VIEW_OPTIONS = { maxZoom: 1.2, padding: 0.3 };
 const CONNECTION_LINE_STYLE = { stroke: "#5cff57", strokeWidth: 3 };
 const PRO_OPTIONS = { hideAttribution: true };
+const EDGE_LABEL_STYLE: CSSProperties = {
+  padding: "2px 8px",
+  border: "1px solid rgba(245,158,11,.32)",
+  borderRadius: 999,
+  background: "rgba(20,18,14,.92)",
+  color: "#ffbd5a",
+  fontSize: ".68rem",
+  lineHeight: 1.2,
+};
 
 interface Props {
   policy: PolicyConfig;
@@ -59,11 +66,11 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
   }, []);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(buildNodes(policy, openStepId, handleOpen, handleDelete, invalidStepIds, readOnly));
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(buildEdges(policy, deleteEdge));
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(buildEdges(policy, deleteEdge, readOnly));
 
   // Rebuild from props on real structural changes only (not on every drag tick).
   useEffect(() => { setNodes(buildNodes(policy, openStepId, handleOpen, handleDelete, invalidStepIds, readOnly)); }, [policy, openStepId, handleOpen, handleDelete, setNodes, invalidKey, readOnly]);
-  useEffect(() => { setEdges(buildEdges(policy, deleteEdge)); }, [policy, deleteEdge, setEdges]);
+  useEffect(() => { setEdges(buildEdges(policy, deleteEdge, readOnly)); }, [policy, deleteEdge, setEdges, readOnly]);
 
   useEffect(() => {
     const update = (e: KeyboardEvent) => setPanMode(e.altKey);
@@ -165,14 +172,17 @@ const OperatorNode = memo(function OperatorNode({ data }: NodeProps) {
 const DeletableEdge = memo(function DeletableEdge(props: EdgeProps) {
   const [hovered, setHovered] = useState(false);
   const [path, labelX, labelY] = getBezierPath(props);
-  const data = props.data as { onDelete?: (id: string) => void } | undefined;
+  const data = props.data as EdgeData | undefined;
+  const label = typeof props.label === "string" || typeof props.label === "number" ? String(props.label) : "";
   return <><BaseEdge path={path} markerEnd={props.markerEnd} style={props.style} interactionWidth={0} />
-    <EdgeLabelRenderer><div className="edge-action-zone nodrag nopan" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} style={{ width: 60, height: 36, transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}>
-      {hovered && <button className="edge-delete visible" type="button" onPointerDown={(e) => { e.stopPropagation(); data?.onDelete?.(props.id); }}>del</button>}
+    <EdgeLabelRenderer><div className="edge-action-zone nodrag nopan" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} style={{ width: 86, height: 38, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}>
+      {label && <span style={EDGE_LABEL_STYLE}>{label}</span>}
+      {hovered && !data?.readOnly && <button className="edge-delete visible" type="button" onPointerDown={(e) => { e.stopPropagation(); data?.onDelete?.(props.id); }}>del</button>}
     </div></EdgeLabelRenderer></>;
 });
 
 interface NodeData { label: string; stepId: string; kind: string; cases: string[]; isSelected: boolean; isInvalid: boolean; readOnly: boolean; onOpen: (id: string) => void; onDelete: (id: string) => void; }
+interface EdgeData { onDelete?: (id: string) => void; readOnly?: boolean; }
 const nodeTypes = { policyNode: PolicyNode, operatorNode: OperatorNode };
 const edgeTypes = { deletable: DeletableEdge };
 
@@ -190,14 +200,14 @@ function buildNodes(policy: PolicyConfig, openStepId: string | null, onOpen: (id
   });
 }
 
-function buildEdges(policy: PolicyConfig, onDelete: (id: string) => void): Edge[] {
+function buildEdges(policy: PolicyConfig, onDelete: (id: string) => void, readOnly = false): Edge[] {
   const stepById = new Map(policy.steps.map((s) => [s.id, s]));
   return policy.edges.map((edge, index) => {
     const sourceStep = stepById.get(edge.from);
     const sourceHandle = sourceStep?.kind === "operator" ? edge.output : "out";
     return {
       id: edgeId(edge, index), type: "deletable", source: edge.from, sourceHandle, target: edge.to, targetHandle: "in",
-      label: edge.output !== "next" ? edge.output : undefined, markerEnd: { type: MarkerType.ArrowClosed }, animated: false, data: { onDelete },
+      label: edge.output !== "next" ? edge.output : undefined, markerEnd: { type: MarkerType.ArrowClosed }, animated: false, data: { onDelete, readOnly },
     };
   });
 }

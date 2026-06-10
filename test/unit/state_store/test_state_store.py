@@ -7,6 +7,28 @@ from proxy.services.state.state_store import StateStore
 
 
 class StateStoreTest(unittest.TestCase):
+    def test_persistent_key_value_store_round_trips_json_data(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = StateStore(Path(tmp) / "state.json")
+
+            store.set_value("settings", {"enabled": True, "count": 2})
+
+            self.assertEqual(store.get_value("settings"), {"enabled": True, "count": 2})
+
+    def test_persistent_key_value_store_rejects_non_json_data(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = StateStore(Path(tmp) / "state.json")
+
+            with self.assertRaises(TypeError):
+                store.set_value("bad", {"value": object()})
+
+    def test_persistent_key_value_store_raises_for_missing_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = StateStore(Path(tmp) / "state.json")
+
+            with self.assertRaises(KeyError):
+                store.get_value("missing")
+
     def test_tracks_usage_when_request_gap_is_within_idle_window(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = StateStore(Path(tmp) / "state.json")

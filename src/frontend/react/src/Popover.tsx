@@ -5,8 +5,6 @@ import type { AppConfig } from "./models/config/types";
 import { loadConfig, saveConfig, type CommandClient } from "./services/config/configRepository";
 import { getProxyStatus, startProxy, stopProxy } from "./services/proxy/proxyRepository";
 import { tauriClient } from "./services/tauri/tauriClient";
-import "./styles.css";
-import "./Popover.css";
 
 const STATUS_POLL_MS = 2000;
 

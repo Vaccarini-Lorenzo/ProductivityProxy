@@ -5,6 +5,7 @@ Author code should import only these types for hints:
     from proxy.api import Context, Request
 
     def run(input: Any, request: Request, context: Context, params: dict[str, Any]) -> Any:
+        usage = context.persistent_state.get("usage")
         context.log("custom_event", "ran node")
         return input
 """
@@ -96,12 +97,26 @@ class SharedState:
         return self._data.setdefault(key, default)
 
 
+class PersistentState:
+    """JSON-backed key/value storage shared across proxy restarts."""
+
+    def __init__(self, store):
+        self._store = store
+
+    def get(self, keyword: str) -> Any:
+        return self._store.get_value(keyword)
+
+    def set(self, keyword: str, data: Any) -> None:
+        self._store.set_value(keyword, data)
+
+
 class Context:
     """Shared helpers for node code."""
 
     def __init__(self, runtime_context):
         self._runtime = runtime_context
         self.state = SharedState(runtime_context.shared_state)
+        self.persistent_state = PersistentState(runtime_context.state)
 
     def log(self, type: str, message: str, level: str = "info", **data: Any) -> None:
         observability.custom_log(self._runtime, type, message, level, **data)
@@ -123,4 +138,4 @@ def _make_response(status: int, content: bytes, headers: dict[str, str]):
     return SimpleResponse(status, content, headers)
 
 
-__all__ = ["Context", "Request"]
+__all__ = ["Context", "PersistentState", "Request"]

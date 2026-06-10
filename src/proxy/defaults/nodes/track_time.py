@@ -8,7 +8,10 @@ from proxy.api import Context, Request
 def run(input: Any, request: Request, context: Context, params: dict[str, Any]) -> Any:
     data = dict(input) if isinstance(input, dict) else {}
     platform = str(params["platform"])
-    usage = context.state.setdefault("usage", {})
+    try:
+        usage = context.persistent_state.get("usage")
+    except KeyError:
+        usage = {}
     record = usage.setdefault(platform, {"total_seconds": 0.0, "daily_seconds": {}, "last_seen_at": None})
     now = time()
     day = datetime.fromtimestamp(now, timezone.utc).date().isoformat()
@@ -33,6 +36,7 @@ def run(input: Any, request: Request, context: Context, params: dict[str, Any]) 
         "daily_seconds": float(daily.get(day, 0.0)),
         "total_seconds": float(record.get("total_seconds", 0.0)),
     }
+    context.persistent_state.set("usage", usage)
     context.log("usage_tracked", "Usage tracked", **result)
     data["usage"] = result
     return data

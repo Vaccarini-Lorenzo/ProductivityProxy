@@ -1,0 +1,20 @@
+{
+  "block-response": {
+    "params": {
+      "status": { "type": "number", "default": 403 },
+      "message": { "type": "string", "default": "Blocked" }
+    }
+  },
+  "track-time": {
+    "params": {
+      "platform": { "type": "string", "default": "reddit" },
+      "idleSeconds": { "type": "number", "default": 300 }
+    }
+  },
+  "is-usage-over-limit": {
+    "params": {
+      "platform": { "type": "string", "default": "reddit" },
+      "seconds": { "type": "number", "default": 1800 }
+    }
+  }
+}

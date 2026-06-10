@@ -1,0 +1,31 @@
+:root {
+  --bg: #0a0907;
+  --panel: #14120e;
+  --panel-2: #1a1711;
+  --line: #2c2720;
+  --line-soft: rgba(245, 168, 40, 0.22);
+  --text: #ece4d2;
+  --muted: #9a9082;
+  --dim: #635b52;
+  --amber: #f59e0b;
+  --amber-2: #ffbd5a;
+  --green: #77d66b;
+  --purple: #b79bff;
+  --red: #ff7065;
+  --blue: #8fd3ff;
+  color: var(--text);
+  background: var(--bg);
+  font-family: "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 17.5px;
+  line-height: 1.55;
+}
+* { box-sizing: border-box; margin: 0; }
+body { min-width: 360px; background: radial-gradient(ellipse at 50% -16%, rgba(245,158,11,.08), transparent 36rem), var(--bg); }
+button, input, select, textarea { font: inherit; }
+h1, h2, h3, p { margin: 0; }
+small { color: var(--muted); font-size: .82rem; }
+pre { overflow: auto; white-space: pre-wrap; color: #f2d4a1; font-size: .8rem; }
+.muted { color: var(--muted); }
+.ok { color: var(--green); }
+.inline-note { color: var(--muted); font-size: .78rem; }
+.message { color: var(--blue); font-size: .82rem; }

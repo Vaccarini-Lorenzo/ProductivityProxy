@@ -25,6 +25,12 @@ describe("policyOperations", () => {
     });
   });
 
+  it("adds registered node params from the default spec", () => {
+    const updated = addStep(policy(), "node", "track-time");
+
+    expect(updated.steps[1].params).toEqual({ platform: "reddit", idleSeconds: 300 });
+  });
+
   it("adds an edge with output", () => {
     const updated = addEdge(policy(), "start", "next", "log-event-1");
 

@@ -1,0 +1,48 @@
+/* --- Graph canvas --- */
+.flow-canvas { flex: 1; min-height: 280px; border: 1px solid var(--line); border-radius: 7px; background: #0b0a08; }
+.graph-hint { text-align: center; font-size: .72rem; color: var(--muted); }
+.flow-canvas .react-flow__background { stroke: rgba(245,158,11,.1) !important; }
+.flow-canvas .react-flow__minimap { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; }
+.flow-canvas .react-flow__controls button { background: var(--panel-2); border-color: var(--line); color: var(--amber-2); fill: var(--amber-2); }
+.flow-canvas .react-flow__edge-path, .flow-canvas .react-flow__connection-line { stroke: var(--amber) !important; stroke-width: 2px; filter: drop-shadow(0 0 3px rgba(245,158,11,.4)); }
+.policy-node { display: flex; align-items: center; gap: 11px; width: 100%; height: 100%; padding: 10px 14px; border: 1px solid var(--line-soft); border-radius: 8px; background: #15120d; color: var(--text); font-size: .82rem; position: relative; cursor: pointer; transition: border-color .15s, box-shadow .15s; box-shadow: 0 0 14px rgba(245,158,11,.06); }
+.policy-node.selected { border-color: var(--blue); box-shadow: 0 0 12px rgba(143,211,255,.3); }
+.policy-node-text { display: grid; gap: 3px; min-width: 0; }
+.policy-node-text strong { color: var(--text); text-transform: uppercase; font-size: .74rem; letter-spacing: .03em; }
+.policy-node-text span { color: var(--muted); font-size: .7rem; }
+.policy-node:hover { border-color: var(--amber); }
+.policy-node-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; }
+.policy-node-icon .icon { width: 16px; height: 16px; }
+.policy-node.start .policy-node-icon { background: rgba(119,214,107,.16); color: var(--green); }
+.policy-node.start .policy-node-icon .icon { fill: currentColor; stroke: none; }
+.policy-node.end .policy-node-icon { background: rgba(255,112,101,.16); color: var(--red); }
+.policy-node.end .policy-node-icon .icon { fill: currentColor; stroke: none; }
+.policy-node.custom .policy-node-icon { background: rgba(183,155,255,.16); color: var(--purple); }
+.node-delete { position: absolute; top: -8px; right: -8px; min-height: 20px; min-width: 20px; padding: 0; border-radius: 50%; border: 1px solid var(--red); background: #1a0806; color: var(--red); font-size: .75rem; line-height: 1; cursor: pointer; z-index: 10; }
+.node-expand { position: absolute; top: -8px; left: -8px; min-height: 20px; min-width: 20px; padding: 0; border-radius: 50%; border: 1px solid var(--amber); background: #1a1206; color: var(--amber-2); font-size: .72rem; line-height: 1; cursor: pointer; z-index: 10; }
+.node-expand:hover { background: var(--amber); color: #160d02; }
+.operator-shape { position: relative; width: 100%; height: 100%; cursor: pointer; }
+.operator-shape .operator-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.operator-shape .operator-svg polygon { fill: #1d1509; stroke: var(--amber); stroke-width: 1.6; transition: stroke .15s, filter .15s; vector-effect: non-scaling-stroke; }
+.operator-shape:hover .operator-svg polygon { filter: drop-shadow(0 0 6px rgba(245,158,11,.5)); }
+.operator-shape.selected .operator-svg polygon { stroke: var(--blue); filter: drop-shadow(0 0 8px rgba(143,211,255,.5)); }
+.operator-name { position: absolute; inset: 0; display: grid; place-content: center; color: var(--amber-2); font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; pointer-events: none; }
+.op-port-label { position: absolute; transform: translate(-50%, -50%); color: var(--muted); font-size: .56rem; letter-spacing: .02em; pointer-events: none; white-space: nowrap; }
+.react-flow__handle.op-handle { left: var(--hx) !important; top: var(--hy) !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%); }
+.react-flow__handle.op-handle:hover { transform: translate(-50%, -50%) scale(1.4); }
+.react-flow__handle { width: 16px !important; height: 16px !important; background: var(--green) !important; border: 2px solid #12100d !important; box-shadow: 0 0 6px rgba(119,214,107,.6); cursor: crosshair !important; transition: transform .15s, box-shadow .15s; }
+.react-flow__handle:hover { transform: scale(1.4); box-shadow: 0 0 12px rgba(119,214,107,.9); }
+.react-flow__handle-left { left: -8px !important; }
+.react-flow__handle-right { right: -8px !important; }
+.edge-action-zone { position: absolute; display: grid; place-items: center; pointer-events: all; }
+.edge-delete { min-height: 26px; padding: 2px 7px; font-size: .78rem; opacity: 0; pointer-events: none; border-color: var(--red); color: var(--red); background: #130908; }
+.edge-action-zone:hover .edge-delete { opacity: 1; pointer-events: all; }
+
+.flow-canvas { position: relative; }
+.flow-canvas.fullscreen { position: fixed; inset: 14px; z-index: 120; min-height: 0; border-radius: 10px; box-shadow: 0 24px 70px rgba(0,0,0,.62); }
+.canvas-fullscreen-button { position: absolute; top: 12px; right: 12px; z-index: 8; background: var(--panel-2); }
+@media (max-width: 640px) { .flow-canvas.fullscreen { inset: 8px; } }
+
+/* Broken steps flagged by backend validation. */
+.policy-node.invalid { border-color: var(--red); box-shadow: 0 0 0 1px var(--red), 0 0 16px rgba(255,112,101,.35); }
+.operator-shape.invalid .operator-svg polygon { stroke: var(--red) !important; filter: drop-shadow(0 0 8px rgba(255,112,101,.55)); }

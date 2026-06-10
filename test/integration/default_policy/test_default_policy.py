@@ -61,12 +61,11 @@ class DefaultPolicyTest(unittest.TestCase):
                 event_log=EventLog(Path(tmp) / "events.jsonl"),
                 now=lambda: 2800.0,
             )
-            evaluator = PolicyEvaluator(config)
-            evaluator.shared_state["usage"] = {
+            store.set_value("usage", {
                 "reddit": {"total_seconds": 1800.0, "daily_seconds": {day: 1800.0}, "last_seen_at": None}
-            }
+            })
 
-            evaluator.evaluate(context)
+            PolicyEvaluator(config).evaluate(context)
 
             self.assertEqual(flow.response.status_code, 403)
 

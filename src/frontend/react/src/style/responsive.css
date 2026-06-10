@@ -1,0 +1,26 @@
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3d352c; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--amber); }
+
+/* --- Responsive --- */
+@media (max-width: 560px) {
+  .policy-split { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .policy-library { max-height: 188px; border-right: 0; border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 760px) {
+  .tab-label { display: none; }
+  .tab { gap: 0; }
+}
+@media (max-width: 680px) { .version { display: none; } }
+@media (max-width: 520px) { .run-text { display: none; } .list-meta { display: none; } }
+@media (max-width: 640px) {
+  .app-frame { padding: 6px 8px 10px; }
+  .card-head { flex-direction: column; align-items: stretch; }
+  .event-row { grid-template-columns: 56px 1fr 44px; }
+  .event-row small { display: none; }
+  .event-head { grid-template-columns: 56px 1fr 44px; }
+  .event-head span:nth-child(3) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; animation-duration: .01ms !important; } }

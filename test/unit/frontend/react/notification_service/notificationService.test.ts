@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { showNotificationEvents } from "@app/services/notifications/notificationService";
+import { rememberNotificationEvents, showNotificationEvents } from "@app/services/notifications/notificationService";
 
 class FakeNotifier {
   sent: Array<{ title: string; body: string }> = [];
@@ -11,6 +11,15 @@ class FakeNotifier {
 }
 
 describe("showNotificationEvents", () => {
+  it("can mark existing notifications as already seen", async () => {
+    const seen = rememberNotificationEvents([{ type: "notification", title: "Old", body: "Already loaded" }], new Set<string>());
+    const notifier = new FakeNotifier();
+
+    await showNotificationEvents(notifier, [{ type: "notification", title: "Old", body: "Already loaded" }], seen);
+
+    expect(notifier.sent).toEqual([]);
+  });
+
   it("shows only unseen notification events", async () => {
     const notifier = new FakeNotifier();
     const seen = new Set<string>();

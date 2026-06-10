@@ -21,6 +21,9 @@ Implementation details live in [Tauri Desktop Backend](../2_component/tauri-desk
 | `read_recent_events` | `{ limit }` | JSON array | Reads the last N JSONL event entries. |
 | `query_events` | `{ query }` | JSON array | Applies the event query shape documented in [Event query API](config-state-events.md#event-query-api). |
 | `network_info` | none | `{ localHost, lanHost }` | Returns `127.0.0.1` and best-effort LAN IP. |
+| `show_main_window` | none | void | Shows/focuses the dashboard window and hides the popover when present. |
+| `resize_popover` | `{ height }` | void | Resizes the popover window to content height, capped to the monitor work area. |
+| `quit_app` | none | void | Stops the proxy, restores system proxy settings, then exits the app; refuses to quit if cleanup fails. |
 
 ## Cross-module constraints
 

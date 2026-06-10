@@ -1,0 +1,16 @@
+/* --- Observability --- */
+.event-table { display: grid; gap: 3px; }
+.event-head { display: grid; grid-template-columns: 64px minmax(80px, 1fr) minmax(60px, .7fr) 44px; gap: 8px; padding: 4px 9px 7px; font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 3px; }
+.event-head span:last-child { text-align: right; }
+.empty-state { display: grid; justify-items: center; gap: 12px; padding: 40px 16px; text-align: center; color: var(--muted); font-size: .82rem; }
+.empty-state .icon { width: 34px; height: 34px; color: var(--amber); opacity: .7; }
+.event-row { display: grid; grid-template-columns: 64px minmax(80px, 1fr) minmax(60px, .7fr) 44px; gap: 8px; align-items: center; min-height: 34px; text-align: left; color: var(--text); font-size: .8rem; padding: 6px 9px; border-radius: 6px; border: 1px solid var(--line); background: rgba(255,255,255,.012); }
+.event-row:hover { border-color: var(--amber); background: rgba(245,158,11,.06); }
+.event-row strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event-row em { color: var(--green); font-style: normal; font-size: .72rem; text-align: right; }
+.timeline-block { display: grid; gap: 4px; }
+.timeline-block h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+.timeline-row { display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .8rem; }
+.timeline-row span { color: var(--amber); }
+.footer-message { margin-right: auto; }

@@ -7,7 +7,10 @@ from proxy.api import Context, Request
 
 def run(input: Any, request: Request, context: Context, params: dict[str, Any]) -> Any:
     data = dict(input) if isinstance(input, dict) else {}
-    usage = context.state.get("usage", {})
+    try:
+        usage = context.persistent_state.get("usage")
+    except KeyError:
+        usage = {}
     record = usage.get(str(params["platform"]), {})
     day = datetime.fromtimestamp(time(), timezone.utc).date().isoformat()
     used = float(record.get("daily_seconds", {}).get(day, 0.0))

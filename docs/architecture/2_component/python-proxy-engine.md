@@ -63,6 +63,7 @@ Validation is delegated to `proxy.services.config.validation.validate_config`, t
 - routes must be unique by `from` + `output`,
 - step types must be known built-in nodes, operators, or custom nodes,
 - every step must be reachable from `start` (no disconnected steps),
+- registered bundled nodes must have required params with basic expected types,
 - inline `start`/operator code must parse and define its required function.
 
 ## Semantic model
@@ -100,7 +101,7 @@ def run(input: Any, request: Request, context: Context, params: dict[str, Any]) 
     return input
 ```
 
-Reference functions are typed. `proxy.api` exposes only the small authoring surface: `Request` for HTTP request data/actions and `Context` for shared state, logging, and notifications. The dashboard's Python editor has an API reference drawer documenting that surface.
+Reference functions are typed. `proxy.api` exposes only the small authoring surface: `Request` for HTTP request data/actions and `Context` for in-memory state, persistent state, logging, and notifications. The dashboard's Python editor has an API reference drawer documenting that surface.
 
 Rules:
 
@@ -146,9 +147,13 @@ Python authors do not receive `RequestContext` directly:
 - custom nodes receive `input`, `request`, `context`, and `params`,
 - operators receive only `input`.
 
-Public `request` exposes HTTP fields/actions such as `host`, `url`, `headers`, `text()`, `redirect(url)`, and `block(status, message)`. Public `context` exposes `state`, `log(type, message, level, **data)`, and `notify(type, message, level, **data)`. `context.state` is an in-memory key/value store shared by requests handled by the same evaluator; stored dict/list values are passed by reference.
+Public `request` exposes HTTP fields/actions such as `host`, `url`, `headers`, `text()`, `redirect(url)`, and `block(status, message)`. Public `context` exposes `state`, `persistent_state`, `log(type, message, level, **data)`, and `notify(type, message, level, **data)`.
 
-The evaluator does not merge node outputs into `context.state`. Custom nodes own their return shape.
+`context.state` is an in-memory key/value store shared by requests handled by the same evaluator; stored dict/list values are passed by reference and disappear when the proxy process restarts.
+
+`context.persistent_state` is a raw global JSON-backed store. It has `get(keyword)` and `set(keyword, data)`. `get` raises `KeyError` when the top-level key is absent. `set` writes immediately and accepts JSON-serializable values only. Mutating a nested dict/list returned by `get` has no durable side effect until code calls `set` with the updated top-level value.
+
+The evaluator does not merge node outputs into either state store. Custom nodes own their return shape.
 
 ## Evaluation loop
 
@@ -183,15 +188,21 @@ Current bundled files include:
 - `log_event.py`,
 - `notify.py`.
 
-Default-node parameter contracts live in [Data Layer](../4_data_layer/config-state-events.md#default-node-parameter-contracts).
+Only these three bundled nodes are registered in the default config and visible in the default node library:
 
-Security note: custom nodes are imported and executed directly. There is no sandbox, timeout, or permissions boundary.
+- `block-response`,
+- `track-time`,
+- `is-usage-over-limit`.
+
+Default-node parameter contracts live in [Data Layer](../4_data_layer/config-state-events.md#default-node-parameter-contracts). The required-param/default map for registered bundled nodes lives in `src/proxy/defaults/node_params.json`.
+
+Security note: custom nodes and inline start/operator Python are executed directly. There is no sandbox, timeout, or permissions boundary.
 
 ## Persistent state
 
-`StateStore` stores usage data in JSON.
+`StateStore` stores persistent state data in JSON. The public API is `context.persistent_state.get(keyword)` and `context.persistent_state.set(keyword, data)`.
 
-Usage tracking counts elapsed time only when the previous request for a platform was within the configured idle window. Daily buckets use UTC dates.
+Usage tracking counts elapsed time only when the previous request for a platform was within the configured idle window. Daily buckets use UTC dates. The registered `track-time` and `is-usage-over-limit` nodes use `context.persistent_state` for the top-level `usage` key.
 
 ## Events
 

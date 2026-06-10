@@ -1,6 +1,6 @@
 {
-  "version": "3",
-  "intro": "Small Python authoring API. Use request for HTTP data, context for helpers/shared state, and input for the previous node output.",
+  "version": "4",
+  "intro": "Small Python authoring API. Use request for HTTP data, context for helpers/in-memory state/persistent state, and input for the previous node output.",
   "groups": [
     {
       "id": "entrypoints",
@@ -130,14 +130,14 @@
       "id": "context",
       "title": "context",
       "icon": "layers",
-      "summary": "Shared helpers: in-memory state, logging, and notifications.",
+      "summary": "Shared helpers: in-memory state, persistent state, logging, and notifications.",
       "entries": [
         {
           "name": "context.state[key]",
           "type": "Any",
-          "summary": "Shared in-memory key/value store.",
+          "summary": "Shared in-memory key/value store for this proxy session.",
           "details": [
-            { "label": "What", "text": "A dict-like store that persists across nodes and requests within the same proxy session." },
+            { "label": "What", "text": "A dict-like store that persists across nodes and requests within the same proxy session only. It is cleared when the proxy process restarts." },
             { "label": "Usage", "text": "- `context.state[\"counter\"] = 0` — write a value\n- `val = context.state[\"counter\"]` — read a value (raises `KeyError` if missing)\n- Values are kept by reference: mutating a stored list/dict is visible to all later nodes" }
           ]
         },
@@ -157,6 +157,28 @@
           "details": [
             { "label": "Args", "text": "- `key` — string key\n- `value` — initial value to store if key is missing" },
             { "label": "Example", "text": "`hits = context.state.setdefault(\"hits\", [])`\n`hits.append(request.url)`" }
+          ]
+        },
+        {
+          "name": "context.persistent_state.get(keyword)",
+          "type": "Any",
+          "summary": "Read a JSON-backed top-level value. Raises KeyError when missing.",
+          "details": [
+            { "label": "What", "text": "A raw global store persisted in the app's state JSON file. Values survive proxy restarts." },
+            { "label": "Args", "text": "- `keyword` — top-level string key" },
+            { "label": "Returns", "text": "The value stored under `keyword`. Raises `KeyError` if the key is absent." },
+            { "label": "Important", "text": "Mutating a returned nested dict/list has no durable side effect until you call `context.persistent_state.set(keyword, data)` with the updated value." }
+          ]
+        },
+        {
+          "name": "context.persistent_state.set(keyword, data)",
+          "type": "None",
+          "summary": "Persist a JSON-serializable top-level value.",
+          "details": [
+            { "label": "Args", "text": "- `keyword` — top-level string key\n- `data` — JSON-serializable value to store" },
+            { "label": "Effect", "text": "Writes the updated state JSON file immediately." },
+            { "label": "Raises", "text": "Raises when `data` is not JSON-serializable." },
+            { "label": "Example", "text": "`usage = context.persistent_state.get(\"usage\")`\n`usage[\"reddit\"] = {\"daily_seconds\": {}}`\n`context.persistent_state.set(\"usage\", usage)`" }
           ]
         },
         {

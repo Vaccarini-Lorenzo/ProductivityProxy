@@ -1,0 +1,15 @@
+/* --- Modal --- */
+.modal-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgba(5,4,3,.66); backdrop-filter: blur(3px); }
+.modal { width: 100%; max-width: 560px; max-height: 86vh; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); box-shadow: 0 24px 60px rgba(0,0,0,.5); overflow: hidden; }
+.modal.wide { max-width: 720px; }
+.modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.modal-titles { display: grid; gap: 7px; min-width: 0; }
+.modal-titles h2 { font-size: 1rem; color: var(--text); }
+.modal-subtitle { display: flex; gap: 8px; }
+.modal-close { all: unset; cursor: pointer; color: var(--muted); font-size: 1.5rem; line-height: 1; padding: 0 4px; }
+.modal-close:hover { color: var(--amber-2); }
+.modal-body { padding: 20px; overflow-y: auto; display: grid; gap: 16px; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line); }
+
+.modal-head-right { display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0; }
+.modal-head-actions { display: flex; align-items: center; gap: 8px; }

@@ -121,9 +121,9 @@ Routing rule:
 
 ```json
 {
-  "id": "detect-platform",
-  "name": "Detect Platform",
-  "path": "/absolute/path/src/proxy/defaults/nodes/detect_platform.py"
+  "id": "block-response",
+  "name": "Block Response",
+  "path": "/absolute/path/src/proxy/defaults/nodes/block_response.py"
 }
 ```
 
@@ -131,18 +131,15 @@ A custom node step uses the custom node `id` as its `type`. Paths must be absolu
 
 ## Default-node parameter contracts
 
-Bundled node files live under `src/proxy/defaults/nodes/`. A config must register a node before a policy can use it.
+Bundled node files live under `src/proxy/defaults/nodes/`. A config must register a node before a policy can use it. The current default config registers only three bundled nodes; other files in that folder are not visible in the node library unless a config registers them.
 
-| Node type | Required params | Return / side effect |
+The small required-param/default map for registered bundled nodes lives in `src/proxy/defaults/node_params.json`.
+
+| Registered node type | Required params | Return / side effect |
 | --- | --- | --- |
 | `block-response` | `status` number, `message` string | Calls `request.block(...)`; returns input. |
-| `track-time` | `platform` string, `idleSeconds` number | Updates usage state, appends `usage_tracked`, returns input plus `usage`. |
-| `is-usage-over-limit` | `platform` string, `seconds` number | Returns input plus `used` and `over_limit`. |
-| `detect-platform` | `hostSuffixes` string array, `platform` string | Returns input plus `match`; adds `platform` on match. |
-| `detect-youtube-shorts` | `hostSuffixes` string array, `markers` string array | Returns input plus `match`; adds `platform` and `kind` on match. |
-| `redirect-request` | `url` string | Rewrites request URL; returns input. |
-| `log-event` | `eventType` string, `message` string | Appends a log-like event; returns input. |
-| `notify` | `title` string, `body` string | Appends a notification event; returns input. |
+| `track-time` | `platform` string, `idleSeconds` number | Updates persistent usage state, appends `usage_tracked`, returns input plus `usage`. |
+| `is-usage-over-limit` | `platform` string, `seconds` number | Reads persistent usage state; returns input plus `used` and `over_limit`. |
 
 Custom nodes use the same general entrypoint:
 
@@ -179,6 +176,15 @@ Rules:
 - `last_seen_at` is a UNIX timestamp,
 - elapsed time is counted only when the gap from last seen is within `idleSeconds`,
 - state is rewritten as pretty JSON on each save.
+
+Public custom-node API:
+
+```python
+value = context.persistent_state.get("usage")
+context.persistent_state.set("usage", value)
+```
+
+`get(keyword)` reads a top-level key and raises `KeyError` when missing. `set(keyword, data)` writes a JSON-serializable top-level value immediately. Mutating a nested dict/list returned by `get()` is not durable until code calls `set()` with the updated value.
 
 ## Event log schema
 
@@ -288,11 +294,12 @@ The config is rejected (and autosave is blocked) when any of these fail:
 - edges point to existing steps and routes are unique by `from` + `output`,
 - step types are known built-ins, operators, or registered custom nodes,
 - every step is reachable from `start` (no orphan/disconnected steps),
+- registered bundled nodes have required params with basic expected types,
 - inline `start`/operator code parses and defines its required function.
 
 Custom-node code is validated separately via `validate_node_code`: Python syntax plus a `run` function.
 
 Still missing:
 
-- required params per built-in or custom node,
+- required params for user-created custom nodes,
 - config migrations/versioning.

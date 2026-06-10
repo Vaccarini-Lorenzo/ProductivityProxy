@@ -88,14 +88,16 @@ Building blocks you get out of the box:
 
 ### Policies
 
+The default library currently registers `Block Response`, `Track Time`, and `Is Usage Over Limit`. Other ideas below may require adding/registering a custom node first.
+
 | Goal | How to build it |
 |------|-----------------|
 | 🚫 **Kill YouTube Shorts** | `Start` (`triggered_by` checks `youtube.com` + `/shorts`) → `Block Response 403` *(ships by default)* |
 | ⏳ **Daily Reddit budget** | `Start` (`triggered_by` checks `reddit.com`) → `Track Time` → `Is Usage Over Limit (30 min)` → `If over` → `Block` *(ships by default)* |
 | 🧱 **No social, period** | `Start` (`triggered_by` checks social hosts) → `Block Response` (“Back to work 💪”) |
-| 🔔 **Nudge, don’t block** | `Start` (`triggered_by` checks news sites) → `Notify` (“5th time on the news today”) → `End` (let it through) |
-| ↪️ **Redirect to a focus page** | `Start` (`triggered_by` checks distraction hosts) → `Redirect Request` → your “is this aligned with today’s goal?” page |
-| 🧠 **Per‑platform limits** | `Detect Platform` → `Switch` (youtube / reddit / twitter) → different budget per case |
+| 🔔 **Nudge, don’t block** | Add/register a notify node → `Start` (`triggered_by` checks news sites) → `Notify` (“5th time on the news today”) → `End` (let it through) |
+| ↪️ **Redirect to a focus page** | Add/register a redirect node → `Start` (`triggered_by` checks distraction hosts) → `Redirect Request` → your “is this aligned with today’s goal?” page |
+| 🧠 **Per‑platform limits** | Add/register a detector node → `Detect Platform` → `Switch` (youtube / reddit / twitter) → different budget per case |
 
 ### Modes
 
@@ -124,7 +126,7 @@ def run(input: Any, request: Request, context: Context, params: dict[str, Any]) 
 
 Add the file on the **Nodes** page, then drop it into any policy from the library. That’s the whole extension model.
 
-> ⚠️ Custom nodes run with your local permissions and full mitmproxy access — they are **not** sandboxed. Only run code you trust.
+> ⚠️ Custom nodes and inline trigger/operator Python run with your local permissions and full mitmproxy access — they are **not** sandboxed. Only run code you trust.
 
 ---
 

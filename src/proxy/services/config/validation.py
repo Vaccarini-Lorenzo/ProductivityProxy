@@ -18,11 +18,15 @@ Issue shape:
 from __future__ import annotations
 
 import ast
+import json
 from pathlib import Path
 from typing import Any
 
 BUILTIN_NODE_TYPES = {"start", "end"}
 OPERATOR_FUNCTIONS = {"if": "if_condition", "switch": "switch_condition"}
+NODE_PARAM_SPECS: dict[str, Any] = json.loads(
+    (Path(__file__).resolve().parents[2] / "defaults/node_params.json").read_text(encoding="utf-8")
+)
 
 
 def _issue(message: str, hint: str, *, scope: str = "global", policy_id: str | None = None,
@@ -115,6 +119,7 @@ def _validate_policy(policy: dict[str, Any], custom_node_ids: set[str]) -> list[
 
     issues += _duplicate_routes(pid, edges)
     issues += _validate_step_types(pid, steps, custom_node_ids)
+    issues += _validate_node_params(pid, steps)
     issues += _validate_inline_code(pid, steps)
 
     starts = [s for s in steps if s.get("kind") == "node" and s.get("type") == "start"]
@@ -179,6 +184,39 @@ def _validate_step_types(pid: str, steps: list[dict[str, Any]],
             issues.append(_policy_issue(pid, f"Unknown step kind: {kind}",
                                         "Remove this step.", step_ids=[step_id]))
     return issues
+
+
+def _validate_node_params(pid: str, steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    for step in steps:
+        if step.get("kind") != "node":
+            continue
+        step_type = str(step.get("type"))
+        spec = NODE_PARAM_SPECS.get(step_type)
+        if not spec:
+            continue
+        params = step.get("params") or {}
+        step_id = str(step.get("id"))
+        if not isinstance(params, dict):
+            issues.append(_policy_issue(pid, f"Step '{step_id}' params must be an object.",
+                                        "Reset this node's parameters.", step_ids=[step_id]))
+            continue
+        for name, param_spec in (spec.get("params") or {}).items():
+            if name not in params:
+                issues.append(_policy_issue(pid, f"Step '{step_id}' is missing param: {name}",
+                                            "Open the node and fill in all required parameters.", step_ids=[step_id]))
+            elif not _matches_param_type(params[name], str(param_spec.get("type", ""))):
+                issues.append(_policy_issue(pid, f"Step '{step_id}' param '{name}' has the wrong type.",
+                                            f"Expected {param_spec.get('type')}.", step_ids=[step_id]))
+    return issues
+
+
+def _matches_param_type(value: Any, expected: str) -> bool:
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    return True
 
 
 def _validate_inline_code(pid: str, steps: list[dict[str, Any]]) -> list[dict[str, Any]]:

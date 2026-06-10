@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 
 import { App } from "./App";
 import { Popover } from "./Popover";
+import "./style/index.css";
 
 function currentWindowLabel(): string {
   const internals = (window as unknown as {

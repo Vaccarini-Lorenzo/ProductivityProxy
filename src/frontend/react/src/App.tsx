@@ -11,12 +11,10 @@ import { createDefaultConfig } from "./models/config/defaultConfig";
 import type { AppConfig, ValidationIssue } from "./models/config/types";
 import { readCustomNode, loadConfig, saveConfig, validateNodeCode, writeCustomNode, type CommandClient } from "./services/config/configRepository";
 import { uniqueSlug } from "./services/config/configEditing";
-import { showNotificationEvents, type Notifier } from "./services/notifications/notificationService";
+import { rememberNotificationEvents, showNotificationEvents, type Notifier } from "./services/notifications/notificationService";
 import { tauriNotifier } from "./services/notifications/tauriNotifier";
 import { getNetworkInfo, getProxyStatus, readRecentEvents, startProxy, stopProxy, type NetworkInfo, type ProxyEvent, type ProxyStatus } from "./services/proxy/proxyRepository";
 import { tauriClient } from "./services/tauri/tauriClient";
-import "./styles.css";
-import "./styles/validation.css";
 
 interface Props {
   client?: CommandClient;
@@ -25,6 +23,7 @@ interface Props {
 
 const AUTOSAVE_DELAY_MS = 600;
 const STATUS_POLL_MS = 2000;
+const EVENT_POLL_MS = 3000;
 
 export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [view, setView] = useState<View>("settings");
@@ -42,7 +41,10 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     loadConfig(client).then((loaded) => { setConfig(loaded); setSavedConfig(loaded); }).catch(showError);
     getProxyStatus(client).then(setStatus).catch(showError);
     getNetworkInfo(client).then(setNetwork).catch(showError);
-    readRecentEvents(client, 50).then(setEvents).catch(showError);
+    readRecentEvents(client, 50).then((loaded) => {
+      seenNotifications.current = rememberNotificationEvents(loaded, seenNotifications.current);
+      setEvents(loaded);
+    }).catch(showError);
   }, [client]);
 
   // Keep the proxy state honest even when it changes elsewhere (the menu-bar
@@ -53,6 +55,13 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
         .then((next) => setStatus((prev) => (prev.running === next.running ? prev : next)))
         .catch(() => {});
     }, STATUS_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [client]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      readRecentEvents(client, 50).then(setEvents).catch(() => {});
+    }, EVENT_POLL_MS);
     return () => window.clearInterval(id);
   }, [client]);
 

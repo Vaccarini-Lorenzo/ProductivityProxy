@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { searchApiReference, type ApiEntry, type ApiGroup } from "../services/apiReference/apiReference";
 import { Icon, SearchInput, type IconName } from "./ui";
-import "./ApiReferenceDrawer.css";
 
 interface Props {
   open: boolean;

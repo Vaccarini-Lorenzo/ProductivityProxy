@@ -23,7 +23,7 @@ The main remaining blockers are:
 - packaged runtime strategy for mitmproxy, Python, and addon files,
 - clearer proxy startup diagnostics and process log capture,
 - visible HTTPS CA setup/help,
-- config migrations/versioning and per-node required-param validation (structural graph validation is now unified in the Python backend),
+- config migrations/versioning and custom-node parameter schemas (structural graph validation and registered bundled-node params are now validated in the Python backend),
 - durable crash recovery for macOS proxy settings,
 - Linux desktop-environment-specific proxy implementations,
 - installer signing/notarization after packaging is solved.
@@ -45,7 +45,7 @@ The main remaining blockers are:
 
 1. Add proxy process stdout/stderr capture and missing-`mitmdump` diagnostics.
 2. Add a visible HTTPS CA setup/help panel.
-3. Add per-node required-param validation (structural graph validation is unified in the Python backend).
+3. Add custom-node parameter schemas if user-created nodes need guided configuration.
 4. Add config migrations/versioning before changing persisted shapes again.
 5. Add reset-to-defaults flow.
 6. Decide packaging strategy for mitmproxy/Python/addon files.

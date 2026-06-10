@@ -4,6 +4,7 @@ import { PythonCodeEditor } from "./PythonCodeEditor";
 import { Field, FieldGroup } from "./ui";
 import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
 import type { CustomNodeConfig, PolicyConfig, PolicyStep, StepParams } from "../models/config/types";
+import nodeParamSpecs from "../../../../proxy/defaults/node_params.json";
 
 interface Props {
   policy: PolicyConfig;
@@ -13,6 +14,9 @@ interface Props {
   onReadNode: (path: string) => Promise<string>;
   onClose: () => void;
 }
+
+type NodeParamSpec = { params?: Record<string, { type?: string; default: unknown }> };
+const DEFAULT_NODE_PARAMS = nodeParamSpecs as Record<string, NodeParamSpec>;
 
 const DEFAULT_START_TRIGGER_CODE = `def triggered_by(request: Request) -> bool:
     return True
@@ -96,7 +100,7 @@ function TriggerEditor({ step, onChange }: { step: PolicyStep; onChange: (p: Ste
 }
 
 function ParamsEditor({ step, onChange }: { step: PolicyStep; onChange: (p: StepParams) => void }) {
-  const params = step.params ?? {};
+  const params = paramsWithDefaults(step);
   const entries = Object.entries(params);
   function setKey(key: string, value: string) {
     try { onChange({ ...params, [key]: JSON.parse(value) }); } catch { onChange({ ...params, [key]: value }); }
@@ -106,11 +110,22 @@ function ParamsEditor({ step, onChange }: { step: PolicyStep; onChange: (p: Step
     <div className="inspector-form">
       {entries.map(([key, value]) => (
         <Field key={key} label={key}>
-          <input value={typeof value === "string" ? value : JSON.stringify(value)} onChange={(e) => setKey(key, e.target.value)} />
+          <input type={paramInputType(step.type, key)} value={typeof value === "string" ? value : JSON.stringify(value)} onChange={(e) => setKey(key, e.target.value)} />
         </Field>
       ))}
     </div>
   );
+}
+
+function paramsWithDefaults(step: PolicyStep): StepParams {
+  const spec = DEFAULT_NODE_PARAMS[step.type]?.params;
+  if (!spec) return step.params ?? {};
+  const defaults = Object.fromEntries(Object.entries(spec).map(([key, item]) => [key, item.default]));
+  return { ...defaults, ...step.params };
+}
+
+function paramInputType(type: string, key: string): string {
+  return DEFAULT_NODE_PARAMS[type]?.params?.[key]?.type === "number" ? "number" : "text";
 }
 
 function OperatorEditor({ step, onChange }: { step: PolicyStep; onChange: (p: StepParams) => void }) {

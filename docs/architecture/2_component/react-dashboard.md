@@ -13,7 +13,12 @@ This document describes the current source tree. The UI is actively changing, so
 ## Entry point
 
 - `src/main.tsx` mounts `<App />` into `#root`.
+- `src/main.tsx` imports the single React stylesheet entrypoint: `src/style/index.css`.
 - `src/App.tsx` owns top-level state, autosave, startup loading, notifications, and view routing.
+
+## Styling
+
+All React CSS lives under `src/frontend/react/src/style/`. Components and views should not import their own CSS files directly. Add new rules to the closest existing style file, or add a small focused file and import it from `style/index.css`.
 
 ## Main state owned by `App`
 

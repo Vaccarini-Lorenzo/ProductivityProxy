@@ -16,16 +16,26 @@ class StateStore:
 
     def load(self) -> dict[str, Any]:
         if not self.path.exists():
-            return {"usage": {}}
+            return {}
         with self.path.open("r", encoding="utf-8") as file:
-            state = json.load(file)
-        state.setdefault("usage", {})
-        return state
+            return json.load(file)
 
     def save(self, state: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("w", encoding="utf-8") as file:
             json.dump(state, file, indent=2, sort_keys=True)
+
+    def get_value(self, key: str) -> Any:
+        state = self.load()
+        if key not in state:
+            raise KeyError(key)
+        return state[key]
+
+    def set_value(self, key: str, value: Any) -> None:
+        json.dumps(value)
+        state = self.load()
+        state[key] = value
+        self.save(state)
 
     def track_usage(self, platform: str, idle_seconds: int, now: float) -> dict[str, Any]:
         state = self.load()

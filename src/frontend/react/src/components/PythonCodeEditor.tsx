@@ -8,7 +8,6 @@ import { indentLess } from "@codemirror/commands";
 import { autocompletion, acceptCompletion } from "@codemirror/autocomplete";
 import { pythonCompletionSource } from "../services/apiReference/pythonCompletions";
 import { ApiReferenceDrawer } from "./ApiReferenceDrawer";
-import "./PythonCodeEditor.css";
 
 interface Props {
   value: string;
