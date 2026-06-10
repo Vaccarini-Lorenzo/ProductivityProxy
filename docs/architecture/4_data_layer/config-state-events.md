@@ -89,18 +89,15 @@ The Python model uses `id`, `kind`, `type`, and `params`.
 
 `position` is used by the React graph editor and ignored by the Python model.
 
-A `start` node may include a trigger:
+A `start` node may include inline Python trigger code:
 
 ```json
 {
-  "trigger": {
-    "hostPatterns": ["reddit.com", "www.reddit.com"],
-    "pathPatterns": ["/r/"]
-  }
+  "code": "def triggered_by(context: RequestContext) -> bool:\n    host = context.flow.request.pretty_host.lower().strip(\".\")\n    return host == \"reddit.com\" or host.endswith(\".reddit.com\")\n"
 }
 ```
 
-A start trigger returns `next` when matched and `skip` when not matched.
+The Python evaluator executes `triggered_by(context)`. A truthy result routes to `next`; a falsy result routes to `skip`.
 
 ### Policy edge
 

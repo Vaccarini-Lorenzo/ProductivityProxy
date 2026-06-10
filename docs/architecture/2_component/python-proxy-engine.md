@@ -74,7 +74,14 @@ Built-in nodes:
 - `start`,
 - `end`.
 
-`start` can return `next` or `skip` based on its optional trigger params. `end` returns `end` and stops that policy.
+`start` returns `next` or `skip` by executing inline Python from `params["code"]`. The code must define:
+
+```python
+def triggered_by(context: RequestContext) -> bool:
+    return True
+```
+
+A truthy return value routes to `next`; a falsy value routes to `skip`. `end` returns `end` and stops that policy.
 
 Custom nodes are trusted Python files with this entrypoint:
 

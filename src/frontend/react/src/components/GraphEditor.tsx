@@ -20,6 +20,7 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import "./GraphEditor.css";
 import type { PolicyConfig } from "../models/config/types";
 import { Icon, type IconName } from "./ui";
 import { operatorLayout, pointsAttr, labelPos, type Vec } from "./operatorShapes";
@@ -38,6 +39,7 @@ interface Props {
 
 export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, onDeleteStep }: Props) {
   const [panMode, setPanMode] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   // Keep current policy + parent callbacks in refs so editor handlers stay stable
   // (so the rebuild effects below never re-run mid-drag). See docs/architecture/2_component/react-graph-editor.md.
@@ -69,6 +71,13 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
     return () => { window.removeEventListener("keydown", update); window.removeEventListener("keyup", update); window.removeEventListener("blur", stop); };
   }, []);
 
+  useEffect(() => {
+    if (!fullscreen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setFullscreen(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [fullscreen]);
+
   const onNodeDragStop = useCallback((_e: unknown, node: Node) => {
     const p = policyRef.current;
     cbRef.current.onPolicyChange({ ...p, steps: p.steps.map((s) => (s.id === node.id ? { ...s, position: node.position } : s)) });
@@ -83,7 +92,8 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
 
   return (
     <div className="flow-wrap">
-      <div className={panMode ? "flow-canvas pan-mode" : "flow-canvas"}>
+      <div className={`${panMode ? "flow-canvas pan-mode" : "flow-canvas"}${fullscreen ? " fullscreen" : ""}`}>
+        <button type="button" className="small canvas-fullscreen-button" onClick={() => setFullscreen(!fullscreen)}>{fullscreen ? "Exit full screen" : "Full screen"}</button>
         <ReactFlow
           nodes={nodes} edges={edges}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
@@ -101,7 +111,7 @@ export function GraphEditor({ policy, openStepId, onPolicyChange, onOpenStep, on
           connectionLineStyle={CONNECTION_LINE_STYLE}
         >
           <Background gap={20} size={1} />
-          <Controls showInteractive={false} />
+          <Controls showInteractive={false} showFitView={false} />
           <MiniMap pannable zoomable />
         </ReactFlow>
       </div>

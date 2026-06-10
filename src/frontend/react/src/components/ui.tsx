@@ -111,6 +111,17 @@ export function Field({ label, hint, children, className }: { label: string; hin
   );
 }
 
+/** Labelled non-label field for complex controls that contain buttons/editors. */
+export function FieldGroup({ label, hint, children, className }: { label: string; hint?: string; children: ReactNode; className?: string }) {
+  return (
+    <div className={className ? `field ${className}` : "field"}>
+      <span className="field-label">{label}</span>
+      {hint && <span className="field-hint">{hint}</span>}
+      {children}
+    </div>
+  );
+}
+
 /** Full-width settings row: label + description on the left, a checkbox control on the right. */
 export function CheckRow({ checked, onChange, label, hint, disabled }: { checked: boolean; onChange: (value: boolean) => void; label: string; hint?: string; disabled?: boolean }) {
   return (

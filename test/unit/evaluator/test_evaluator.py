@@ -73,6 +73,48 @@ class PolicyEvaluatorTest(unittest.TestCase):
             context.event_log.flush()
             self.assertIn("hello", event_path.read_text(encoding="utf-8"))
 
+    def test_start_node_uses_triggered_by_python_function(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            block_path = Path(tmp) / "block.py"
+            block_path.write_text(
+                "def run(input, context, params):\n    context.flow.response = 'blocked'\n    return input\n",
+                encoding="utf-8",
+            )
+            config = AppConfig.from_dict(
+                {
+                    "activeModeId": "mode",
+                    "policies": [
+                        {
+                            "id": "policy",
+                            "name": "Policy",
+                            "steps": [
+                                {
+                                    "id": "start",
+                                    "kind": "node",
+                                    "type": "start",
+                                    "params": {
+                                        "code": "def triggered_by(context: RequestContext) -> bool:\n    return context.flow.request.pretty_host == 'work.test'\n"
+                                    },
+                                },
+                                {"id": "block", "kind": "node", "type": "block"},
+                            ],
+                            "edges": [{"from": "start", "output": "next", "to": "block"}],
+                        }
+                    ],
+                    "modes": [{"id": "mode", "name": "Mode", "policyIds": ["policy"]}],
+                    "customNodes": [{"id": "block", "name": "Block", "path": str(block_path)}],
+                }
+            )
+            evaluator = PolicyEvaluator(config)
+            skipped = context_for(tmp, config, "play.test")
+            matched = context_for(tmp, config, "work.test")
+
+            evaluator.evaluate(skipped)
+            evaluator.evaluate(matched)
+
+            self.assertIsNone(skipped.flow.response)
+            self.assertEqual(matched.flow.response, "blocked")
+
     def test_stops_ordered_mode_after_response_is_set(self):
         with tempfile.TemporaryDirectory() as tmp:
             block_path = Path(tmp) / "block.py"
@@ -137,6 +179,17 @@ class PolicyEvaluatorTest(unittest.TestCase):
             )
             with self.assertRaisesRegex(RuntimeError, "max steps"):
                 PolicyEvaluator(config, max_steps=2).evaluate(context)
+
+
+def context_for(tmp: str, config: AppConfig, host: str) -> RequestContext:
+    flow = FakeFlow(f"https://{host}/path")
+    flow.request.pretty_host = host
+    return RequestContext(
+        flow=flow,
+        config=config,
+        state=StateStore(Path(tmp) / f"{host}.state.json"),
+        event_log=EventLog(Path(tmp) / f"{host}.events.jsonl"),
+    )
 
 
 def simple_policy(policy_id: str, node_type: str):

@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 from proxy.models.policy.flow import AppConfig, Policy, PolicyStep
+from proxy.models.runtime.context import RequestContext
 from proxy.services.events import observability
 from proxy.services.policy.custom_nodes import CustomNodeRunner
 from proxy.services.policy.operators import OperatorRunner
@@ -96,21 +97,32 @@ class PolicyEvaluator:
 
 
 def _evaluate_trigger(step: PolicyStep, context) -> str:
+    code = step.params.get("code")
+    if code:
+        namespace: dict[str, Any] = {"RequestContext": RequestContext}
+        exec(str(code), namespace)
+        function = namespace.get("triggered_by")
+        if not callable(function):
+            raise ValueError(f"Start node '{step.id}' must define triggered_by(context)")
+        return "next" if bool(function(context)) else "skip"
+
     trigger = step.params.get("trigger")
-    if not trigger:
-        return "next"
+    if trigger:
+        return _evaluate_legacy_trigger(trigger, context)
+    return "next"
+
+
+def _evaluate_legacy_trigger(trigger, context) -> str:
     flow = context.flow
     host = flow.request.pretty_host.lower().strip(".")
     host_patterns = trigger.get("hostPatterns", [])
-    if host_patterns:
-        if not any(host == p or host.endswith("." + p) for p in host_patterns):
-            return "skip"
+    if host_patterns and not any(host == p or host.endswith("." + p) for p in host_patterns):
+        return "skip"
     path_patterns = trigger.get("pathPatterns", [])
     if path_patterns:
         url = flow.request.pretty_url.lower()
         referer = flow.request.headers.get("referer", "").lower()
-        haystack = url + " " + referer
-        if not any(p in haystack for p in path_patterns):
+        if not any(p in f"{url} {referer}" for p in path_patterns):
             return "skip"
     return "next"
 

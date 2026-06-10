@@ -4,7 +4,7 @@ import { NodeLibrary } from "../components/NodeLibrary";
 import { StepModal } from "../components/StepModal";
 import { Modal } from "../components/Modal";
 import { PageHeader, IconButton, count } from "../components/ui";
-import type { AppConfig, PolicyConfig, PolicyStepKind } from "../models/config/types";
+import type { AppConfig, PolicyConfig, PolicyStepKind, StepParams } from "../models/config/types";
 import { createPolicy, slug } from "../services/config/configEditing";
 import { addStep, updateStepParams } from "../services/policy/policyOperations";
 
@@ -49,11 +49,9 @@ export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
     selectPolicy(policies[0]?.id ?? "");
   }
 
-  function handleAddStep(kind: PolicyStepKind, type: string) {
+  function handleAddStep(kind: PolicyStepKind, type: string, params?: StepParams) {
     if (!activePolicy) return;
-    const p = addStep(activePolicy, kind, type);
-    updatePolicy(p);
-    setOpenStepId(p.steps[p.steps.length - 1].id);
+    updatePolicy(addStep(activePolicy, kind, type, params));
   }
 
   function handleDeleteStep(stepId: string) {
@@ -97,6 +95,7 @@ export function PolicyView({ config, onConfigChange, onReadNode }: Props) {
                 customNodes={config.customNodes}
                 hasStart={activePolicy.steps.some((s) => s.kind === "node" && s.type === "start")}
                 onAddStep={handleAddStep}
+                onReadNode={onReadNode}
               />
             </div>
             <div className="policy-canvas">

@@ -28,6 +28,23 @@ class DefaultPolicyTest(unittest.TestCase):
 
             self.assertEqual(flow.response.status_code, 403)
 
+    def test_default_productivity_policies_do_not_block_regular_youtube(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = materialized_default_config()
+            flow = FakeFlow("https://www.youtube.com/watch?v=abc")
+            flow.request.pretty_host = "www.youtube.com"
+            flow.request.path = "/watch"
+            context = RequestContext(
+                flow=flow,
+                config=config,
+                state=StateStore(Path(tmp) / "state.json"),
+                event_log=EventLog(Path(tmp) / "events.jsonl"),
+            )
+
+            PolicyEvaluator(config).evaluate(context)
+
+            self.assertIsNone(flow.response)
+
     def test_default_productivity_policies_block_reddit_after_limit(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = materialized_default_config()

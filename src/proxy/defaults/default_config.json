@@ -38,18 +38,7 @@
             "y": 120
           },
           "params": {
-            "trigger": {
-              "hostPatterns": [
-                "youtube.com",
-                "www.youtube.com",
-                "m.youtube.com",
-                "youtube-nocookie.com"
-              ],
-              "pathPatterns": [
-                "/shorts",
-                "/reel"
-              ]
-            }
+            "code": "def triggered_by(context: RequestContext) -> bool:\n    host = context.flow.request.pretty_host.lower().strip(\".\")\n    host_patterns = [\"youtube.com\", \"youtube-nocookie.com\"]\n    if not any(host == item or host.endswith(\".\" + item) for item in host_patterns):\n        return False\n    haystack = context.flow.request.pretty_url.lower() + \" \" + context.flow.request.headers.get(\"referer\", \"\").lower()\n    return \"/shorts\" in haystack or \"/reel\" in haystack\n"
           }
         },
         {
@@ -101,13 +90,7 @@
             "y": 120
           },
           "params": {
-            "trigger": {
-              "hostPatterns": [
-                "reddit.com",
-                "www.reddit.com",
-                "old.reddit.com"
-              ]
-            }
+            "code": "def triggered_by(context: RequestContext) -> bool:\n    host = context.flow.request.pretty_host.lower().strip(\".\")\n    return host == \"reddit.com\" or host.endswith(\".reddit.com\")\n"
           }
         },
         {

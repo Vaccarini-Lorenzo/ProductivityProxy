@@ -1,59 +1,147 @@
-import { useState, type ReactNode } from "react";
-import type { CustomNodeConfig } from "../models/config/types";
-import { Icon, SearchInput, type IconName } from "./ui";
+import { useEffect, useState, type ReactNode } from "react";
+import type { CustomNodeConfig, StepParams } from "../models/config/types";
+import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
+import { PythonCodeEditor } from "./PythonCodeEditor";
+import { FieldGroup, Icon, IconButton, Modal, SearchInput, type IconName } from "./ui";
 
-const FLOW_NODES = [
-  { type: "start", label: "Start", desc: "Entry point with optional trigger", tone: "start", icon: "play" as IconName },
-  { type: "end", label: "End", desc: "Stop this policy flow", tone: "end", icon: "stop" as IconName },
+const START_CODE = `def triggered_by(context: RequestContext) -> bool:
+    return True
+`;
+const IF_CODE = `def if_condition(input) -> bool:
+    return False
+`;
+const SWITCH_CODE = `def switch_condition(input) -> str:
+    return "default"
+`;
+
+const FLOW_NODES: LibraryItem[] = [
+  { kind: "node", type: "start", label: "Start", desc: "Entry point with Python triggered_by(context) code", tone: "start", icon: "play", code: START_CODE },
+  { kind: "node", type: "end", label: "End", desc: "Stop this policy flow", tone: "end", icon: "stop" },
 ];
-const OPERATORS = [
-  { type: "if", label: "If / Then / Else", desc: "One input, two outputs", tone: "operator", icon: "branch" as IconName },
-  { type: "switch", label: "Switch", desc: "One output per case", tone: "operator", icon: "switch" as IconName },
+const OPERATORS: LibraryItem[] = [
+  { kind: "operator", type: "if", label: "If / Then / Else", desc: "One input, two outputs. Routes by Python if_condition(input).", tone: "operator", icon: "branch", code: IF_CODE },
+  { kind: "operator", type: "switch", label: "Switch", desc: "One input, one output per case. Routes by Python switch_condition(input).", tone: "operator", icon: "switch", code: SWITCH_CODE },
 ];
 
 interface Props {
   customNodes: CustomNodeConfig[];
   hasStart: boolean;
-  onAddStep: (kind: "node" | "operator", type: string) => void;
+  onAddStep: (kind: "node" | "operator", type: string, params?: StepParams) => void;
+  onReadNode: (path: string) => Promise<string>;
 }
 
-export function NodeLibrary({ customNodes, hasStart, onAddStep }: Props) {
+interface LibraryItem {
+  kind: "node" | "operator";
+  type: string;
+  label: string;
+  desc: string;
+  tone: string;
+  icon: IconName;
+  code?: string;
+  path?: string;
+}
+
+export function NodeLibrary({ customNodes, hasStart, onAddStep, onReadNode }: Props) {
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<LibraryItem | null>(null);
+  const [previewCode, setPreviewCode] = useState("");
   const query = search.trim().toLowerCase();
   const matches = (text: string) => !query || text.toLowerCase().includes(query);
   const flow = FLOW_NODES.filter((item) => matches(`${item.label} ${item.desc}`));
   const operators = OPERATORS.filter((item) => matches(`${item.label} ${item.desc}`));
-  const nodes = customNodes.filter((node) => matches(`${node.name} ${node.id} ${node.path}`));
+  const nodes = customNodes.map(customItem).filter((node) => matches(`${node.label} ${node.type} ${node.desc}`));
+  const addDisabled = selected?.type === "start" && hasStart;
+  const canEditCode = selected?.kind === "operator" || selected?.type === "start";
+
+  useEffect(() => {
+    if (!selected) return;
+    if (!selected.path) { setPreviewCode(selected.code ?? ""); return; }
+    let active = true;
+    setPreviewCode("Loading source…");
+    onReadNode(selected.path)
+      .then((source) => { if (active) setPreviewCode(source); })
+      .catch(() => { if (active) setPreviewCode(bundledNodeSource(selected.path ?? "") ?? "# Source unavailable in browser preview."); });
+    return () => { active = false; };
+  }, [selected, onReadNode]);
+
+  function addSelected() {
+    if (!selected || addDisabled) return;
+    onAddStep(selected.kind, selected.type, paramsFor(selected, previewCode));
+    setSelected(null);
+  }
 
   return (
     <div className="library" aria-label="Node library">
       <SearchInput value={search} onChange={setSearch} placeholder="Search nodes…" ariaLabel="Search nodes" />
       <Section title="Flow">
-        {flow.map((item) => <LibraryButton key={item.type} title={item.label} desc={item.desc} tone={item.tone} icon={item.icon} disabled={item.type === "start" && hasStart} onClick={() => onAddStep("node", item.type)} />)}
+        {flow.map((item) => <LibraryButton key={item.type} item={item} onClick={() => setSelected(item)} />)}
       </Section>
       <Section title="Logic">
-        {operators.map((item) => <LibraryButton key={item.type} title={item.label} desc={item.desc} tone={item.tone} icon={item.icon} onClick={() => onAddStep("operator", item.type)} />)}
+        {operators.map((item) => <LibraryButton key={item.type} item={item} onClick={() => setSelected(item)} />)}
       </Section>
       <Section title="Custom">
-        {nodes.map((node) => <LibraryButton key={node.id} title={node.name} desc={node.path.split("/").pop() ?? node.path} tone="custom" icon="hexagon" onClick={() => onAddStep("node", node.id)} />)}
+        {nodes.map((node) => <LibraryButton key={node.type} item={{ ...node, desc: shortPath(node.desc) }} onClick={() => setSelected(node)} />)}
         {nodes.length === 0 && <p className="muted library-empty">No matching nodes.</p>}
       </Section>
+      {selected && (
+        <Modal
+          title={selected.label}
+          subtitle={<span className={`inspector-badge ${selected.kind === "operator" ? "operator" : "node"}`}>{selected.kind} · {selected.type}</span>}
+          onClose={() => setSelected(null)}
+          wide
+          actions={<IconButton className="primary" icon="plus" label={addDisabled ? "Start already exists" : `Add ${selected.label}`} onClick={addSelected} disabled={addDisabled} />}
+        >
+          <div className="node-view">
+            <p className="inline-note">{selected.desc}</p>
+            <div className="meta-grid">
+              <div><dt>Kind</dt><dd>{selected.kind}</dd></div>
+              <div><dt>Type</dt><dd>{selected.type}</dd></div>
+              {selected.path && <div><dt>File</dt><dd>{selected.path}</dd></div>}
+            </div>
+            {addDisabled && <p className="message">This policy already has a start node.</p>}
+            {previewCode ? (
+              <FieldGroup label={codeLabel(selected)} hint={canEditCode ? "Edit before adding" : "Read-only preview"}>
+                <PythonCodeEditor value={previewCode} minHeight={260} readOnly={!canEditCode} ariaLabel={`${selected.label} Python preview`} onChange={canEditCode ? setPreviewCode : undefined} />
+              </FieldGroup>
+            ) : <p className="muted">This flow node has no Python code.</p>}
+          </div>
+        </Modal>
+      )}
     </div>
   );
+}
+
+function customItem(node: CustomNodeConfig): LibraryItem {
+  return { kind: "node", type: node.id, label: node.name, desc: node.path, tone: "custom", icon: "hexagon", path: node.path };
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return <section className="library-section"><h3>{title}</h3><div className="library-items">{children}</div></section>;
 }
 
-function LibraryButton({ title, desc, tone, icon, disabled, onClick }: { title: string; desc: string; tone: string; icon: IconName; disabled?: boolean; onClick: () => void }) {
+function LibraryButton({ item, onClick }: { item: LibraryItem; onClick: () => void }) {
   return (
-    <button className={`library-item ${tone}`} type="button" disabled={disabled} onClick={onClick} title={desc}>
-      <span className="library-item-icon"><Icon name={icon} /></span>
+    <button className={`library-item ${item.tone}`} type="button" onClick={onClick} title={item.desc}>
+      <span className="library-item-icon"><Icon name={item.icon} /></span>
       <span className="library-item-text">
-        <strong>{title}</strong>
-        <small>{desc}</small>
+        <strong>{item.label}</strong>
+        <small>{item.desc}</small>
       </span>
     </button>
   );
 }
+
+function paramsFor(item: LibraryItem, code: string): StepParams | undefined {
+  if (item.type === "start") return { code };
+  if (item.kind !== "operator") return undefined;
+  if (item.type === "switch") return { code, cases: ["case_a", "case_b", "case_c", "default"] };
+  return { code };
+}
+
+function codeLabel(item: LibraryItem): string {
+  if (item.kind === "operator") return "Python code";
+  if (item.type === "start") return "Python trigger";
+  return item.path ? "Python source" : "Python template";
+}
+
+function shortPath(path: string): string { return path.split("/").pop() ?? path; }

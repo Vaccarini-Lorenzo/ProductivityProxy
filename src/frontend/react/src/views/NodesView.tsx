@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { CustomNodeConfig } from "../models/config/types";
 import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
 import { PythonCodeEditor } from "../components/PythonCodeEditor";
-import { Card, Field, IconButton, Modal, PageHeader, SearchInput } from "../components/ui";
+import { Card, Field, FieldGroup, IconButton, Modal, PageHeader, SearchInput } from "../components/ui";
 
 export interface SaveNodeInput {
   id?: string;
@@ -114,9 +114,9 @@ export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
               <input value={draft.fileName} onChange={(e) => setDraft({ ...draft, fileName: e.target.value })} />
             </Field>
           </div>
-          <Field label="Python code">
-            <PythonCodeEditor value={draft.code} minHeight={340} onChange={(code) => setDraft({ ...draft, code })} />
-          </Field>
+          <FieldGroup label="Python code">
+            <PythonCodeEditor value={draft.code} minHeight={340} ariaLabel={`Python code for ${draft.name}`} onChange={(code) => setDraft({ ...draft, code })} />
+          </FieldGroup>
         </Modal>
       )}
     </div>

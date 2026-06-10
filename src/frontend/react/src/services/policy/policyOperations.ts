@@ -1,6 +1,10 @@
 import type { PolicyConfig, PolicyEdge, PolicyStep, PolicyStepKind, StepParams } from "../../models/config/types";
 
-export function addStep(policy: PolicyConfig, kind: PolicyStepKind, type: string): PolicyConfig {
+const DEFAULT_START_TRIGGER_CODE = `def triggered_by(context: RequestContext) -> bool:
+    return True
+`;
+
+export function addStep(policy: PolicyConfig, kind: PolicyStepKind, type: string, params?: StepParams): PolicyConfig {
   const count = policy.steps.length;
   const col = count % 3;
   const row = Math.floor(count / 3);
@@ -8,7 +12,7 @@ export function addStep(policy: PolicyConfig, kind: PolicyStepKind, type: string
     id: `${type}-${count}`,
     kind,
     type,
-    params: defaultParams(kind, type),
+    params: params ?? defaultParams(kind, type),
     position: {
       x: 80 + col * 340,
       y: 120 + row * 160,
@@ -41,6 +45,7 @@ function defaultParams(kind: PolicyStepKind, type: string): StepParams {
     if (type === "if") return { code: "def if_condition(input):\n    return False\n" };
     return { code: 'def switch_condition(input):\n    return "default"\n', cases: ["case_a", "case_b", "case_c", "default"] };
   }
+  if (type === "start") return { code: DEFAULT_START_TRIGGER_CODE };
   if (type === "block-response") return { status: 403, message: "Blocked" };
   return {};
 }

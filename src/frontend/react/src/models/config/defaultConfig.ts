@@ -1,5 +1,19 @@
 import type { AppConfig } from "./types";
 
+const YOUTUBE_TRIGGER_CODE = `def triggered_by(context: RequestContext) -> bool:
+    host = context.flow.request.pretty_host.lower().strip(".")
+    host_patterns = ["youtube.com", "youtube-nocookie.com"]
+    if not any(host == item or host.endswith("." + item) for item in host_patterns):
+        return False
+    haystack = context.flow.request.pretty_url.lower() + " " + context.flow.request.headers.get("referer", "").lower()
+    return "/shorts" in haystack or "/reel" in haystack
+`;
+
+const REDDIT_TRIGGER_CODE = `def triggered_by(context: RequestContext) -> bool:
+    host = context.flow.request.pretty_host.lower().strip(".")
+    return host == "reddit.com" or host.endswith(".reddit.com")
+`;
+
 export function createDefaultConfig(): AppConfig {
   return {
     activeModeId: "productivity",
@@ -20,7 +34,7 @@ export function createDefaultConfig(): AppConfig {
         id: "block-youtube-shorts",
         name: "Block YouTube Shorts",
         steps: [
-          { id: "start", kind: "node", type: "start", position: { x: 80, y: 120 }, params: { trigger: { hostPatterns: ["youtube.com", "www.youtube.com", "m.youtube.com"], pathPatterns: ["/shorts", "/reel"] } } },
+          { id: "start", kind: "node", type: "start", position: { x: 80, y: 120 }, params: { code: YOUTUBE_TRIGGER_CODE } },
           { id: "block", kind: "node", type: "block-response", position: { x: 460, y: 120 }, params: { status: 403, message: "YouTube Shorts blocked" } },
           { id: "end", kind: "node", type: "end", position: { x: 800, y: 120 } },
         ],
@@ -33,7 +47,7 @@ export function createDefaultConfig(): AppConfig {
         id: "limit-reddit",
         name: "Limit Reddit",
         steps: [
-          { id: "start", kind: "node", type: "start", position: { x: 80, y: 120 }, params: { trigger: { hostPatterns: ["reddit.com", "www.reddit.com", "old.reddit.com"] } } },
+          { id: "start", kind: "node", type: "start", position: { x: 80, y: 120 }, params: { code: REDDIT_TRIGGER_CODE } },
           { id: "track", kind: "node", type: "track-time", position: { x: 380, y: 120 }, params: { platform: "reddit", idleSeconds: 300 } },
           { id: "check-limit", kind: "node", type: "is-usage-over-limit", position: { x: 680, y: 120 }, params: { platform: "reddit", seconds: 1800 } },
           { id: "over-limit", kind: "operator", type: "if", position: { x: 980, y: 120 }, params: { code: "def if_condition(input):\n    return bool(input.get('over_limit'))\n" } },

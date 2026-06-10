@@ -107,8 +107,8 @@ Current responsibilities:
 Supporting pieces:
 
 - `NodeLibrary.tsx` lists flow nodes, operators, and registered custom nodes that can be added to the graph.
-- `StepModal.tsx` edits start triggers, operator code, switch cases, and existing node params.
-- `PythonCodeEditor.tsx` backs operator code editing and custom-node code editing.
+- `StepModal.tsx` edits start trigger code, operator code, switch cases, and existing node params.
+- `PythonCodeEditor.tsx` backs start trigger code, operator code, custom-node editing, syntax highlighting, autoindentation, and full-screen expansion.
 - `operatorShapes.ts` defines operator port layout.
 - `services/nodes/defaultNodeSources.ts` supplies bundled read-only source fallback for browser preview.
 

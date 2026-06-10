@@ -1,14 +1,18 @@
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { indentUnit } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
+import "./PythonCodeEditor.css";
 
 interface Props {
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   minHeight?: number;
   autoFocus?: boolean;
   ariaLabel?: string;
+  readOnly?: boolean;
 }
 
 const editorTheme = EditorView.theme({
@@ -19,52 +23,84 @@ const editorTheme = EditorView.theme({
     backgroundColor: "#0b0a08",
     color: "var(--text)",
   },
-  "&.cm-focused": {
-    outline: "none",
-    borderColor: "var(--amber)",
-  },
+  "&.cm-focused": { outline: "none", borderColor: "var(--amber)" },
   ".cm-scroller": {
     fontFamily: '"SFMono-Regular", "Menlo", "Consolas", monospace',
     fontSize: ".8rem",
     lineHeight: "1.5",
   },
-  ".cm-content": {
-    padding: "10px 0",
-    caretColor: "var(--amber)",
-  },
-  ".cm-line": {
-    padding: "0 12px",
-  },
+  ".cm-content": { padding: "10px 0", caretColor: "var(--amber)" },
+  ".cm-line": { padding: "0 12px" },
   ".cm-gutters": {
     backgroundColor: "#0b0a08",
     borderRight: "1px solid var(--line)",
     color: "var(--muted)",
   },
-  ".cm-activeLine, .cm-activeLineGutter": {
-    backgroundColor: "rgba(245,158,11,.08)",
-  },
-  ".cm-cursor": {
-    borderLeftColor: "var(--amber)",
-  },
-  ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
-    backgroundColor: "rgba(245,158,11,.24)",
-  },
+  ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "rgba(245,158,11,.08)" },
+  ".cm-cursor": { borderLeftColor: "var(--amber)" },
+  ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": { backgroundColor: "rgba(245,158,11,.24)" },
 }, { dark: true });
 
 const pythonExtensions = [python(), indentUnit.of("    "), EditorView.lineWrapping, editorTheme];
 
-export function PythonCodeEditor({ value, onChange, minHeight = 160, autoFocus = false, ariaLabel = "Python code" }: Props) {
-  return (
-    <CodeMirror
-      aria-label={ariaLabel}
-      autoFocus={autoFocus}
-      extensions={pythonExtensions}
-      indentWithTab
-      minHeight={`${minHeight}px`}
-      onChange={onChange}
-      spellCheck={false}
-      theme="dark"
-      value={value}
-    />
-  );
+export function PythonCodeEditor({ value, onChange, minHeight = 160, autoFocus = false, ariaLabel = "Python code", readOnly = false }: Props) {
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setExpanded(false);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [expanded]);
+
+  const title = readOnly ? "Python source" : "Python code";
+
+  const fullscreen = expanded ? createPortal(
+    <div className="python-editor-overlay" role="dialog" aria-modal="true" aria-label={`${ariaLabel} full screen`} onClick={() => setExpanded(false)}>
+      <div className="python-editor-fullscreen" onClick={(event) => event.stopPropagation()}>
+        <div className="python-editor-fullscreen-head">
+          <div><strong>{title}</strong><span>{ariaLabel}</span></div>
+          <button type="button" onClick={() => setExpanded(false)}>Close</button>
+        </div>
+        <div className="python-editor-fullscreen-body">
+          {renderEditor(value, onChange, 0, true, ariaLabel, readOnly, "100%")}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  ) : null;
+
+  return <>
+    <div className="python-editor-shell">
+      <div className="python-editor-head">
+        <span className="python-editor-title">{title}</span>
+        <button type="button" className="small python-editor-expand" onClick={() => setExpanded(true)}>Full screen</button>
+      </div>
+      {renderEditor(value, onChange, minHeight, autoFocus, ariaLabel, readOnly)}
+    </div>
+    {fullscreen}
+  </>;
+}
+
+function renderEditor(value: string, onChange: ((value: string) => void) | undefined, minHeight: number, autoFocus: boolean, ariaLabel: string, readOnly: boolean, height?: string) {
+  return <CodeMirror
+    aria-label={ariaLabel}
+    autoFocus={autoFocus}
+    className="python-codemirror"
+    editable={!readOnly}
+    extensions={pythonExtensions}
+    height={height}
+    indentWithTab={!readOnly}
+    minHeight={height ? undefined : `${minHeight}px`}
+    onChange={onChange}
+    readOnly={readOnly}
+    spellCheck={false}
+    theme="dark"
+    value={value}
+  />;
 }

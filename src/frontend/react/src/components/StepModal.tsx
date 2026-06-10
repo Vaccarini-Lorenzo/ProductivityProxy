@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { PythonCodeEditor } from "./PythonCodeEditor";
-import { Field } from "./ui";
+import { Field, FieldGroup } from "./ui";
 import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
 import type { CustomNodeConfig, PolicyConfig, PolicyStep, StepParams } from "../models/config/types";
 
@@ -13,6 +13,10 @@ interface Props {
   onReadNode: (path: string) => Promise<string>;
   onClose: () => void;
 }
+
+const DEFAULT_START_TRIGGER_CODE = `def triggered_by(context: RequestContext) -> bool:
+    return True
+`;
 
 /** Step configuration popup. Operators edit their logic (autosave); nodes show read-only code + editable params. */
 export function StepModal({ policy, step, customNodes, onParamsChange, onReadNode, onClose }: Props) {
@@ -69,34 +73,27 @@ function NodeView({ node, step, onChange, onReadNode }: { node: CustomNodeConfig
         <div><dt>File</dt><dd>{node.path}</dd></div>
       </div>
       <ParamsEditor step={step} onChange={onChange} />
-      <div className="code-readonly">
-        <div className="code-readonly-head">Python source <span className="muted">read-only · edit in Nodes</span></div>
-        <pre>{code}</pre>
-      </div>
+      <FieldGroup label="Python source" hint="Read-only · edit in Nodes">
+        <PythonCodeEditor value={code} minHeight={260} readOnly ariaLabel={`Python source for ${node.name}`} />
+      </FieldGroup>
     </div>
   );
 }
 
 function TriggerEditor({ step, onChange }: { step: PolicyStep; onChange: (p: StepParams) => void }) {
-  const trigger = (step.params?.trigger as Record<string, unknown>) ?? {};
-  const hostPatterns = (trigger.hostPatterns as string[]) ?? [];
-  const pathPatterns = (trigger.pathPatterns as string[]) ?? [];
-
-  function setTrigger(key: string, value: string[]) {
-    const next = { ...trigger, [key]: value };
-    if (value.length === 0) delete next[key];
-    onChange(Object.keys(next).length > 0 ? { ...step.params, trigger: next } : {});
+  const code = startTriggerCode(step.params);
+  function setCode(next: string) {
+    const { trigger: _legacy, ...rest } = step.params ?? {};
+    onChange({ ...rest, code: next });
   }
 
   return (
     <div className="inspector-form">
-      <Field label="Host patterns" hint="One per line, suffix match">
-        <textarea className="code-input small-code" value={hostPatterns.join("\n")} onChange={(e) => setTrigger("hostPatterns", lines(e.target.value))} />
-      </Field>
-      <Field label="Path patterns" hint="One per line, matched in URL + referer">
-        <textarea className="code-input small-code" value={pathPatterns.join("\n")} onChange={(e) => setTrigger("pathPatterns", lines(e.target.value))} />
-      </Field>
-      <p className="inline-note">With no trigger, the policy runs on every request.</p>
+      <FieldGroup label="Trigger function" hint="Return True to run this policy for the request. Return False to skip it.">
+        <div className="code-signature">def triggered_by(context: RequestContext) -&gt; bool</div>
+        <PythonCodeEditor value={code} minHeight={190} ariaLabel="Start trigger Python code" onChange={setCode} />
+      </FieldGroup>
+      <p className="inline-note">The function receives the live request context, including context.flow.request.</p>
     </div>
   );
 }
@@ -125,10 +122,10 @@ function OperatorEditor({ step, onChange }: { step: PolicyStep; onChange: (p: St
   const cases = (step.params?.cases as string[]) ?? [];
   return (
     <div className="inspector-form">
-      <Field label="Condition" hint={isIf ? "Return True for the then port, False for else" : "Return a case label string"}>
+      <FieldGroup label="Condition" hint={isIf ? "Return True for the then port, False for else" : "Return a case label string"}>
         <div className="code-signature">{isIf ? "def if_condition(input) -> bool" : "def switch_condition(input) -> str"}</div>
-        <PythonCodeEditor value={code} minHeight={130} onChange={(next) => onChange({ ...step.params, code: next })} />
-      </Field>
+        <PythonCodeEditor value={code} minHeight={130} ariaLabel={`${step.type} operator Python code`} onChange={(next) => onChange({ ...step.params, code: next })} />
+      </FieldGroup>
       {!isIf && <SwitchCases cases={cases} onChange={(next) => onChange({ ...step.params, cases: next })} />}
       <p className="inline-note">Changes auto-save to disk.</p>
     </div>
@@ -153,4 +150,27 @@ function SwitchCases({ cases, onChange }: { cases: string[]; onChange: (next: st
   );
 }
 
-function lines(text: string): string[] { return text.split("\n").map((s) => s.trim()).filter(Boolean); }
+function startTriggerCode(params: StepParams | undefined): string {
+  if (typeof params?.code === "string") return params.code;
+  const trigger = params?.trigger;
+  if (trigger && typeof trigger === "object") return legacyTriggerCode(trigger as Record<string, unknown>);
+  return DEFAULT_START_TRIGGER_CODE;
+}
+
+function legacyTriggerCode(trigger: Record<string, unknown>): string {
+  const hosts = Array.isArray(trigger.hostPatterns) ? trigger.hostPatterns.map(String) : [];
+  const paths = Array.isArray(trigger.pathPatterns) ? trigger.pathPatterns.map(String) : [];
+  return `def triggered_by(context: RequestContext) -> bool:
+    host = context.flow.request.pretty_host.lower().strip(".")
+    host_patterns = ${pythonList(hosts)}
+    if host_patterns and not any(host == item or host.endswith("." + item) for item in host_patterns):
+        return False
+    haystack = context.flow.request.pretty_url.lower() + " " + context.flow.request.headers.get("referer", "").lower()
+    path_patterns = ${pythonList(paths)}
+    return not path_patterns or any(item in haystack for item in path_patterns)
+`;
+}
+
+function pythonList(values: string[]): string {
+  return `[${values.map((value) => JSON.stringify(value)).join(", ")}]`;
+}

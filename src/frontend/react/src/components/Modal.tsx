@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import "./Modal.css";
 
 interface Props {
   title: string;
@@ -7,10 +8,11 @@ interface Props {
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  actions?: ReactNode;
 }
 
 /** Centered modal dialog. Closes on Escape, backdrop click, or the close button. */
-export function Modal({ title, subtitle, onClose, children, footer, wide }: Props) {
+export function Modal({ title, subtitle, onClose, children, footer, wide, actions }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -25,7 +27,10 @@ export function Modal({ title, subtitle, onClose, children, footer, wide }: Prop
             <h2>{title}</h2>
             {subtitle && <div className="modal-subtitle">{subtitle}</div>}
           </div>
-          <button className="modal-close" type="button" onClick={onClose} aria-label="Close">×</button>
+          <div className="modal-head-right">
+            {actions && <div className="modal-head-actions">{actions}</div>}
+            <button className="modal-close" type="button" onClick={onClose} aria-label="Close">×</button>
+          </div>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}
