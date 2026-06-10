@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import { TerminalNav, type View } from "./components/TerminalNav";
-import { IconButton } from "./components/ui";
 import { ModesView } from "./views/ModesView";
 import { NodesView, type SaveNodeInput } from "./views/NodesView";
 import { ObservabilityView } from "./views/ObservabilityView";
@@ -23,6 +22,8 @@ interface Props {
   notifier?: Notifier;
 }
 
+const AUTOSAVE_DELAY_MS = 600;
+
 export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [view, setView] = useState<View>("settings");
   const [config, setConfig] = useState<AppConfig>(() => createDefaultConfig());
@@ -32,6 +33,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [events, setEvents] = useState<ProxyEvent[]>([]);
   const [message, setMessage] = useState("");
   const seenNotifications = useRef(new Set<string>());
+  const autosaveRun = useRef(0);
 
   useEffect(() => {
     loadConfig(client).then((loaded) => { setConfig(loaded); setSavedConfig(loaded); }).catch(showError);
@@ -53,12 +55,23 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
 
   const hasConfigChanges = JSON.stringify(config) !== JSON.stringify(savedConfig);
 
-  async function handleSave() {
+  useEffect(() => {
     if (!hasConfigChanges) return;
+    const run = ++autosaveRun.current;
     const errors = validateAppConfig(config);
     if (errors.length > 0) { setMessage(errors.join(". ")); return; }
-    await saveConfig(client, config).then(() => { setSavedConfig(config); setMessage("Config saved"); }).catch(showError);
-  }
+    setMessage("Saving…");
+    const timeout = window.setTimeout(() => {
+      saveConfig(client, config)
+        .then(() => {
+          if (run !== autosaveRun.current) return;
+          setSavedConfig(config);
+          setMessage("Auto-saved");
+        })
+        .catch((error) => { if (run === autosaveRun.current) showError(error); });
+    }, AUTOSAVE_DELAY_MS);
+    return () => window.clearTimeout(timeout);
+  }, [client, config, hasConfigChanges]);
 
   async function handleStart() {
     const errors = validateAppConfig(config);
@@ -81,7 +94,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
         ? current.customNodes.map((node) => (node.id === id ? next : node))
         : [...current.customNodes, next],
     }));
-    setMessage("Node saved. Save config to persist it.");
+    setMessage("Node saved. Config will auto-save.");
   }
 
   function handleDeleteNode(id: string) {
@@ -111,10 +124,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     <div className="app-frame">
       <TerminalNav active={view} running={status.running} onNavigate={setView} />
       <main className="app-shell">
-        <div className="top-bar">
-          <IconButton className={hasConfigChanges ? "primary save-button" : "save-button save-clean"} icon="save" label="Save config" title={hasConfigChanges ? "Save config" : "No changes to save"} onClick={handleSave} disabled={!hasConfigChanges} />
-          {message && <span className="message" role="status">{message}</span>}
-        </div>
+        <div className="top-bar"><span className={message ? "message" : "muted"} role="status">{message || "Auto-save active"}</span></div>
         {renderView()}
       </main>
     </div>

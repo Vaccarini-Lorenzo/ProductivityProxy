@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { CustomNodeConfig } from "../models/config/types";
 import { bundledNodeSource } from "../services/nodes/defaultNodeSources";
 import { PythonCodeEditor } from "../components/PythonCodeEditor";
-import { Card, Field, Modal, PageHeader } from "../components/ui";
+import { Card, Field, IconButton, Modal, PageHeader } from "../components/ui";
 
 export interface SaveNodeInput {
   id?: string;
@@ -27,33 +27,50 @@ interface Draft { id?: string; name: string; fileName: string; code: string; }
 
 export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [draftBase, setDraftBase] = useState<Draft | null>(null);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const visibleNodes = nodes.filter((node) => `${node.name} ${node.path}`.toLowerCase().includes(search.toLowerCase()));
+  const draftDirty = !!draft && (!draftBase || JSON.stringify(draft) !== JSON.stringify(draftBase));
+
+  function closeDraft() {
+    setDraft(null);
+    setDraftBase(null);
+  }
+
+  function nodeDraft(node: CustomNodeConfig, code: string): Draft {
+    return { id: node.id, name: node.name, fileName: node.path.split("/").pop() ?? `${node.id}.py`, code };
+  }
 
   function newNode() {
     setMessage("");
+    setDraftBase(null);
     setDraft({ name: "Custom node", fileName: "custom_node.py", code: DEFAULT_CODE });
   }
 
   async function editNode(node: CustomNodeConfig) {
+    const loadingDraft = nodeDraft(node, "");
     setMessage("Loading source…");
-    setDraft({ id: node.id, name: node.name, fileName: node.path.split("/").pop() ?? `${node.id}.py`, code: "" });
+    setDraft(loadingDraft);
+    setDraftBase(loadingDraft);
     try {
-      const code = await onRead(node.path);
-      setDraft({ id: node.id, name: node.name, fileName: node.path.split("/").pop() ?? `${node.id}.py`, code });
+      const loadedDraft = nodeDraft(node, await onRead(node.path));
+      setDraft(loadedDraft);
+      setDraftBase(loadedDraft);
       setMessage("");
     } catch (error) {
       const bundled = bundledNodeSource(node.path);
-      setDraft({ id: node.id, name: node.name, fileName: node.path.split("/").pop() ?? `${node.id}.py`, code: bundled ?? `# Could not load node source:\n# ${error instanceof Error ? error.message : String(error)}\n` });
+      const fallbackDraft = nodeDraft(node, bundled ?? `# Could not load node source:\n# ${error instanceof Error ? error.message : String(error)}\n`);
+      setDraft(fallbackDraft);
+      setDraftBase(fallbackDraft);
       setMessage(bundled ? "Showing bundled default source" : "Could not load node source");
     }
   }
 
   async function saveNode() {
-    if (!draft) return;
+    if (!draft || !draftDirty) return;
     await onSave(draft);
-    setDraft(null);
+    closeDraft();
     setMessage("");
   }
 
@@ -71,7 +88,7 @@ export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
                 <small>{node.path}</small>
               </button>
               <span className="badge muted-badge">{node.path.includes("/defaults/") ? "default" : "custom"}</span>
-              <button className="small" type="button" onClick={() => editNode(node)}>Edit</button>
+              <IconButton className="small" icon="edit" label={`Edit ${node.name}`} onClick={() => editNode(node)} />
               <button className="danger small" type="button" onClick={() => onDelete(node.id)}>Delete</button>
             </div>
           ))}
@@ -82,12 +99,12 @@ export function NodesView({ nodes, onSave, onRead, onDelete }: Props) {
       {draft && (
         <Modal
           title={draft.id ? `Edit “${draft.name}”` : "New node"}
-          onClose={() => setDraft(null)}
+          onClose={closeDraft}
           wide
           footer={<>
             {message && <span className="message footer-message">{message}</span>}
-            <button type="button" onClick={() => setDraft(null)}>Cancel</button>
-            <button className="primary" type="button" onClick={saveNode}>{draft.id ? "Update node" : "Save node"}</button>
+            <button type="button" onClick={closeDraft}>Cancel</button>
+            <IconButton className={draftDirty ? "primary save-button" : "save-button save-clean"} icon="save" label={draft.id ? "Update node" : "Save node"} onClick={saveNode} disabled={!draftDirty} />
           </>}
         >
           <div className="form-grid">

@@ -130,7 +130,7 @@ function OperatorEditor({ step, onChange }: { step: PolicyStep; onChange: (p: St
         <PythonCodeEditor value={code} minHeight={130} onChange={(next) => onChange({ ...step.params, code: next })} />
       </Field>
       {!isIf && <SwitchCases cases={cases} onChange={(next) => onChange({ ...step.params, cases: next })} />}
-      <p className="inline-note">Changes are saved automatically. Use “Save config” to persist them to disk.</p>
+      <p className="inline-note">Changes auto-save to disk.</p>
     </div>
   );
 }

@@ -6,12 +6,12 @@ interface Props {
   onNavigate: (view: View) => void;
 }
 
-const LINKS: { view: View; code: string; label: string }[] = [
-  { view: "settings", code: "SET", label: "Settings" },
-  { view: "modes", code: "MOD", label: "Modes" },
-  { view: "policy", code: "POL", label: "Policy" },
-  { view: "nodes", code: "NOD", label: "Nodes" },
-  { view: "observability", code: "OBS", label: "Observability" },
+const LINKS: { view: View; label: string }[] = [
+  { view: "settings", label: "Settings" },
+  { view: "modes", label: "Modes" },
+  { view: "policy", label: "Policy" },
+  { view: "nodes", label: "Nodes" },
+  { view: "observability", label: "Observability" },
 ];
 
 export function TerminalNav({ active, running, onNavigate }: Props) {
@@ -34,7 +34,6 @@ export function TerminalNav({ active, running, onNavigate }: Props) {
             onClick={() => onNavigate(link.view)}
             aria-current={active === link.view ? "page" : undefined}
           >
-            <span>{link.code}</span>
             {link.label}
           </button>
         ))}
