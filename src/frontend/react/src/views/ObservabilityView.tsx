@@ -5,6 +5,7 @@ import { queryEvents, type EventQuery, type ProxyEvent } from "../services/proxy
 import { EVENT_POLL_MS } from "../services/proxy/polling";
 import { errorMessage } from "../services/errors/errorMessage";
 import { Select } from "../components/Select";
+import { ResourcePanel } from "../components/ResourcePanel";
 import { Card, Field, FieldGroup, Icon, IconButton, Modal, PageHeader, SearchInput, Toggle, count } from "../components/ui";
 
 interface Props {
@@ -74,6 +75,8 @@ export function ObservabilityView({ client, config }: Props) {
   return (
     <div className="page-stack">
       <PageHeader eyebrow="Observability" title="Policy trace" subtitle="Inspect requests, policy steps, and custom-node logs." />
+
+      <ResourcePanel client={client} autoRefresh={autoRefresh} />
 
       <Card title="Filters" icon="search" actions={toolbar}>
         <SearchInput value={filters.search} onChange={(v) => update("search", v)} placeholder="Search events…" ariaLabel="Search events" />

@@ -13,7 +13,7 @@ import { readCustomNode, loadConfig, saveConfig, validateNodeCode, writeCustomNo
 import { uniqueSlug } from "./services/config/configEditing";
 import { rememberNotificationEvents, showNotificationEvents, type Notifier } from "./services/notifications/notificationService";
 import { tauriNotifier } from "./services/notifications/tauriNotifier";
-import { getNetworkInfo, getProxyStatus, readRecentEvents, startProxy, stopProxy, type NetworkInfo, type ProxyEvent, type ProxyStatus } from "./services/proxy/proxyRepository";
+import { getNetworkInfo, getProxyStatus, readRecentEvents, restartProxy, startProxy, stopProxy, type NetworkInfo, type ProxyEvent, type ProxyStatus } from "./services/proxy/proxyRepository";
 import { EVENT_POLL_MS, STATUS_POLL_MS } from "./services/proxy/polling";
 import { errorMessage } from "./services/errors/errorMessage";
 import { tauriClient } from "./services/tauri/tauriClient";
@@ -80,22 +80,32 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     if (!hasConfigChanges) return;
     const run = ++autosaveRun.current;
     setMessage("Saving…");
+    const modeChanged = config.activeModeId !== savedConfig.activeModeId;
     const timeout = window.setTimeout(() => {
       saveConfig(client, config)
-        .then((report) => {
+        .then(async (report) => {
           if (run !== autosaveRun.current) return;
           setIssues(report.issues);
-          if (report.ok) {
-            setSavedConfig(config);
-            setMessage("Auto-saved");
-          } else {
+          if (!report.ok) {
             setMessage(describeIssues(report.issues));
+            return;
           }
+          setSavedConfig(config);
+          if (modeChanged && status.running) {
+            setMessage("Mode saved. Reopening proxy connections…");
+            await restartProxy(client, config);
+            if (run === autosaveRun.current) setStatus({ running: true });
+          }
+          if (run === autosaveRun.current) setMessage("Auto-saved");
         })
-        .catch((error) => { if (run === autosaveRun.current) showError(error); });
+        .catch((error) => {
+          if (run !== autosaveRun.current) return;
+          showError(error);
+          getProxyStatus(client).then(setStatus).catch(() => {});
+        });
     }, AUTOSAVE_DELAY_MS);
     return () => window.clearTimeout(timeout);
-  }, [client, config, hasConfigChanges]);
+  }, [client, config, hasConfigChanges, savedConfig.activeModeId, status.running]);
 
   async function handleStart() {
     await startProxy(client, config).then(() => setStatus({ running: true })).catch(showError);

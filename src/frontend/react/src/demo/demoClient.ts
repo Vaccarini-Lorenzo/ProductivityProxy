@@ -11,6 +11,7 @@ function clone<T>(value: T): T {
 
 let config = clone(demoConfig);
 let running = false;
+let proxyStartedAt = 0;
 
 export const demoClient: CommandClient = {
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -34,12 +35,24 @@ export const demoClient: CommandClient = {
       }
       case "start_proxy":
         running = true;
+        proxyStartedAt = Date.now();
         return undefined as T;
       case "stop_proxy":
         running = false;
         return undefined as T;
       case "proxy_status":
         return { running } as T;
+      case "proxy_resources":
+        return (running
+          ? {
+              running: true,
+              pid: 4242,
+              // jitter a little so the demo sparklines look alive
+              memBytes: 78_000_000 + Math.round(Math.random() * 9_000_000),
+              cpuPercent: Math.round((1 + Math.random() * 4) * 10) / 10,
+              uptimeSeconds: Math.max(0, Math.round((Date.now() - proxyStartedAt) / 1000)),
+            }
+          : { running: false }) as T;
       case "read_recent_events":
       case "query_events":
         return [] as T;

@@ -8,6 +8,7 @@ import { indentLess } from "@codemirror/commands";
 import { autocompletion, acceptCompletion } from "@codemirror/autocomplete";
 import { pythonCompletionSource } from "../services/apiReference/pythonCompletions";
 import { ApiReferenceDrawer } from "./ApiReferenceDrawer";
+import { Button, IconButton } from "./ui";
 
 interface Props {
   value: string;
@@ -91,10 +92,10 @@ export function PythonCodeEditor({ value, onChange, minHeight = 160, autoFocus =
     <div className="python-editor-overlay" role="dialog" aria-modal="true" aria-label={`${ariaLabel} full screen`} onClick={() => setExpanded(false)}>
       <div className="python-editor-fullscreen" onClick={(event) => event.stopPropagation()}>
         <div className="python-editor-fullscreen-head">
-          <div><strong>{title}</strong><span>{ariaLabel}</span></div>
+          <div className="python-editor-titles"><strong>{title}</strong><span>{ariaLabel}</span></div>
           <div className="python-editor-actions">
-            <button type="button" className="small" onClick={() => setApiOpen(true)}>API</button>
-            <button type="button" onClick={() => setExpanded(false)}>Close</button>
+            <Button className="small" onClick={() => setApiOpen(true)}>API</Button>
+            <IconButton className="small" icon="close" label="Close" title="Close (Esc)" onClick={() => setExpanded(false)} />
           </div>
         </div>
         <div className="python-editor-fullscreen-body">

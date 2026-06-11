@@ -5,6 +5,14 @@ export interface ProxyStatus {
   running: boolean;
 }
 
+export interface ProxyResources {
+  running: boolean;
+  pid?: number;
+  memBytes?: number;
+  cpuPercent?: number;
+  uptimeSeconds?: number;
+}
+
 export interface NetworkInfo {
   localHost: string;
   lanHost?: string;
@@ -35,8 +43,17 @@ export function stopProxy(client: CommandClient): Promise<void> {
   return client.invoke<void>("stop_proxy");
 }
 
+export async function restartProxy(client: CommandClient, config: AppConfig): Promise<void> {
+  await stopProxy(client);
+  await startProxy(client, config);
+}
+
 export function getProxyStatus(client: CommandClient): Promise<ProxyStatus> {
   return client.invoke<ProxyStatus>("proxy_status");
+}
+
+export function getProxyResources(client: CommandClient): Promise<ProxyResources> {
+  return client.invoke<ProxyResources>("proxy_resources");
 }
 
 export function getNetworkInfo(client: CommandClient): Promise<NetworkInfo> {

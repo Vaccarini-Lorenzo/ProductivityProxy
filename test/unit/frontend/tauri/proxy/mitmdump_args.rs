@@ -21,6 +21,7 @@ fn builds_local_unauthenticated_args() {
     assert!(args.contains(&"127.0.0.1".into()));
     assert!(args.contains(&"--listen-port".into()));
     assert!(args.contains(&"8080".into()));
+    assert!(!args.contains(&"http2=false".into()));
     assert!(!args.contains(&"--proxyauth".into()));
 }
 

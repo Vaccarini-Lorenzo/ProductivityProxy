@@ -7,7 +7,7 @@ export type IconName =
   | "branch" | "switch" | "hexagon"
   | "gear" | "layers" | "shield"
   | "info" | "terminal" | "link" | "lock" | "eye" | "eyeOff" | "search" | "inbox"
-  | "chevron" | "check";
+  | "chevron" | "check" | "close";
 
 const ICON_PATHS: Record<IconName, ReactNode> = {
   edit: <><path d="M4 15.5l3.6-.8 7.8-7.8a1.8 1.8 0 0 0-2.5-2.5L5.1 12.2 4 15.5z" /><path d="M11.7 5.6l2.7 2.7" /></>,
@@ -33,6 +33,7 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
   inbox: <><path d="M3.2 10.6l2.3-5.3a1.4 1.4 0 0 1 1.3-.8h6.4a1.4 1.4 0 0 1 1.3.8l2.3 5.3v4.1a1.3 1.3 0 0 1-1.3 1.3H4.5a1.3 1.3 0 0 1-1.3-1.3z" /><path d="M3.2 10.6h3.6l1 2h4.4l1-2h3.6" /></>,
   chevron: <path d="M5.5 8l4.5 4.5L14.5 8" />,
   check: <path d="M4.5 10.5l3.4 3.4 7.6-8" />,
+  close: <path d="M5.5 5.5l9 9M14.5 5.5l-9 9" />,
 };
 
 export function Icon({ name, className }: { name: IconName; className?: string }) {

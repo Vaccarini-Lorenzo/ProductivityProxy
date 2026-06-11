@@ -7,7 +7,7 @@ import { errorMessage } from "./services/errors/errorMessage";
 import type { Notifier } from "./services/notifications/notificationService";
 import { tauriNotifier } from "./services/notifications/tauriNotifier";
 import { STATUS_POLL_MS } from "./services/proxy/polling";
-import { getProxyStatus, startProxy, stopProxy } from "./services/proxy/proxyRepository";
+import { getProxyStatus, restartProxy, startProxy, stopProxy } from "./services/proxy/proxyRepository";
 import { tauriClient } from "./services/tauri/tauriClient";
 
 interface Props {
@@ -92,15 +92,31 @@ export function Popover({ client = tauriClient, notifier = tauriNotifier }: Prop
   }
 
   function selectMode(id: string) {
-    if (!config || config.activeModeId === id) return;
+    if (!config || config.activeModeId === id || pending.current) return;
     const previous = config;
     const next = { ...config, activeModeId: id };
     setConfig(next);
     setMessage("");
-    saveConfig(client, next).catch((error) => {
-      showError(error);
-      setConfig(previous);
-    });
+    pending.current = true;
+    saveConfig(client, next)
+      .then(async (report) => {
+        if (!report.ok) {
+          setConfig(previous);
+          setMessage(report.issues[0]?.message ?? "Mode was not saved");
+          return;
+        }
+        if (!running) return;
+        setMessage("Reopening proxy connections…");
+        await restartProxy(client, next);
+        setRunning(true);
+        setMessage("");
+      })
+      .catch((error) => {
+        showError(error);
+        setConfig(previous);
+        getProxyStatus(client).then((status) => setRunning(status.running)).catch(() => {});
+      })
+      .finally(() => { pending.current = false; });
   }
 
   return (
