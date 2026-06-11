@@ -1,5 +1,6 @@
 use productivity_proxy_app::services::proxy::process_service::ProcessService;
-use std::time::Duration;
+use std::fs;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[test]
 fn starts_and_stops_a_real_process() {
@@ -53,4 +54,27 @@ fn rejects_start_when_process_is_already_running() {
     service.stop().unwrap();
 
     assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
+}
+
+#[test]
+fn writes_stdout_and_stderr_to_log() {
+    let mut service = ProcessService::new();
+    let path = std::env::temp_dir().join(format!(
+        "productive-proxy-process-{}.log",
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+    ));
+    let args = vec![
+        "-c".to_string(),
+        "echo stdout-line; echo stderr-line >&2; sleep 1".to_string(),
+    ];
+
+    service
+        .start_args_and_confirm_with_log("sh", &args, Duration::from_millis(50), &path)
+        .unwrap();
+    service.stop().unwrap();
+
+    let text = fs::read_to_string(&path).unwrap();
+    let _ = fs::remove_file(path);
+    assert!(text.contains("stdout-line"));
+    assert!(text.contains("stderr-line"));
 }

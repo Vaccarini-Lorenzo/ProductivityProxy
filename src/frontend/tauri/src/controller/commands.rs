@@ -10,15 +10,16 @@ use crate::services::events::event_log::{query_events as query_event_log, read_r
 use crate::services::network::network_info::{detect_network_info, NetworkInfo};
 use crate::services::proxy::mitmdump_args::build_mitmdump_args;
 use crate::services::proxy::process_service::ProcessService;
+use crate::services::proxy::resources::sample_process;
 use crate::services::system_proxy::{
     capture_system_proxy_snapshot, enable_system_proxy, remove_system_proxy_snapshot,
     restore_system_proxy, save_system_proxy_snapshot, SystemProxySnapshot,
 };
 use serde::Serialize;
 use serde_json::Value;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tauri::{AppHandle, Manager, State};
 
 pub struct AppState {
@@ -29,6 +30,8 @@ pub struct AppState {
     pub lifecycle: Arc<Mutex<()>>,
     pub proxy: Arc<Mutex<ProcessService>>,
     pub system_proxy_snapshot: Arc<Mutex<Option<SystemProxySnapshot>>>,
+    /// When the current proxy process was started, for reporting uptime.
+    pub proxy_started: Arc<Mutex<Option<Instant>>>,
 }
 
 impl Default for AppState {
@@ -37,6 +40,7 @@ impl Default for AppState {
             lifecycle: Arc::new(Mutex::new(())),
             proxy: Arc::new(Mutex::new(ProcessService::new())),
             system_proxy_snapshot: Arc::new(Mutex::new(None)),
+            proxy_started: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -54,6 +58,16 @@ impl Drop for AppState {
 #[derive(Serialize)]
 pub struct ProxyStatus {
     running: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxyResources {
+    running: bool,
+    pid: Option<u32>,
+    mem_bytes: Option<u64>,
+    cpu_percent: Option<f64>,
+    uptime_seconds: Option<u64>,
 }
 
 #[tauri::command]
@@ -75,55 +89,6 @@ pub fn write_app_config(app: AppHandle, config: Value) -> Result<ValidationRepor
             .map_err(to_string)?;
     }
     Ok(report)
-}
-
-#[tauri::command]
-pub fn validate_node_code(code: String) -> Result<ValidationReport, String> {
-    validator::validate_node_code(&discover_repo_root()?, &code)
-}
-
-#[tauri::command]
-pub fn write_custom_node(app: AppHandle, file_name: String, code: String) -> Result<String, String> {
-    let paths = paths_for_app(&app)?;
-    let report = validator::validate_node_code(&discover_repo_root()?, &code)?;
-    if !report.ok {
-        return Err(validator::first_message(&report));
-    }
-    fs::create_dir_all(&paths.custom_nodes_dir).map_err(to_string)?;
-    let safe_name = Path::new(&file_name)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or_else(|| "invalid custom node file name".to_string())?;
-    if safe_name.is_empty() || safe_name == "." || safe_name == ".." {
-        return Err("invalid custom node file name".to_string());
-    }
-    let path = paths.custom_nodes_dir.join(safe_name);
-    fs::write(&path, code).map_err(to_string)?;
-    Ok(path.to_string_lossy().to_string())
-}
-
-#[tauri::command]
-pub fn read_custom_node(app: AppHandle, path: String) -> Result<String, String> {
-    let paths = paths_for_app(&app)?;
-    let repo_root = discover_repo_root()?;
-    let raw_path = PathBuf::from(path);
-    let requested_path = if raw_path.is_absolute() {
-        raw_path
-    } else {
-        repo_root.join(raw_path)
-    };
-    let requested = requested_path.canonicalize().map_err(to_string)?;
-    let custom_dir = paths.custom_nodes_dir.canonicalize().ok();
-    let defaults_dir = repo_root
-        .join("src/proxy/defaults/nodes")
-        .canonicalize()
-        .map_err(to_string)?;
-    let allowed = requested.starts_with(defaults_dir)
-        || custom_dir.as_ref().is_some_and(|dir| requested.starts_with(dir));
-    if !allowed {
-        return Err("custom node path is outside allowed directories".to_string());
-    }
-    fs::read_to_string(requested).map_err(to_string)
 }
 
 #[tauri::command(async)]
@@ -153,7 +118,12 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
 
     let start_result = state.proxy.lock().map_err(to_string).and_then(|mut proxy| {
         proxy
-            .start_args_and_confirm("mitmdump", &args, proxy_startup_grace())
+            .start_args_and_confirm_with_log(
+                "mitmdump",
+                &args,
+                proxy_startup_grace(),
+                &paths.proxy.mitmdump_log_path,
+            )
             .map_err(to_string)
     });
     if let Err(error) = start_result {
@@ -180,6 +150,9 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
     match state.system_proxy_snapshot.lock() {
         Ok(mut stored_snapshot) => {
             *stored_snapshot = Some(snapshot);
+            if let Ok(mut started) = state.proxy_started.lock() {
+                *started = Some(Instant::now());
+            }
             start_proxy_monitor(
                 Arc::downgrade(&state.proxy),
                 Arc::downgrade(&state.system_proxy_snapshot),
@@ -204,7 +177,11 @@ pub fn stop_proxy(app: AppHandle, state: State<AppState>) -> Result<(), String> 
     let _lifecycle = state.lifecycle.lock().map_err(to_string)?;
     let snapshot_path = system_proxy_snapshot_path_for_app(&app)?;
     restore_marked_system_proxy(&state.system_proxy_snapshot, &snapshot_path)?;
-    state.proxy.lock().map_err(to_string)?.stop().map_err(to_string)
+    state.proxy.lock().map_err(to_string)?.stop().map_err(to_string)?;
+    if let Ok(mut started) = state.proxy_started.lock() {
+        *started = None;
+    }
+    Ok(())
 }
 
 #[tauri::command(async)]
@@ -216,6 +193,40 @@ pub fn proxy_status(app: AppHandle, state: State<AppState>) -> Result<ProxyStatu
         restore_marked_system_proxy(&state.system_proxy_snapshot, &snapshot_path)?;
     }
     Ok(ProxyStatus { running })
+}
+
+/// Live resource usage of the proxy process (CPU%, RSS, uptime). Sampled from
+/// the OS via `ps`, so it adds nothing to the request hot path. Returns
+/// `running: false` with empty fields when the proxy is stopped.
+#[tauri::command(async)]
+pub fn proxy_resources(state: State<AppState>) -> Result<ProxyResources, String> {
+    let (running, pid) = {
+        let mut proxy = state.proxy.lock().map_err(to_string)?;
+        let running = proxy.is_running().map_err(to_string)?;
+        (running, proxy.pid())
+    };
+    if !running {
+        return Ok(ProxyResources {
+            running: false,
+            pid: None,
+            mem_bytes: None,
+            cpu_percent: None,
+            uptime_seconds: None,
+        });
+    }
+    let uptime_seconds = state
+        .proxy_started
+        .lock()
+        .map_err(to_string)?
+        .map(|started| started.elapsed().as_secs());
+    let sample = pid.and_then(sample_process);
+    Ok(ProxyResources {
+        running: true,
+        pid,
+        mem_bytes: sample.map(|s| s.mem_bytes),
+        cpu_percent: sample.map(|s| s.cpu_percent),
+        uptime_seconds,
+    })
 }
 
 #[tauri::command]
@@ -235,7 +246,7 @@ pub fn network_info() -> NetworkInfo {
     detect_network_info()
 }
 
-fn paths_for_app(app: &AppHandle) -> Result<RuntimePaths, String> {
+pub(crate) fn paths_for_app(app: &AppHandle) -> Result<RuntimePaths, String> {
     let app_data = app.path().app_data_dir().map_err(to_string)?;
     Ok(RuntimePaths::new(app_data, discover_repo_root()?))
 }

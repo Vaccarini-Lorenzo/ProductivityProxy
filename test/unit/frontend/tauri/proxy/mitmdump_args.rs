@@ -69,5 +69,6 @@ fn paths() -> ProxyPaths {
         config_path: PathBuf::from("data/config.json"),
         state_path: PathBuf::from("data/state.json"),
         event_log_path: PathBuf::from("data/events.jsonl"),
+        mitmdump_log_path: PathBuf::from("data/mitmdump.log"),
     }
 }

@@ -53,7 +53,7 @@ def request_started(context) -> None:
     _append(context.event_log, context, "request_started", "debug", "Request evaluation started", {})
 
 
-def request_finished(context, outcome: str, policy=None) -> None:
+def request_finished(context, outcome: str, policy=None, duration_ms: float | None = None) -> None:
     details = {
         "outcome": outcome,
         **_request_fields(context),
@@ -62,6 +62,8 @@ def request_finished(context, outcome: str, policy=None) -> None:
     if policy is not None:
         details["decidingPolicyId"] = policy.id
         details["decidingPolicyName"] = policy.name
+    if duration_ms is not None:
+        details["evalMs"] = round(duration_ms, 3)
     _append(context.event_log, context, "request_finished", "info", f"Request {outcome}", details)
 
 
@@ -173,7 +175,24 @@ def _request_fields(context) -> dict[str, Any]:
         "url": getattr(request, "pretty_url", getattr(request, "url", None)),
         "host": getattr(request, "pretty_host", None),
         "path": getattr(request, "path", None),
+        "requestBytes": _request_bytes(request),
     })
+
+
+def _request_bytes(request) -> int | None:
+    """Approximate bytes the client sent (header text + body). Computed from data
+    already in memory during the request hook, so it adds no buffering. This is
+    request payload only: the upstream response is not hooked, so it is not
+    counted here."""
+    try:
+        size = len(getattr(request, "content", b"") or b"")
+        headers = getattr(request, "headers", None)
+        if headers is not None:
+            for key, value in headers.items():
+                size += len(str(key)) + len(str(value)) + 4  # ": " + CRLF
+        return size
+    except Exception:
+        return None
 
 
 def _response_fields(context) -> dict[str, Any]:

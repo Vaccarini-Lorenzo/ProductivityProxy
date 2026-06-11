@@ -25,13 +25,14 @@ class PolicyEvaluator:
         context.shared_state = self.shared_state
         if self.verbose:
             observability.request_started(context)
+        started = time.perf_counter()
         try:
             for policy in self.config.active_policies():
                 self._evaluate_policy(policy, context)
                 if getattr(context.flow, "response", None) is not None:
-                    observability.request_finished(context, "blocked", policy)
+                    observability.request_finished(context, "blocked", policy, (time.perf_counter() - started) * 1000)
                     return
-            observability.request_finished(context, "allowed")
+            observability.request_finished(context, "allowed", duration_ms=(time.perf_counter() - started) * 1000)
         except Exception as error:
             observability.request_failed(context, error)
             raise

@@ -16,6 +16,7 @@ impl RuntimePaths {
                 config_path: app_data_dir.join("config.json"),
                 state_path: app_data_dir.join("state.json"),
                 event_log_path: app_data_dir.join("events.jsonl"),
+                mitmdump_log_path: app_data_dir.join("mitmdump.log"),
             },
             custom_nodes_dir: app_data_dir.join("custom_nodes"),
             system_proxy_snapshot_path: app_data_dir.join("system_proxy_snapshot.json"),

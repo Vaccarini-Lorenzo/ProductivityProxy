@@ -24,4 +24,5 @@ pub struct ProxyPaths {
     pub config_path: PathBuf,
     pub state_path: PathBuf,
     pub event_log_path: PathBuf,
+    pub mitmdump_log_path: PathBuf,
 }

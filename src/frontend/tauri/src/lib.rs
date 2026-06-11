@@ -3,10 +3,10 @@ pub mod models;
 pub mod services;
 
 use controller::commands::{
-    network_info, proxy_status, query_events, read_app_config, read_custom_node, read_recent_events,
-    shutdown_cleanup, start_proxy, stop_proxy, validate_node_code, write_app_config,
-    write_custom_node, AppState,
+    network_info, proxy_resources, proxy_status, query_events, read_app_config,
+    read_recent_events, shutdown_cleanup, start_proxy, stop_proxy, write_app_config, AppState,
 };
+use controller::custom_nodes::{read_custom_node, validate_node_code, write_custom_node};
 use controller::tray::actions::TrayAction;
 use controller::tray::popover::{self, PopoverState};
 use controller::window::{quit_app, resize_popover, show_main_window};
@@ -29,6 +29,7 @@ pub fn run() {
             start_proxy,
             stop_proxy,
             proxy_status,
+            proxy_resources,
             read_recent_events,
             query_events,
             network_info,
