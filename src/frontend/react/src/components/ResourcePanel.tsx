@@ -30,6 +30,7 @@ interface Stats {
   bytes: number;
   withBytes: number;
   latSamples: number;
+  latLatest: number;
   latP50: number;
   latP95: number;
   maxRequests: number;
@@ -78,7 +79,7 @@ export function ResourcePanel({ client, autoRefresh }: Props) {
   const latScale = niceScale(Math.max(stats.maxLatency, stats.latP95, 1));
   const trafficScale = niceCount(stats.maxRequests);
   const [memValue, memUnit] = splitUnit(running ? formatBytes(memNow) : "—");
-  const [latValue, latUnit] = splitUnit(stats.latSamples ? formatMs(stats.latP95) : "—");
+  const [latValue, latUnit] = splitUnit(stats.latSamples ? formatMs(stats.latLatest) : "—");
   const trafficSub = stats.total ? `${percent(stats.blocked, stats.total)} blocked${stats.withBytes ? ` · ${formatBytes(stats.bytes)} out` : ""}` : undefined;
 
   return (
@@ -93,7 +94,7 @@ export function ResourcePanel({ client, autoRefresh }: Props) {
           <Sparkline values={mem} variant="mem" mini min={0} max={memScale} />
         </MetricBox>
 
-        <MetricBox label="Engine latency" accent="lat" value={latValue} unit={latUnit} meta={stats.latSamples ? `p95 · p50 ${formatMs(stats.latP50)} · max ${formatMs(stats.maxLatency)}` : "no data"} cap={formatMs(latScale)} ticks={msTicks(latScale)} xTicks={xTicks}>
+        <MetricBox label="Engine latency" accent="lat" value={latValue} unit={latUnit} meta={stats.latSamples ? `p95 ${formatMs(stats.latP95)} · p50 ${formatMs(stats.latP50)} · max ${formatMs(stats.maxLatency)}` : "no data"} cap={formatMs(latScale)} ticks={msTicks(latScale)} xTicks={xTicks}>
           <Sparkline values={latency} variant="lat" mini min={0} max={latScale} />
         </MetricBox>
 
@@ -115,6 +116,7 @@ function aggregate(events: ProxyEvent[], windowMinutes: number): Stats {
   let blocked = 0;
   let bytes = 0;
   let withBytes = 0;
+  let latLatest = 0;
 
   for (const event of events) {
     const ts = typeof event.timestamp === "number" ? event.timestamp * 1000 : NaN;
@@ -131,6 +133,7 @@ function aggregate(events: ProxyEvent[], windowMinutes: number): Stats {
       bucket.latSum += event.evalMs;
       bucket.latCount += 1;
       bucket.latMax = Math.max(bucket.latMax, event.evalMs);
+      latLatest = event.evalMs;
       latencies.push(event.evalMs);
     }
     total += 1;
@@ -146,6 +149,7 @@ function aggregate(events: ProxyEvent[], windowMinutes: number): Stats {
     bytes,
     withBytes,
     latSamples: latencies.length,
+    latLatest,
     latP50: percentile(latencies, 50),
     latP95: percentile(latencies, 95),
     maxRequests: buckets.reduce((max, b) => Math.max(max, b.total), 0),
