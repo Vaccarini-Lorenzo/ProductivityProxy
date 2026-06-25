@@ -17,8 +17,11 @@ use tauri::{Manager, RunEvent, WindowEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_notification::init())
+    let builder = tauri::Builder::default().plugin(tauri_plugin_notification::init());
+    #[cfg(target_os = "macos")]
+    let builder = builder.plugin(tauri_nspanel::init());
+
+    builder
         .manage(AppState::default())
         .manage(PopoverState::default())
         .invoke_handler(tauri::generate_handler![
@@ -55,6 +58,8 @@ pub fn run() {
             services::config::env_file::load_for_app(&app_data_dir)
                 .map_err(std::io::Error::other)?;
 
+            #[cfg(target_os = "macos")]
+            popover::install_panel(app.handle())?;
             create_tray(app)?;
             Ok(())
         })

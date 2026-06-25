@@ -16,6 +16,20 @@ const ICON_GAP: f64 = 6.0;
 /// Margin kept between the popover and the edges of the monitor work area.
 const EDGE_MARGIN: f64 = 8.0;
 
+#[cfg(target_os = "macos")]
+tauri_nspanel::tauri_panel! {
+    panel!(PopoverPanel {
+        config: {
+            can_become_key_window: true,
+            can_become_main_window: false,
+            is_floating_panel: true,
+            becomes_key_only_if_needed: true,
+            hides_on_deactivate: false,
+            works_when_modal: true
+        }
+    })
+}
+
 /// Remembers when the popover was last dismissed by losing focus.
 #[derive(Default)]
 pub struct PopoverState {
@@ -38,8 +52,56 @@ impl PopoverState {
     }
 }
 
+/// Convert the Tauri popover window into a native NSPanel. macOS only allows
+/// panel-style windows to reliably float above another app's fullscreen Space.
+#[cfg(target_os = "macos")]
+pub fn install_panel(app: &AppHandle) -> tauri::Result<()> {
+    use tauri_nspanel::{CollectionBehavior, PanelLevel, StyleMask, WebviewWindowExt};
+
+    let Some(window) = app.get_webview_window(POPOVER_LABEL) else {
+        return Ok(());
+    };
+    let panel = window.to_panel::<PopoverPanel>()?;
+    panel.set_level(PanelLevel::PopUpMenu.value());
+    panel.set_floating_panel(true);
+    panel.set_hides_on_deactivate(false);
+    panel.set_has_shadow(false);
+    panel.set_transparent(true);
+    panel.set_style_mask(StyleMask::empty().borderless().nonactivating_panel().value());
+    panel.set_collection_behavior(
+        CollectionBehavior::new()
+            .can_join_all_spaces()
+            .stationary()
+            .transient()
+            .ignores_cycle()
+            .full_screen_auxiliary()
+            .value(),
+    );
+    Ok(())
+}
+
 /// Toggle the popover from a tray left-click located at `icon`.
 pub fn toggle_popover(app: &AppHandle, icon: Rect) {
+    #[cfg(target_os = "macos")]
+    {
+        use tauri_nspanel::ManagerExt;
+
+        if let Ok(panel) = app.get_webview_panel(POPOVER_LABEL) {
+            if panel.is_visible() {
+                panel.hide();
+                return;
+            }
+            if app.state::<PopoverState>().dismissed_recently() {
+                return;
+            }
+            if let Some(window) = app.get_webview_window(POPOVER_LABEL) {
+                let _ = position_below_icon(&window, icon);
+            }
+            panel.show_and_make_key();
+            return;
+        }
+    }
+
     let Some(window) = app.get_webview_window(POPOVER_LABEL) else {
         return;
     };
@@ -52,36 +114,7 @@ pub fn toggle_popover(app: &AppHandle, icon: Rect) {
     }
     let _ = position_below_icon(&window, icon);
     let _ = window.show();
-    #[cfg(target_os = "macos")]
-    bring_to_front(&window);
     let _ = window.set_focus();
-}
-
-/// On macOS a menu-bar popover must float above every other window — including
-/// other always-on-top windows and fullscreen apps — even though this is an
-/// accessory app that never becomes the active application. The config's
-/// `alwaysOnTop` only reaches the floating level, so raise the native window to
-/// the pop-up-menu level (what AppKit menus use) and order it to the front
-/// unconditionally, regardless of which app is currently active.
-#[cfg(target_os = "macos")]
-fn bring_to_front(window: &WebviewWindow) {
-    use objc::runtime::Object;
-    use objc::{msg_send, sel, sel_impl};
-
-    const NS_POPUP_MENU_WINDOW_LEVEL: i64 = 101;
-    // NSWindowCollectionBehaviorCanJoinAllSpaces | FullScreenAuxiliary.
-    const ALL_SPACES_OVER_FULLSCREEN: u64 = (1 << 0) | (1 << 8);
-
-    let Ok(ns_window) = window.ns_window() else {
-        return;
-    };
-    let ns_window = ns_window as *mut Object;
-    // SAFETY: `ns_window` is the live NSWindow backing this WebviewWindow.
-    unsafe {
-        let _: () = msg_send![ns_window, setLevel: NS_POPUP_MENU_WINDOW_LEVEL];
-        let _: () = msg_send![ns_window, setCollectionBehavior: ALL_SPACES_OVER_FULLSCREEN];
-        let _: () = msg_send![ns_window, orderFrontRegardless];
-    }
 }
 
 /// Center the popover horizontally under the tray icon, clamped to the screen.
