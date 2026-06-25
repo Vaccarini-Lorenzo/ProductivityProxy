@@ -1,3 +1,4 @@
+pub mod apps;
 pub mod config;
 pub mod events;
 pub mod network;

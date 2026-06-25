@@ -34,6 +34,19 @@ class ConfigServiceTest(unittest.TestCase):
 
             self.assertEqual(config.active_mode().id, "mode")
 
+    def test_validates_app_specific_routing_requires_an_app(self):
+        raw = {
+            "activeModeId": "mode",
+            "proxy": {"localRoutingMode": "appSpecific", "appCaptureTargets": []},
+            "policies": [{"id": "policy", "steps": [{"id": "start", "kind": "node", "type": "start"}], "edges": []}],
+            "modes": [{"id": "mode", "name": "Mode", "policyIds": ["policy"]}],
+            "customNodes": [],
+        }
+
+        messages = [issue["message"] for issue in validate_config(raw)]
+
+        self.assertIn("App-specific routing needs at least one app.", messages)
+
     def test_validates_registered_node_required_params(self):
         raw = {
             "activeModeId": "mode",

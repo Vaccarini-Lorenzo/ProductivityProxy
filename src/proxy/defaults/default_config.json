@@ -5,7 +5,9 @@
     "allowLan": false,
     "authEnabled": false,
     "authUsername": "productive",
-    "authPassword": "change-me"
+    "authPassword": "change-me",
+    "localRoutingMode": "systemWide",
+    "appCaptureTargets": []
   },
   "customNodes": [
     {

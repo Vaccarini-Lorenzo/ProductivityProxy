@@ -1,5 +1,5 @@
 #[cfg(target_os = "macos")]
-use productivity_proxy_app::models::proxy::settings::ProxySettings;
+use productivity_proxy_app::models::proxy::settings::{LocalRoutingMode, ProxySettings};
 #[cfg(target_os = "macos")]
 use productivity_proxy_app::services::system_proxy::{
     active_network_services_from_text, enable_commands_for_service, load_system_proxy_snapshot,
@@ -75,6 +75,8 @@ fn builds_enable_commands_for_http_and_https() {
         auth_enabled: false,
         auth_username: "productive".into(),
         auth_password: "change-me".into(),
+        local_routing_mode: LocalRoutingMode::SystemWide,
+        app_capture_targets: vec![],
     };
 
     let commands = enable_commands_for_service("Wi-Fi", &settings);
@@ -94,6 +96,8 @@ fn includes_auth_when_enabled() {
         auth_enabled: true,
         auth_username: "user".into(),
         auth_password: "secret".into(),
+        local_routing_mode: LocalRoutingMode::SystemWide,
+        app_capture_targets: vec![],
     };
 
     let commands = enable_commands_for_service("Wi-Fi", &settings);

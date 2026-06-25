@@ -23,14 +23,9 @@ use std::time::Instant;
 use tauri::{AppHandle, Manager, State};
 
 pub struct AppState {
-    /// Serializes the whole start/stop/status lifecycle. Held for the entire
-    /// operation so the async commands cannot interleave their multi-step
-    /// capture/enable/restore sequences (which would let one observe the proxy
-    /// already pointed at us and persist a self-referential snapshot).
     pub lifecycle: Arc<Mutex<()>>,
     pub proxy: Arc<Mutex<ProcessService>>,
     pub system_proxy_snapshot: Arc<Mutex<Option<SystemProxySnapshot>>>,
-    /// When the current proxy process was started, for reporting uptime.
     pub proxy_started: Arc<Mutex<Option<Instant>>>,
 }
 
@@ -94,8 +89,6 @@ pub fn write_app_config(app: AppHandle, config: Value) -> Result<ValidationRepor
 #[tauri::command(async)]
 pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Result<(), String> {
     require_env("POLICY_MAX_STEPS")?;
-    // Hold the lifecycle lock for the whole start sequence so a concurrent
-    // status poll or stop cannot interleave between capture, enable, and store.
     let _lifecycle = state.lifecycle.lock().map_err(to_string)?;
     let paths = paths_for_app(&app)?;
     let report = validator::validate_config(&discover_repo_root()?, &config)?;
@@ -108,13 +101,19 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
     }
     restore_marked_system_proxy(&state.system_proxy_snapshot, &paths.system_proxy_snapshot_path)?;
 
+    let settings = ProxySettings::from_app_config(&config).map_err(to_string)?;
+    let args = build_mitmdump_args(&settings, &paths.proxy)?;
     FileStore::new(paths.proxy.config_path.clone())
         .write_json(&config)
         .map_err(to_string)?;
-    let settings = ProxySettings::from_app_config(&config).map_err(to_string)?;
-    let snapshot = capture_system_proxy_snapshot().map_err(to_string)?;
-    save_system_proxy_snapshot(&paths.system_proxy_snapshot_path, &snapshot).map_err(to_string)?;
-    let args = build_mitmdump_args(&settings, &paths.proxy);
+    let snapshot = if settings.uses_system_proxy() {
+        let snapshot = capture_system_proxy_snapshot().map_err(to_string)?;
+        save_system_proxy_snapshot(&paths.system_proxy_snapshot_path, &snapshot)
+            .map_err(to_string)?;
+        Some(snapshot)
+    } else {
+        None
+    };
 
     let start_result = state.proxy.lock().map_err(to_string).and_then(|mut proxy| {
         proxy
@@ -127,43 +126,53 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
             .map_err(to_string)
     });
     if let Err(error) = start_result {
-        let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
+        if snapshot.is_some() {
+            let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
+        }
         return Err(error);
     }
 
-    if let Err(error) = enable_system_proxy(&settings, &snapshot) {
-        let _ = restore_system_proxy(&snapshot);
-        let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
-        if let Ok(mut proxy) = state.proxy.lock() {
-            let _ = proxy.stop();
+    if let Some(snapshot) = &snapshot {
+        if let Err(error) = enable_system_proxy(&settings, snapshot) {
+            let _ = restore_system_proxy(snapshot);
+            let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
+            if let Ok(mut proxy) = state.proxy.lock() {
+                let _ = proxy.stop();
+            }
+            return Err(to_string(error));
         }
-        return Err(to_string(error));
     }
 
     let still_running = state.proxy.lock().map_err(to_string)?.is_running().map_err(to_string)?;
     if !still_running {
-        let _ = restore_system_proxy(&snapshot);
-        let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
+        if let Some(snapshot) = &snapshot {
+            let _ = restore_system_proxy(snapshot);
+            let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
+        }
         return Err("proxy process exited during startup".to_string());
     }
 
     match state.system_proxy_snapshot.lock() {
         Ok(mut stored_snapshot) => {
-            *stored_snapshot = Some(snapshot);
+            *stored_snapshot = snapshot.clone();
             if let Ok(mut started) = state.proxy_started.lock() {
                 *started = Some(Instant::now());
             }
-            start_proxy_monitor(
-                Arc::downgrade(&state.proxy),
-                Arc::downgrade(&state.system_proxy_snapshot),
-                Arc::downgrade(&state.lifecycle),
-                paths.system_proxy_snapshot_path,
-            );
+            if snapshot.is_some() {
+                start_proxy_monitor(
+                    Arc::downgrade(&state.proxy),
+                    Arc::downgrade(&state.system_proxy_snapshot),
+                    Arc::downgrade(&state.lifecycle),
+                    paths.system_proxy_snapshot_path,
+                );
+            }
             Ok(())
         }
         Err(error) => {
-            let _ = restore_system_proxy(&snapshot);
-            let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
+            if let Some(snapshot) = &snapshot {
+                let _ = restore_system_proxy(snapshot);
+                let _ = remove_system_proxy_snapshot(&paths.system_proxy_snapshot_path);
+            }
             if let Ok(mut proxy) = state.proxy.lock() {
                 let _ = proxy.stop();
             }

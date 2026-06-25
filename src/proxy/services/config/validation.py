@@ -22,6 +22,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from proxy.services.config.proxy_validation import validate_proxy
+
 BUILTIN_NODE_TYPES = {"start", "end"}
 OPERATOR_FUNCTIONS = {"if": "if_condition", "switch": "switch_condition"}
 NODE_PARAM_SPECS: dict[str, Any] = json.loads(
@@ -75,6 +77,8 @@ def validate_config(raw: dict[str, Any]) -> list[dict[str, Any]]:
                     f"Mode {mode.get('id')} references unknown policy: {pid}",
                     "Remove the missing policy from the mode.",
                 ))
+
+    issues += validate_proxy(raw.get("proxy", {}), _issue)
 
     for policy in policies:
         issues += _validate_policy(policy, custom_node_ids)

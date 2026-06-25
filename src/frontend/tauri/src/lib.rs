@@ -2,6 +2,7 @@ pub mod controller;
 pub mod models;
 pub mod services;
 
+use controller::apps::list_active_apps;
 use controller::commands::{
     network_info, proxy_resources, proxy_status, query_events, read_app_config,
     read_recent_events, shutdown_cleanup, start_proxy, stop_proxy, write_app_config, AppState,
@@ -33,6 +34,7 @@ pub fn run() {
             read_recent_events,
             query_events,
             network_info,
+            list_active_apps,
             show_main_window,
             resize_popover,
             quit_app
@@ -48,6 +50,10 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            let app_data_dir = app.path().app_data_dir()?;
+            services::config::env_file::load_for_app(&app_data_dir)
+                .map_err(std::io::Error::other)?;
 
             create_tray(app)?;
             Ok(())

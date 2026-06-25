@@ -34,5 +34,7 @@ describe("createDefaultConfig", () => {
     expect(config.proxy.port).toBe(8080);
     expect(config.proxy.allowLan).toBe(false);
     expect(config.proxy.authEnabled).toBe(false);
+    expect(config.proxy.localRoutingMode).toBe("systemWide");
+    expect(config.proxy.appCaptureTargets).toEqual([]);
   });
 });
