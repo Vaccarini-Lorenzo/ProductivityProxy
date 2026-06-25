@@ -42,10 +42,25 @@ html.popover-mode body {
   background: linear-gradient(180deg, #181510, #100e0b);
 }
 
+.pop-brand-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.pop-logo {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .pop-brand {
   color: var(--amber-2);
   font-weight: 800;
   font-size: .9rem;
+  white-space: nowrap;
 }
 
 .pop-body {

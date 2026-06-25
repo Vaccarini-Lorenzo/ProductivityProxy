@@ -96,6 +96,40 @@ cd src/frontend/react
 npm run tauri build -- --debug --no-bundle
 ```
 
+Local macOS app build:
+
+```bash
+cd src/frontend/react
+npm run tauri build -- --bundles app
+```
+
+Local DMG from the built app:
+
+```bash
+hdiutil create -volname ProductivityProxy \
+  -srcfolder ../tauri/target/release/bundle/macos/ProductivityProxy.app \
+  -ov -format UDZO \
+  ../tauri/target/release/bundle/dmg/ProductivityProxy_local_0.1.0_aarch64.dmg
+```
+
+The app bundle is written to:
+
+```text
+src/frontend/tauri/target/release/bundle/macos/ProductivityProxy.app
+```
+
+The DMG is written to:
+
+```text
+src/frontend/tauri/target/release/bundle/dmg/ProductivityProxy_local_0.1.0_aarch64.dmg
+```
+
+The bundled app includes the Python proxy source, but still expects `python3` and `mitmdump` on the host. For Finder-launched apps, put the required engine environment and a Homebrew-aware `PATH` in:
+
+```text
+~/Library/Application Support/com.productivityproxy.desktop/.env
+```
+
 ## Run the app
 
 Export the engine variables from [Environment](#environment), then:

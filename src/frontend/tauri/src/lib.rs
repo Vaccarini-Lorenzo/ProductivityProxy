@@ -93,9 +93,12 @@ fn create_tray(app: &mut tauri::App) -> tauri::Result<()> {
 
     // Left-click opens the styled popover; right-click shows this native menu
     // as a fallback (e.g. if the popover webview ever fails to load).
-    let mut tray = TrayIconBuilder::with_id("main")
+    let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray-icon.png"))?;
+    let tray = TrayIconBuilder::with_id("main")
         .menu(&menu)
         .tooltip("ProductivityProxy")
+        .icon(tray_icon)
+        .icon_as_template(true)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match TrayAction::from_menu_id(event.id().as_ref()) {
             Some(TrayAction::OpenDashboard) => {
@@ -119,10 +122,6 @@ fn create_tray(app: &mut tauri::App) -> tauri::Result<()> {
                 popover::toggle_popover(tray.app_handle(), rect);
             }
         });
-
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone()).icon_as_template(true);
-    }
 
     tray.build(app)?;
 

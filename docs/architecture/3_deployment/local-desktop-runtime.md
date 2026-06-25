@@ -102,13 +102,15 @@ Runtime durability: the snapshot is persisted to `system_proxy_snapshot.json`, s
 
 ## Packaging status
 
-The app currently runs from the source tree, not a packaged bundle:
+The local macOS build can produce a `.app` and `.dmg`. The bundle includes the Python proxy source under app resources, so it no longer needs to discover the repository when launched from Finder. Built-in default node paths are rebased to the current source/resource root at app read/start time and again inside the Python runtime; user-created custom nodes still live in the per-user app data directory.
 
-- the Tauri bundle config has `active: false` (no installer is produced),
-- repo-root discovery depends on source files existing on disk,
-- mitmproxy/`mitmdump` and the Python runtime are expected on the host, not bundled.
+Still not self-contained:
 
-The remaining packaging work — a bundling strategy for mitmproxy/Python/addon files, installer signing/notarization, and per-desktop-environment Linux validation — is tracked in [Roadmap and Readiness](../../roadmap/readiness.md#not-ready-for-broad-daily-use-yet).
+- mitmproxy/`mitmdump` and the Python runtime are expected on the host,
+- the required engine environment is loaded from `~/Library/Application Support/com.productivityproxy.desktop/.env` or the parent process environment,
+- installer signing and notarization are not configured.
+
+The remaining packaging work — bundling mitmproxy/Python, installer signing/notarization, and per-desktop-environment Linux validation — is tracked in [Roadmap and Readiness](../../roadmap/readiness.md#not-ready-for-broad-daily-use-yet).
 
 ## Scaling model
 

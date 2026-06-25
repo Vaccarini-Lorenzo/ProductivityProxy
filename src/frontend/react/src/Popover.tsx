@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import popoverLogo from "./assets/popover-logo.png";
 import { Button, Card, CheckRow, Icon, count } from "./components/ui";
 import type { AppConfig } from "./models/config/types";
 import { loadConfig, saveConfig, type CommandClient } from "./services/config/configRepository";
@@ -123,7 +124,10 @@ export function Popover({ client = tauriClient, notifier = tauriNotifier }: Prop
     <div className="pop-shell" ref={shellRef}>
       <div className="pop-panel">
         <header className="pop-head">
-          <span className="pop-brand">ProductivityProxy</span>
+          <span className="pop-brand-wrap">
+            <img className="pop-logo" src={popoverLogo} alt="" />
+            <span className="pop-brand">ProductivityProxy</span>
+          </span>
           <span className={running ? "run-state on" : "run-state"} aria-live="polite">
             <span className="led" aria-hidden="true" /> {running ? "RUNNING" : "STOPPED"}
           </span>

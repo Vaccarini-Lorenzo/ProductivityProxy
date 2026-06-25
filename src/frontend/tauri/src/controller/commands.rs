@@ -1,8 +1,6 @@
-use crate::controller::proxy_lifecycle::{
-    proxy_startup_grace, restore_marked_system_proxy, start_proxy_monitor,
-};
+use crate::controller::proxy_lifecycle::{proxy_startup_grace, restore_marked_system_proxy, start_proxy_monitor};
 use crate::models::proxy::settings::ProxySettings;
-use crate::services::config::bootstrap::{discover_repo_root, ensure_config_exists};
+use crate::services::config::bootstrap::{discover_repo_root, ensure_config_exists, normalize_config_paths};
 use crate::services::config::file_store::FileStore;
 use crate::services::config::runtime_paths::RuntimePaths;
 use crate::services::config::validator::{self, ValidationReport};
@@ -11,10 +9,7 @@ use crate::services::network::network_info::{detect_network_info, NetworkInfo};
 use crate::services::proxy::mitmdump_args::build_mitmdump_args;
 use crate::services::proxy::process_service::ProcessService;
 use crate::services::proxy::resources::sample_process;
-use crate::services::system_proxy::{
-    capture_system_proxy_snapshot, enable_system_proxy, remove_system_proxy_snapshot,
-    restore_system_proxy, save_system_proxy_snapshot, SystemProxySnapshot,
-};
+use crate::services::system_proxy::{capture_system_proxy_snapshot, enable_system_proxy, remove_system_proxy_snapshot, restore_system_proxy, save_system_proxy_snapshot, SystemProxySnapshot};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -69,15 +64,19 @@ pub struct ProxyResources {
 pub fn read_app_config(app: AppHandle) -> Result<Value, String> {
     let paths = paths_for_app(&app)?;
     ensure_config_exists(&paths)?;
-    FileStore::new(paths.proxy.config_path).read_json().map_err(to_string)
+    let mut config = FileStore::new(paths.proxy.config_path).read_json().map_err(to_string)?;
+    normalize_config_paths(&mut config, &discover_repo_root()?);
+    Ok(config)
 }
 
 /// Validate via the Python source-of-truth, then write only if it is valid.
 /// Returns the report either way so the frontend can show issues without saving.
 #[tauri::command]
-pub fn write_app_config(app: AppHandle, config: Value) -> Result<ValidationReport, String> {
+pub fn write_app_config(app: AppHandle, mut config: Value) -> Result<ValidationReport, String> {
     let paths = paths_for_app(&app)?;
-    let report = validator::validate_config(&discover_repo_root()?, &config)?;
+    let repo_root = discover_repo_root()?;
+    normalize_config_paths(&mut config, &repo_root);
+    let report = validator::validate_config(&repo_root, &config)?;
     if report.ok {
         FileStore::new(paths.proxy.config_path)
             .write_json(&config)
@@ -87,11 +86,13 @@ pub fn write_app_config(app: AppHandle, config: Value) -> Result<ValidationRepor
 }
 
 #[tauri::command(async)]
-pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Result<(), String> {
+pub fn start_proxy(app: AppHandle, state: State<AppState>, mut config: Value) -> Result<(), String> {
     require_env("POLICY_MAX_STEPS")?;
     let _lifecycle = state.lifecycle.lock().map_err(to_string)?;
     let paths = paths_for_app(&app)?;
-    let report = validator::validate_config(&discover_repo_root()?, &config)?;
+    let repo_root = discover_repo_root()?;
+    normalize_config_paths(&mut config, &repo_root);
+    let report = validator::validate_config(&repo_root, &config)?;
     if !report.ok {
         return Err(validator::first_message(&report));
     }

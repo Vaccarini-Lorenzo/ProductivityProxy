@@ -34,6 +34,37 @@ class ConfigServiceTest(unittest.TestCase):
 
             self.assertEqual(config.active_mode().id, "mode")
 
+    def test_load_rebases_builtin_node_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "activeModeId": "mode",
+                        "policies": [
+                            {
+                                "id": "policy",
+                                "name": "Policy",
+                                "steps": [{"id": "start", "kind": "node", "type": "start"}],
+                                "edges": [],
+                            }
+                        ],
+                        "modes": [{"id": "mode", "name": "Mode", "policyIds": ["policy"]}],
+                        "customNodes": [
+                            {"id": "block-response", "name": "Block", "path": "/old/repo/block_response.py"},
+                            {"id": "custom", "name": "Custom", "path": "/custom/node.py"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            config = ConfigService(path).load()
+            paths = {node.id: node.path for node in config.custom_nodes}
+
+            self.assertTrue(paths["block-response"].endswith("src/proxy/defaults/nodes/block_response.py"))
+            self.assertEqual(paths["custom"], "/custom/node.py")
+
     def test_validates_app_specific_routing_requires_an_app(self):
         raw = {
             "activeModeId": "mode",
