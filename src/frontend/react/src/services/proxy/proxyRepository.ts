@@ -18,6 +18,13 @@ export interface NetworkInfo {
   lanHost?: string;
 }
 
+export interface ActiveApp {
+  name: string;
+  processNames: string[];
+  processCount: number;
+  iconDataUrl?: string;
+}
+
 export type ProxyEvent = Record<string, unknown>;
 
 export interface EventQuery {
@@ -58,6 +65,10 @@ export function getProxyResources(client: CommandClient): Promise<ProxyResources
 
 export function getNetworkInfo(client: CommandClient): Promise<NetworkInfo> {
   return client.invoke<NetworkInfo>("network_info");
+}
+
+export function listActiveApps(client: CommandClient): Promise<ActiveApp[]> {
+  return client.invoke<ActiveApp[]>("list_active_apps");
 }
 
 export function readRecentEvents(client: CommandClient, limit: number): Promise<ProxyEvent[]> {

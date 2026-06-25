@@ -58,6 +58,12 @@ export const demoClient: CommandClient = {
         return [] as T;
       case "network_info":
         return { localHost: "127.0.0.1", lanHost: "192.168.1.42" } as T;
+      case "list_active_apps":
+        return [
+          { name: "Google Chrome", processNames: ["Google Chrome", "Google Chrome Helper"], processCount: 7 },
+          { name: "Slack", processNames: ["Slack", "Slack Helper"], processCount: 4 },
+          { name: "Telegram", processNames: ["Telegram"], processCount: 1 },
+        ] as T;
       case "show_main_window":
       case "resize_popover":
       case "quit_app":

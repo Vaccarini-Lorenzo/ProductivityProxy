@@ -13,7 +13,7 @@ import { readCustomNode, loadConfig, saveConfig, validateNodeCode, writeCustomNo
 import { uniqueSlug } from "./services/config/configEditing";
 import { rememberNotificationEvents, showNotificationEvents, type Notifier } from "./services/notifications/notificationService";
 import { tauriNotifier } from "./services/notifications/tauriNotifier";
-import { getNetworkInfo, getProxyStatus, readRecentEvents, restartProxy, startProxy, stopProxy, type NetworkInfo, type ProxyEvent, type ProxyStatus } from "./services/proxy/proxyRepository";
+import { getNetworkInfo, getProxyStatus, listActiveApps, readRecentEvents, restartProxy, startProxy, stopProxy, type ActiveApp, type NetworkInfo, type ProxyEvent, type ProxyStatus } from "./services/proxy/proxyRepository";
 import { EVENT_POLL_MS, STATUS_POLL_MS } from "./services/proxy/polling";
 import { errorMessage } from "./services/errors/errorMessage";
 import { tauriClient } from "./services/tauri/tauriClient";
@@ -30,6 +30,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [savedConfig, setSavedConfig] = useState<AppConfig>(() => createDefaultConfig());
   const [status, setStatus] = useState<ProxyStatus>({ running: false });
   const [network, setNetwork] = useState<NetworkInfo>();
+  const [activeApps, setActiveApps] = useState<ActiveApp[]>([]);
   const [events, setEvents] = useState<ProxyEvent[]>([]);
   const [message, setMessage] = useState("");
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
@@ -40,6 +41,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     loadConfig(client).then((loaded) => { setConfig(loaded); setSavedConfig(loaded); }).catch(showError);
     getProxyStatus(client).then(setStatus).catch(showError);
     getNetworkInfo(client).then(setNetwork).catch(showError);
+    listActiveApps(client).then(setActiveApps).catch(showError);
     readRecentEvents(client, 50).then((loaded) => {
       seenNotifications.current = rememberNotificationEvents(loaded, seenNotifications.current);
       setEvents(loaded);
@@ -60,6 +62,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   useEffect(() => {
     const id = window.setInterval(() => {
       readRecentEvents(client, 50).then(setEvents).catch(() => {});
+      listActiveApps(client).then(setActiveApps).catch(() => {});
     }, EVENT_POLL_MS);
     return () => window.clearInterval(id);
   }, [client]);
@@ -77,7 +80,15 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const hasConfigChanges = JSON.stringify(config) !== JSON.stringify(savedConfig);
 
   useEffect(() => {
-    if (!hasConfigChanges) return;
+    if (!hasConfigChanges) {
+      // Reverting to the last saved (valid) config must clear any stale
+      // "not saved" validation error from a failed intermediate edit.
+      if (issues.length > 0) {
+        setIssues([]);
+        setMessage("");
+      }
+      return;
+    }
     const run = ++autosaveRun.current;
     setMessage("Saving…");
     const modeChanged = config.activeModeId !== savedConfig.activeModeId;
@@ -91,8 +102,9 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
             return;
           }
           setSavedConfig(config);
-          if (modeChanged && status.running) {
-            setMessage("Mode saved. Reopening proxy connections…");
+          const proxyChanged = JSON.stringify(config.proxy) !== JSON.stringify(savedConfig.proxy);
+          if ((modeChanged || proxyChanged) && status.running) {
+            setMessage("Settings saved. Restarting proxy…");
             await restartProxy(client, config);
             if (run === autosaveRun.current) setStatus({ running: true });
           }
@@ -105,7 +117,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
         });
     }, AUTOSAVE_DELAY_MS);
     return () => window.clearTimeout(timeout);
-  }, [client, config, hasConfigChanges, savedConfig.activeModeId, status.running]);
+  }, [client, config, hasConfigChanges, issues.length, savedConfig.activeModeId, savedConfig.proxy, status.running]);
 
   async function handleStart() {
     await startProxy(client, config).then(() => setStatus({ running: true })).catch(showError);
@@ -140,7 +152,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   function renderView() {
     switch (view) {
       case "settings":
-        return <SettingsView proxy={config.proxy} running={status.running} network={network} onChange={(proxy) => setConfig({ ...config, proxy })} onStart={handleStart} onStop={handleStop} />;
+        return <SettingsView proxy={config.proxy} running={status.running} network={network} activeApps={activeApps} onChange={(proxy) => setConfig({ ...config, proxy })} onStart={handleStart} onStop={handleStop} />;
       case "modes":
         return <ModesView config={config} onConfigChange={setConfig} />;
       case "policy":

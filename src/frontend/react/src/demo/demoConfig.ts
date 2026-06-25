@@ -56,7 +56,7 @@ export const NODE_SOURCES: Record<string, string> = {
 
 export const demoConfig: AppConfig = {
   activeModeId: "productivity",
-  proxy: { port: 8080, allowLan: false, authEnabled: false, authUsername: "productive", authPassword: "change-me" },
+  proxy: { port: 8080, allowLan: false, authEnabled: false, authUsername: "productive", authPassword: "change-me", localRoutingMode: "systemWide", appCaptureTargets: [] },
   customNodes: [
     { id: "block-response", name: "Block Response", path: "src/proxy/defaults/nodes/block_response.py" },
     { id: "track-time", name: "Track Time", path: "src/proxy/defaults/nodes/track_time.py" },

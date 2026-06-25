@@ -35,12 +35,17 @@ export interface ModeConfig {
   policyIds: string[];
 }
 
+export type LocalRoutingMode = "systemWide" | "appSpecific";
+export type AppCaptureTarget = string;
+
 export interface ProxyConfig {
   port: number;
   allowLan: boolean;
   authEnabled: boolean;
   authUsername: string;
   authPassword: string;
+  localRoutingMode: LocalRoutingMode;
+  appCaptureTargets: AppCaptureTarget[];
 }
 
 export interface CustomNodeConfig {
