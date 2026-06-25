@@ -54,17 +54,7 @@ def request_started(context) -> None:
 
 
 def request_finished(context, outcome: str, policy=None, duration_ms: float | None = None) -> None:
-    details = {
-        "outcome": outcome,
-        **_request_fields(context),
-        **_response_fields(context),
-    }
-    if policy is not None:
-        details["decidingPolicyId"] = policy.id
-        details["decidingPolicyName"] = policy.name
-    if duration_ms is not None:
-        details["evalMs"] = round(duration_ms, 3)
-    _append(context.event_log, context, "request_finished", "info", f"Request {outcome}", details)
+    return
 
 
 def request_failed(context, error: Exception) -> None:

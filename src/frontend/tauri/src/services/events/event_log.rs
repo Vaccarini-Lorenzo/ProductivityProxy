@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use serde_json::Value;
+use std::cmp::Ordering;
 use std::fs;
 use std::io::Result;
 use std::path::Path;
@@ -35,19 +36,18 @@ pub fn query_events(path: &Path, query: &EventQuery) -> Result<Vec<Value>> {
     let lines: Vec<&str> = text.lines().filter(|line| !line.trim().is_empty()).collect();
     let mut events = Vec::new();
 
-    for line in lines.iter().rev() {
+    for (index, line) in lines.iter().enumerate() {
         let event: Value = serde_json::from_str(line)?;
-        if !matches_query(&event, query) {
-            continue;
-        }
-        events.push(event);
-        if events.len() >= query.limit {
-            break;
+        if matches_query(&event, query) {
+            events.push((index, event));
         }
     }
 
-    events.reverse();
-    Ok(events)
+    events.sort_by(|(left_index, left), (right_index, right)| {
+        compare_timestamp_desc(left, right).then_with(|| right_index.cmp(left_index))
+    });
+    events.truncate(query.limit);
+    Ok(events.into_iter().map(|(_, event)| event).collect())
 }
 
 impl EventQuery {
@@ -67,6 +67,12 @@ impl EventQuery {
             until: None,
         }
     }
+}
+
+fn compare_timestamp_desc(left: &Value, right: &Value) -> Ordering {
+    let left_time = left.get("timestamp").and_then(Value::as_f64).unwrap_or(0.0);
+    let right_time = right.get("timestamp").and_then(Value::as_f64).unwrap_or(0.0);
+    right_time.partial_cmp(&left_time).unwrap_or(Ordering::Equal)
 }
 
 fn matches_query(event: &Value, query: &EventQuery) -> bool {

@@ -135,7 +135,9 @@ Python authors do not receive `RequestContext` directly:
 - custom nodes receive `input`, `request`, `context`, and `params`,
 - operators receive only `input`.
 
-Public `request` exposes HTTP fields/actions such as `host`, `url`, `headers`, `text()`, `redirect(url)`, and `block(status, message)`. Public `context` exposes `state`, `persistent_state`, `log(type, message, level, **data)`, and `notify(type, message, level, **data)`.
+Public `request` exposes HTTP fields/actions such as `host`, `url`, `headers`, `text()`, `redirect(url)`, and `block(status, message)`. Public `context` exposes `state`, `persistent_state`, `log(type, message, level, **data)`, `notify(type, message, level, **data)`, `run_node(node_name, args)`, and `run_async(work)`.
+
+`context.run_node(node_name, args)` runs a registered custom node synchronously in the same request/context and returns its output. `args` is passed as the called node's `input`; pass `{ "input": value, "params": {...} }` when the called node also needs `params`.
 
 `context.state` is an in-memory key/value store shared by requests handled by the same evaluator; stored dict/list values are passed by reference and disappear when the proxy process restarts.
 

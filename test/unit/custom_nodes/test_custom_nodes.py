@@ -53,6 +53,61 @@ class CustomNodeRunnerTest(unittest.TestCase):
             self.assertEqual(result, {"previous": {"start": True}, "detected": True})
             self.assertEqual(context.shared_state["seen"], "ok")
 
+    def test_context_run_node_calls_registered_custom_node(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            child_path = Path(tmp) / "child.py"
+            child_path.write_text(
+                textwrap.dedent(
+                    """
+                    def run(input, request, context, params):
+                        return {"input": input, "suffix": params["suffix"], "host": request.host}
+                    """
+                ),
+                encoding="utf-8",
+            )
+            parent_path = Path(tmp) / "parent.py"
+            parent_path.write_text(
+                textwrap.dedent(
+                    """
+                    def run(input, request, context, params):
+                        return context.run_node("child", {
+                            "input": input,
+                            "params": {"suffix": params["suffix"]},
+                        })
+                    """
+                ),
+                encoding="utf-8",
+            )
+            config = AppConfig.from_dict(
+                {
+                    "activeModeId": "mode",
+                    "policies": [
+                        {
+                            "id": "policy",
+                            "name": "Policy",
+                            "steps": [{"id": "start", "kind": "node", "type": "start"}],
+                            "edges": [],
+                        }
+                    ],
+                    "modes": [{"id": "mode", "name": "Mode", "policyIds": ["policy"]}],
+                    "customNodes": [
+                        {"id": "parent", "name": "Parent", "path": str(parent_path)},
+                        {"id": "child", "name": "Child", "path": str(child_path)},
+                    ],
+                }
+            )
+            context = RequestContext(
+                flow=FakeFlow(),
+                config=config,
+                state=StateStore(Path(tmp) / "state.json"),
+                event_log=EventLog(Path(tmp) / "events.jsonl"),
+            )
+            step = PolicyStep("parent-step", "node", "parent", {"suffix": "ok"})
+
+            result = CustomNodeRunner(config).run(step, {"start": True}, context)
+
+            self.assertEqual(result, {"input": {"start": True}, "suffix": "ok", "host": "example.com"})
+
     def test_runs_python_node_with_persistent_state(self):
         with tempfile.TemporaryDirectory() as tmp:
             node_path = Path(tmp) / "persist.py"

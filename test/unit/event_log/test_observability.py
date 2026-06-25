@@ -43,7 +43,6 @@ class ObservabilityTest(unittest.TestCase):
             events = read_events(event_path)
             custom = first_event(events, "custom_node_log")
             step = first_event(events, "policy_step")
-            finished = first_event(events, "request_finished")
 
             self.assertEqual(custom["category"], "custom_node")
             self.assertEqual(custom["policyId"], "policy")
@@ -51,33 +50,7 @@ class ObservabilityTest(unittest.TestCase):
             self.assertEqual(custom["requestId"], "request-1")
             self.assertEqual(custom["data"], {"value": "ok"})
             self.assertEqual(step["policyId"], "policy")
-            self.assertEqual(finished["outcome"], "allowed")
-
-    def test_request_finished_reports_request_bytes(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            node_path = Path(tmp) / "custom.py"
-            node_path.write_text("def run(input, request, context, params):\n    return input\n", encoding="utf-8")
-            config = AppConfig.from_dict(config_raw(node_path))
-            event_path = Path(tmp) / "events.jsonl"
-            flow = FakeFlow("https://example.com/path")
-            flow.request.content = b"hello"
-            flow.request.headers = {"x": "yz"}
-            context = RequestContext(
-                flow=flow,
-                config=config,
-                state=StateStore(Path(tmp) / "state.json"),
-                event_log=EventLog(event_path),
-                request_id="request-1",
-            )
-
-            PolicyEvaluator(config, max_steps=10, verbose=False).evaluate(context)
-
-            context.event_log.flush()
-            finished = first_event(read_events(event_path), "request_finished")
-            # body (5) + header "x":"yz" (1 + 2 + 4 for ": " and CRLF)
-            self.assertEqual(finished["requestBytes"], 12)
-            self.assertIsInstance(finished["evalMs"], (int, float))
-            self.assertGreaterEqual(finished["evalMs"], 0)
+            self.assertFalse(any(event.get("type") == "request_finished" for event in events))
 
     def test_controller_logs_rejected_config(self):
         with tempfile.TemporaryDirectory() as tmp:

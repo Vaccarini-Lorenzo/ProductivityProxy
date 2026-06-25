@@ -5,13 +5,17 @@ Author code should import only these types for hints:
     from proxy.api import Context, Request
 
     def run(input: Any, request: Request, context: Context, params: dict[str, Any]) -> Any:
-        usage = context.persistent_state.get("usage")
+        result = context.run_node("my-helper", input)
         context.log("custom_event", "ran node")
-        return input
+        return result
 """
 
 from __future__ import annotations
 
+import importlib.util
+import uuid
+from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from proxy.services.events import observability
@@ -124,6 +128,36 @@ class Context:
     def notify(self, type: str, message: str, level: str = "info", **data: Any) -> None:
         observability.notification(self._runtime, type, message, level, **data)
 
+    def run_node(self, node_name: str, args: Any) -> Any:
+        name = str(node_name).strip()
+        if not name:
+            raise ValueError("run_node expects a custom node id")
+        input_value, params = _node_call_args(args)
+        module = _load_node_module(self._runtime.config, name)
+        return module.run(input_value, Request(self._runtime), self, params)
+
+    def run_async(self, work: Callable[[], Any]) -> None:
+        if not callable(work):
+            raise TypeError("run_async expects a callable")
+        from proxy.services.policy.async_worker import submit
+
+        runtime = self._runtime
+
+        def wrapped() -> None:
+            try:
+                work()
+            except Exception as error:
+                observability.custom_log(
+                    runtime,
+                    "async_worker_error",
+                    "Async worker failed",
+                    "error",
+                    errorType=type(error).__name__,
+                    error=str(error),
+                )
+
+        submit(wrapped)
+
 
 class SimpleResponse:
     def __init__(self, status_code: int, content: bytes, headers: dict[str, str]):
@@ -136,6 +170,31 @@ def _make_response(status: int, content: bytes, headers: dict[str, str]):
     if http is not None:
         return http.Response.make(status, content, headers)
     return SimpleResponse(status, content, headers)
+
+
+def _node_call_args(args: Any) -> tuple[Any, dict[str, Any]]:
+    if isinstance(args, dict) and "params" in args and set(args).issubset({"input", "params"}):
+        params = args.get("params", {})
+        if params is None:
+            params = {}
+        if not isinstance(params, dict):
+            raise TypeError("run_node args['params'] must be a dict")
+        return args.get("input"), dict(params)
+    return args, {}
+
+
+def _load_node_module(config, node_name: str):
+    custom_node = config.custom_node(node_name)
+    path = Path(custom_node.path)
+    if not path.is_absolute():
+        raise ValueError(f"Custom node path must be absolute: {path}")
+    module_name = f"productivity_proxy_run_node_{uuid.uuid4().hex}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ValueError(f"Cannot load custom node: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 __all__ = ["Context", "PersistentState", "Request"]

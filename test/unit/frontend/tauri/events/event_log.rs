@@ -18,6 +18,22 @@ fn reads_recent_jsonl_events() {
 }
 
 #[test]
+fn reads_recent_events_newest_first() {
+    let temp = std::env::temp_dir().join(format!("pp-events-order-{}", std::process::id()));
+    fs::create_dir_all(&temp).unwrap();
+    let path = temp.join("events.jsonl");
+    fs::write(&path, "{\"type\":\"first\"}\n{\"type\":\"second\"}\n{\"type\":\"third\"}\n").unwrap();
+
+    let events = read_recent_events(&path, 2).unwrap();
+
+    fs::remove_dir_all(temp).unwrap();
+
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0]["type"], "third");
+    assert_eq!(events[1]["type"], "second");
+}
+
+#[test]
 fn queries_events_with_filters() {
     let temp = std::env::temp_dir().join(format!("pp-filtered-events-{}", std::process::id()));
     fs::create_dir_all(&temp).unwrap();
