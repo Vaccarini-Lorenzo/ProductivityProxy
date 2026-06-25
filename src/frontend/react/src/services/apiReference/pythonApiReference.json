@@ -1,6 +1,6 @@
 {
-  "version": "4",
-  "intro": "Small Python authoring API. Use request for HTTP data, context for helpers/in-memory state/persistent state, and input for the previous node output.",
+  "version": "6",
+  "intro": "Small Python authoring API. Use request for HTTP data, context for helpers/in-memory state/persistent state/node calls, and input for the previous node output.",
   "groups": [
     {
       "id": "entrypoints",
@@ -197,6 +197,27 @@
           "details": [
             { "label": "Args", "text": "- `type` — notification title / category\n- `message` — notification body text\n- `level` — `\"info\"` (default), `\"debug\"`, `\"warning\"`, or `\"error\"`\n- `**data` — any extra keyword args become structured metadata" },
             { "label": "Effect", "text": "The dashboard shows a native OS notification (when permissions are granted) and the event appears in Observability." }
+          ]
+        },
+        {
+          "name": "context.run_node(node_name, args)",
+          "type": "Any",
+          "summary": "Run a registered custom node and return its output.",
+          "details": [
+            { "label": "Args", "text": "- `node_name` — registered custom node id, e.g. `\"get-transcript\"`\n- `args` — value passed to the called node as its `input`" },
+            { "label": "Params", "text": "When the called node also needs `params`, pass wrapper args: `{\"input\": value, \"params\": {\"timeoutSeconds\": 10}}`." },
+            { "label": "Effect", "text": "Runs synchronously in the current request/context. The called node receives the same request and shared context." },
+            { "label": "Example", "text": "`result = context.run_node(\"get-transcript\", {\n    \"input\": {\"videoId\": video_id},\n    \"params\": {\"timeoutSeconds\": 10}\n})`" }
+          ]
+        },
+        {
+          "name": "context.run_async(work)",
+          "type": "None",
+          "summary": "Queue a zero-argument callable on the policy async worker.",
+          "details": [
+            { "label": "Args", "text": "- `work` — callable with no arguments" },
+            { "label": "Effect", "text": "The current request continues immediately. The callable runs later on the policy worker thread." },
+            { "label": "Example", "text": "`def work():\n    context.log(\"done\", \"async work finished\")\ncontext.run_async(work)`" }
           ]
         }
       ]

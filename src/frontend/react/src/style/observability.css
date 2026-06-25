@@ -8,7 +8,18 @@
 .event-row:hover { border-color: var(--amber); background: rgba(245,158,11,.06); }
 .event-row strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .event-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.event-row em { color: var(--green); font-style: normal; font-size: .72rem; text-align: right; }
+.event-row em { color: var(--muted); font-style: normal; font-size: .72rem; text-align: right; font-weight: 700; }
+.event-row.level-debug em { color: var(--muted); }
+.event-row.level-info em { color: var(--green); }
+.event-row.level-warning { border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.035); }
+.event-row.level-warning em { color: var(--amber-2); }
+.event-row.level-error { border-color: rgba(255,112,101,.48); background: rgba(255,112,101,.055); }
+.event-row.level-error:hover { border-color: var(--red); background: rgba(255,112,101,.10); }
+.event-row.level-error em { color: var(--red); }
+.level-badge { border-radius: 999px; padding: 2px 10px; font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; border: 1px solid var(--line-soft); color: var(--muted); background: rgba(255,255,255,.035); }
+.level-badge.level-info { color: var(--green); border-color: rgba(119,214,107,.28); background: rgba(119,214,107,.12); }
+.level-badge.level-warning { color: var(--amber-2); border-color: rgba(245,158,11,.32); background: rgba(245,158,11,.13); }
+.level-badge.level-error { color: var(--red); border-color: rgba(255,112,101,.42); background: rgba(255,112,101,.13); }
 .timeline-block { display: grid; gap: 4px; }
 .timeline-block h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
 .timeline-row { display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .8rem; }

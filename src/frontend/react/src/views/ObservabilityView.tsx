@@ -97,14 +97,17 @@ export function ObservabilityView({ client, config }: Props) {
           {events.length > 0 && (
             <div className="event-head"><span>Timestamp</span><span>Event type</span><span>Source / Policy</span><span>Level</span></div>
           )}
-          {events.map((event, index) => (
-            <button className="event-row" key={eventKey(event, index)} type="button" onClick={() => setOpenIndex(index)} role="listitem">
-              <span>{formatTime(event)}</span>
-              <strong>{text(event, "type") || "event"}</strong>
-              <small>{text(event, "policyName") || text(event, "source")}</small>
-              <em>{text(event, "level")}</em>
-            </button>
-          ))}
+          {events.map((event, index) => {
+            const level = eventLevel(event);
+            return (
+              <button className={`event-row level-${level}`} key={eventKey(event, index)} type="button" onClick={() => setOpenIndex(index)} role="listitem">
+                <span>{formatTime(event)}</span>
+                <strong>{text(event, "type") || "event"}</strong>
+                <small>{text(event, "policyName") || text(event, "source")}</small>
+                <em>{level}</em>
+              </button>
+            );
+          })}
           {events.length === 0 && (
             <div className="empty-state">
               <Icon name="inbox" />
@@ -117,7 +120,7 @@ export function ObservabilityView({ client, config }: Props) {
       {selected && (
         <Modal
           title={text(selected, "type") || "Event"}
-          subtitle={<span className="inspector-badge node">{text(selected, "level") || "info"}</span>}
+          subtitle={<span className={`level-badge level-${eventLevel(selected)}`}>{eventLevel(selected)}</span>}
           onClose={() => setOpenIndex(null)}
           wide
         >
@@ -150,5 +153,9 @@ function toQuery(filters: Filters): EventQuery {
 
 function blank(value: string): string | undefined { const t = value.trim(); return t || undefined; }
 function text(event: ProxyEvent | undefined, field: string): string { const v = event?.[field]; return typeof v === "string" ? v : v === undefined ? "" : String(v); }
+function eventLevel(event: ProxyEvent | undefined): string {
+  const level = text(event, "level").toLowerCase();
+  return ["debug", "info", "warning", "error"].includes(level) ? level : "info";
+}
 function formatTime(event: ProxyEvent): string { const v = event.timestamp; if (typeof v !== "number") return "--:--"; return new Date(v * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
 function eventKey(event: ProxyEvent, index: number): string { return `${text(event, "timestamp")}-${text(event, "type")}-${index}`; }

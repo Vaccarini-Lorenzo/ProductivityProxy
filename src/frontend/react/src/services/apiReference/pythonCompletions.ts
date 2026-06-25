@@ -19,6 +19,8 @@ const CONTEXT_PROPS: Item[] = [
   { label: "state", detail: "shared key/value store" },
   { label: "log(type, message, level, **data)", detail: "emit event to Observability" },
   { label: "notify(type, message, level, **data)", detail: "send UI notification" },
+  { label: "run_node(node_name, args)", detail: "run a registered custom node" },
+  { label: "run_async(work)", detail: "queue a callable on the policy worker" },
 ];
 
 const STATE_PROPS: Item[] = [
@@ -29,7 +31,7 @@ const STATE_PROPS: Item[] = [
 const TOP_LEVEL: Item[] = [
   { label: "input", detail: "previous node output" },
   { label: "request", detail: "current HTTP request" },
-  { label: "context", detail: "state/log/notify helpers" },
+  { label: "context", detail: "state/log/node helpers" },
   { label: "params", detail: "configured node values" },
 ];
 
