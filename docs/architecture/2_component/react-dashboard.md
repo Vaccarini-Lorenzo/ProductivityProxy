@@ -29,6 +29,7 @@ All React CSS lives under `src/frontend/react/src/style/`. Components and views 
 - active view: `settings`, `modes`, `policy`, `nodes`, or `observability`,
 - full app config,
 - last saved config for autosave comparison,
+- backend mode runtime status, including a pending friction target/deadline,
 - validation issues returned by the backend,
 - proxy running status,
 - detected local/LAN network info,
@@ -36,7 +37,7 @@ All React CSS lives under `src/frontend/react/src/style/`. Components and views 
 - user-facing message string,
 - a set of notification events already shown.
 
-On mount it asks the Tauri backend for app config, proxy status, recent events, and network info. It then polls on intervals defined in `services/proxy/polling.ts`: proxy status every `STATUS_POLL_MS` (2000 ms) and recent events every `EVENT_POLL_MS` (3000 ms). The menu-bar `Popover` polls status on the same `STATUS_POLL_MS` interval, and `ObservabilityView` refreshes its event feed every `EVENT_POLL_MS`.
+On mount it asks the Tauri backend for app config, proxy status, mode runtime status, recent events, and network info. It then polls on intervals defined in `services/proxy/polling.ts`: proxy and mode status every `STATUS_POLL_MS` (2000 ms) and recent events every `EVENT_POLL_MS` (3000 ms). The menu-bar `Popover` polls both runtime statuses on the same `STATUS_POLL_MS` interval, and `ObservabilityView` refreshes its event feed every `EVENT_POLL_MS`.
 
 ## Navigation and shared components
 
@@ -78,9 +79,10 @@ Current responsibilities:
 
 Current responsibilities:
 
-- select the active mode,
+- request manual mode changes through the backend,
+- show and cancel a shared friction countdown,
 - create/delete modes,
-- edit mode name and description,
+- edit mode name, description, Create friction, and daily local-time interval,
 - add/remove shared policies from a mode,
 - reorder policies inside a mode through `policyIds`,
 - show policy/step counts.
@@ -143,6 +145,18 @@ Validation lives entirely in the Python backend (the single source of truth). Th
 - On a failed report, `App` does not advance its last-saved snapshot. It shows the first issue in the top bar (red “Not saved”), `PolicyView` renders a per-policy “Broken · not saved” banner with message and hint, and `GraphEditor` rings the offending steps.
 
 Each issue is `{ scope, policyId, nodeId, stepIds, message, hint }`. The rule set lives in [Python proxy engine](python-proxy-engine.md#config-model) and [Data Layer](../4_data_layer/config-state-events.md#validation-boundaries).
+
+### Mode repository
+
+`services/modes/modeRepository.ts`
+
+Thin wrapper around Tauri commands:
+
+- `mode_runtime_status`,
+- `request_mode_switch`,
+- `cancel_mode_switch`.
+
+The dashboard does not implement timer or schedule authority. `ModeTransitionNotice` renders the backend deadline as a local countdown in both windows.
 
 ### Proxy repository
 

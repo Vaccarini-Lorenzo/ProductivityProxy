@@ -1,3 +1,4 @@
+pub mod app_config;
 pub mod bootstrap;
 pub mod env_file;
 pub mod file_store;

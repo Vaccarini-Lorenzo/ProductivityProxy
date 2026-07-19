@@ -16,6 +16,8 @@ describe("createDefaultConfig", () => {
 
     expect(config.activeModeId).toBe("productivity");
     expect(config.modes.map((mode) => mode.id)).toEqual(["productivity", "chilling"]);
+    expect(config.modes.every((mode) => mode.createFriction === false)).toBe(true);
+    expect(config.modes.every((mode) => mode.defaultTime === null)).toBe(true);
   });
 
   it("creates one start node per default mode policy", () => {

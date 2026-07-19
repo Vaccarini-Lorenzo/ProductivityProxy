@@ -16,6 +16,7 @@ tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
 base64 = "0.22"
+chrono = "0.4"
 log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -31,6 +32,10 @@ name = "tauri_file_store"
 path = "../../../test/unit/frontend/tauri/config/file_store.rs"
 
 [[test]]
+name = "tauri_app_config"
+path = "../../../test/unit/frontend/tauri/config/app_config.rs"
+
+[[test]]
 name = "tauri_runtime_paths"
 path = "../../../test/unit/frontend/tauri/config/runtime_paths.rs"
 
@@ -41,6 +46,10 @@ path = "../../../test/unit/frontend/tauri/events/event_log.rs"
 [[test]]
 name = "tauri_network_info"
 path = "../../../test/unit/frontend/tauri/network/network_info.rs"
+
+[[test]]
+name = "tauri_mode_schedule"
+path = "../../../test/unit/frontend/tauri/modes/schedule.rs"
 
 [[test]]
 name = "tauri_active_apps"

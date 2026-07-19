@@ -67,8 +67,8 @@ export function createDefaultConfig(): AppConfig {
       },
     ],
     modes: [
-      { id: "productivity", name: "Productivity", description: "Focused work mode", policyIds: ["block-youtube-shorts", "limit-reddit"] },
-      { id: "chilling", name: "Chilling", description: "No restrictions", policyIds: [] },
+      { id: "productivity", name: "Productivity", description: "Focused work mode", createFriction: false, defaultTime: null, policyIds: ["block-youtube-shorts", "limit-reddit"] },
+      { id: "chilling", name: "Chilling", description: "No restrictions", createFriction: false, defaultTime: null, policyIds: [] },
     ],
   };
 }

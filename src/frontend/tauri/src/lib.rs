@@ -8,6 +8,9 @@ use controller::commands::{
     read_recent_events, shutdown_cleanup, start_proxy, stop_proxy, write_app_config, AppState,
 };
 use controller::custom_nodes::{read_custom_node, validate_node_code, write_custom_node};
+use controller::modes::{
+    cancel_mode_switch, mode_runtime_status, request_mode_switch, start_mode_monitor, ModeRuntime,
+};
 use controller::tray::actions::TrayAction;
 use controller::tray::popover::{self, PopoverState};
 use controller::window::{quit_app, resize_popover, show_main_window};
@@ -23,6 +26,7 @@ pub fn run() {
 
     builder
         .manage(AppState::default())
+        .manage(ModeRuntime::default())
         .manage(PopoverState::default())
         .invoke_handler(tauri::generate_handler![
             read_app_config,
@@ -38,6 +42,9 @@ pub fn run() {
             query_events,
             network_info,
             list_active_apps,
+            mode_runtime_status,
+            request_mode_switch,
+            cancel_mode_switch,
             show_main_window,
             resize_popover,
             quit_app
@@ -61,6 +68,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             popover::install_panel(app.handle())?;
             create_tray(app)?;
+            start_mode_monitor(app.handle().clone()).map_err(std::io::Error::other)?;
             Ok(())
         })
         .on_window_event(|window, event| match event {

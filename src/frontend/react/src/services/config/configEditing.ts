@@ -7,6 +7,8 @@ export function createMode(name: string, existingIds: string[] = []): ModeConfig
     id,
     name,
     description: "",
+    createFriction: false,
+    defaultTime: null,
     policyIds: [],
   };
 }

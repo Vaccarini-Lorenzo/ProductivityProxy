@@ -18,13 +18,13 @@ User
 
 ### Desktop dashboard
 
-The dashboard is the user-facing control surface. It lets the user edit proxy settings, modes, policy flows, custom nodes, and event views.
+The dashboard is the user-facing control surface. It lets the user edit proxy settings, modes, mode friction/default times, policy flows, custom nodes, and event views.
 
 The dashboard does not evaluate web traffic.
 
 ### Desktop backend
 
-The backend is the native app layer. It stores configuration, manages the local proxy process, exposes commands to the dashboard, detects local network addresses, and manages system proxy settings where supported.
+The backend is the native app layer. It stores configuration, owns mode-switch friction timers and daily schedule activation, manages the local proxy process, exposes commands to the dashboard, detects local network addresses, and manages system proxy settings where supported.
 
 ### Local proxy process
 
@@ -66,6 +66,14 @@ Detailed runtime mechanics live in [Tauri Desktop Backend](../2_component/tauri-
 1. The dashboard or tray asks the backend to stop.
 2. The backend restores captured system proxy state.
 3. The backend stops the local proxy process.
+
+### Mode selection
+
+1. A manual switch request goes to the desktop backend.
+2. If the active source mode has Create friction enabled, the backend keeps it active and starts the configured countdown.
+3. The requested target activates when the countdown expires, unless the request is cancelled or replaced.
+4. A background backend monitor selects a mode once when its daily local-time interval begins. Scheduled activation bypasses friction and does not prevent later manual overrides.
+5. The backend writes `activeModeId`; the Python proxy picks it up through config hot reload.
 
 ### Request evaluation
 

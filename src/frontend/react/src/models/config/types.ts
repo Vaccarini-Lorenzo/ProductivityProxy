@@ -28,10 +28,17 @@ export interface PolicyConfig {
   edges: PolicyEdge[];
 }
 
+export interface ModeDefaultTime {
+  start: string;
+  end: string;
+}
+
 export interface ModeConfig {
   id: string;
   name: string;
   description?: string;
+  createFriction?: boolean;
+  defaultTime?: ModeDefaultTime | null;
   policyIds: string[];
 }
 

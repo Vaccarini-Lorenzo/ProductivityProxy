@@ -17,6 +17,8 @@ The product is meant for personal productivity control, not enterprise network a
 
 - Start and stop a local web proxy.
 - Switch between named policy modes.
+- Add a cancellable friction delay when manually leaving selected modes.
+- Activate modes once per daily local-time interval.
 - Represent each policy as a directed flow of nodes and operators.
 - Block, redirect, log, track, or notify through custom nodes.
 - Run user-authored Python nodes inside the proxy process.

@@ -37,8 +37,9 @@ Yes, but would you be able to throw around silly little boxes and connect them? 
 
 - **Visual policies.** Build start, logic, and action graphs on a canvas instead of editing config by hand.
 - **Python underneath.** Every node is a small Python file with access to the request. Read the URL, rewrite it, block it, or compute whatever you like.
-- **Modes.** Group policies into modes like **Deep Work**, **ADHD Block** or **Chill**, and switch between them in one click.
-- **A readable event log.** See which policy fired on which request, and why.
+- **Modes.** Group policies into modes like **Deep Work**, **ADHD Block** or **Chill**.
+- **Intentional mode switching.** Add a friction timer when leaving selected modes, and activate modes automatically during daily local-time intervals.
+- **A readable event log.** Inspect config/errors/custom-node events, with optional verbose policy-step tracing.
 - **Local and private.** A macOS menu bar app driving mitmproxy. Your traffic stays on the machine.
 
 ## Components
@@ -55,6 +56,8 @@ each policy is a small graph:
 ```
 
 - A **mode** is an ordered list of policies. Only the active mode runs.
+- A mode can add **friction** when you manually leave it. The requested mode activates after the configured countdown, unless you cancel or replace the request.
+- A mode can have one **daily default time**. It activates once when that local-time interval begins, or when the app launches inside it. Manual overrides remain possible afterward.
 - A **policy** is a graph that begins at a **Start** node. The Start node holds a Python `triggered_by(request) -> bool`. If it returns `False`, the policy is skipped.
 - Policies run from top to bottom and the first one that produces a response wins, usually a block. If none respond, the request passes through untouched.
 - An empty mode allows everything. Chill is just a mode with no policies.
@@ -103,7 +106,7 @@ Each node is a middleware you can run in a policy.
 <img src="assets/nodes.gif" alt="Editing a Python node with autocomplete and the API reference drawer" width="820" />
 
 ## Dashboard - Observability
-A filterable trace of every request, every policy step, and anything your nodes log.
+A filterable event view for proxy configuration, policy steps in verbose mode, errors, and anything your nodes log.
 
 <img src="assets/observability.png" alt="Observability page" width="820" />
 
@@ -166,6 +169,7 @@ Add the file on the **Nodes** page, then drag it into any policy from the librar
   | Variable | Purpose |
   |---|---|
   | `POLICY_MAX_STEPS` | Hard cap on policy steps per request, as a loop guard. |
+  | `PRODUCTIVE_PROXY_FRICTION_SECONDS` | Delay before manually leaving a mode with Create friction enabled (`1200` = 20 minutes). |
   | `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE` | `true` adds the full per step policy trace to events. |
   | `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES` | Event log size budget before old events are compacted. |
   | `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS` | How often usage state is written to disk. |
@@ -178,6 +182,7 @@ brew install mitmproxy
 
 # 2. Run the desktop app (Rust, Node, and npm required)
 export POLICY_MAX_STEPS="1000"
+export PRODUCTIVE_PROXY_FRICTION_SECONDS="1200"
 export PRODUCTIVE_PROXY_TELEMETRY_VERBOSE="false"
 export PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES="5000000"
 export PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS="2"

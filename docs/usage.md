@@ -75,6 +75,22 @@ Policies live in named modes. Only the active mode is evaluated.
 
 A mode contains ordered policy IDs. Policies are edited on the Policy page and ordered inside a mode on the Modes page.
 
+### Create friction
+
+Turn on **Create friction when leaving** in a mode editor to delay manual switches away from that mode. The delay comes from `PRODUCTIVE_PROXY_FRICTION_SECONDS`; the supplied configuration uses `1200` seconds (20 minutes).
+
+The source mode stays active during the countdown. The dashboard and menu-bar popover show the target and remaining time. You can cancel the request, select the current mode to cancel it, or select a different target to restart the countdown for that target.
+
+The timer belongs to the Tauri backend, so it continues while the dashboard and popover are hidden. Quitting the whole app cancels an in-memory pending timer.
+
+### Daily default time
+
+A mode can have one daily local-time start/end interval. The backend activates it once when the interval starts, when the machine wakes inside the interval, or when the app launches inside it. Scheduled activation is immediate and bypasses friction.
+
+After activation, a manual override remains active; the scheduler does not continuously force the default mode back. At the end of the interval, the current mode remains selected unless another mode's interval starts.
+
+End times earlier than start times create overnight intervals, for example `22:00` to `07:00`. Default intervals across modes may touch but cannot overlap.
+
 The default modes — **Productivity** (blocks distractions) and **Chilling** (allows all traffic) — are detailed in [Conceptual Overview](architecture/0_conceptual/product.md#default-behavior).
 
 ## Custom nodes

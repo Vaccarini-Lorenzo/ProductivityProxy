@@ -78,6 +78,46 @@ class ConfigServiceTest(unittest.TestCase):
 
         self.assertIn("App-specific routing needs at least one app.", messages)
 
+    def test_accepts_non_overlapping_and_overnight_default_times(self):
+        raw = {
+            "activeModeId": "focus",
+            "policies": [],
+            "modes": [
+                {"id": "focus", "name": "Focus", "policyIds": [], "defaultTime": {"start": "09:00", "end": "17:00"}},
+                {"id": "rest", "name": "Rest", "policyIds": [], "defaultTime": {"start": "17:00", "end": "09:00"}},
+            ],
+            "customNodes": [],
+        }
+
+        self.assertEqual(validate_config(raw), [])
+
+    def test_rejects_overlapping_default_times(self):
+        raw = {
+            "activeModeId": "focus",
+            "policies": [],
+            "modes": [
+                {"id": "focus", "name": "Focus", "policyIds": [], "defaultTime": {"start": "09:00", "end": "17:00"}},
+                {"id": "rest", "name": "Rest", "policyIds": [], "defaultTime": {"start": "16:00", "end": "22:00"}},
+            ],
+            "customNodes": [],
+        }
+
+        messages = [issue["message"] for issue in validate_config(raw)]
+
+        self.assertIn("Default times overlap for 'Focus' and 'Rest'.", messages)
+
+    def test_rejects_equal_default_start_and_end(self):
+        raw = {
+            "activeModeId": "focus",
+            "policies": [],
+            "modes": [{"id": "focus", "name": "Focus", "policyIds": [], "defaultTime": {"start": "09:00", "end": "09:00"}}],
+            "customNodes": [],
+        }
+
+        messages = [issue["message"] for issue in validate_config(raw)]
+
+        self.assertIn("Mode 'Focus' default start and end times must differ.", messages)
+
     def test_validates_registered_node_required_params(self):
         raw = {
             "activeModeId": "mode",

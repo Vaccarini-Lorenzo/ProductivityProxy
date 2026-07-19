@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { TerminalNav, type View } from "./components/TerminalNav";
 import { Icon } from "./components/ui";
@@ -16,6 +16,7 @@ import { tauriNotifier } from "./services/notifications/tauriNotifier";
 import { getNetworkInfo, getProxyStatus, listActiveApps, readRecentEvents, restartProxy, startProxy, stopProxy, type ActiveApp, type NetworkInfo, type ProxyEvent, type ProxyStatus } from "./services/proxy/proxyRepository";
 import { EVENT_POLL_MS, STATUS_POLL_MS } from "./services/proxy/polling";
 import { errorMessage } from "./services/errors/errorMessage";
+import { cancelModeSwitch, getModeRuntimeStatus, requestModeSwitch, type ModeRuntimeStatus } from "./services/modes/modeRepository";
 import { tauriClient } from "./services/tauri/tauriClient";
 
 interface Props {
@@ -29,6 +30,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [config, setConfig] = useState<AppConfig>(() => createDefaultConfig());
   const [savedConfig, setSavedConfig] = useState<AppConfig>(() => createDefaultConfig());
   const [status, setStatus] = useState<ProxyStatus>({ running: false });
+  const [modeRuntime, setModeRuntime] = useState<ModeRuntimeStatus>({ activeModeId: "productivity", frictionSeconds: 1200, pending: null });
   const [network, setNetwork] = useState<NetworkInfo>();
   const [activeApps, setActiveApps] = useState<ActiveApp[]>([]);
   const [events, setEvents] = useState<ProxyEvent[]>([]);
@@ -36,9 +38,23 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const seenNotifications = useRef(new Set<string>());
   const autosaveRun = useRef(0);
+  const pendingModeTarget = useRef<string | null>(null);
+
+  const syncModeRuntime = useCallback((runtime: ModeRuntimeStatus) => {
+    if (pendingModeTarget.current && !runtime.pending) setMessage("Mode switched");
+    pendingModeTarget.current = runtime.pending?.targetModeId ?? null;
+    setModeRuntime(runtime);
+    setConfig((current) => current.activeModeId === runtime.activeModeId ? current : { ...current, activeModeId: runtime.activeModeId });
+    setSavedConfig((current) => current.activeModeId === runtime.activeModeId ? current : { ...current, activeModeId: runtime.activeModeId });
+  }, []);
 
   useEffect(() => {
-    loadConfig(client).then((loaded) => { setConfig(loaded); setSavedConfig(loaded); }).catch(showError);
+    Promise.all([loadConfig(client), getModeRuntimeStatus(client)]).then(([loaded, runtime]) => {
+      const synced = { ...loaded, activeModeId: runtime.activeModeId };
+      setConfig(synced);
+      setSavedConfig(synced);
+      setModeRuntime(runtime);
+    }).catch(showError);
     getProxyStatus(client).then(setStatus).catch(showError);
     getNetworkInfo(client).then(setNetwork).catch(showError);
     listActiveApps(client).then(setActiveApps).catch(showError);
@@ -48,16 +64,16 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     }).catch(showError);
   }, [client]);
 
-  // Keep the proxy state honest even when it changes elsewhere (the menu-bar
-  // popover, or the process exiting on its own). The backend is the source of truth.
+  // The backend owns process state, scheduled mode changes, and friction timers.
   useEffect(() => {
     const id = window.setInterval(() => {
       getProxyStatus(client)
-        .then((next) => setStatus((prev) => (prev.running === next.running ? prev : next)))
+        .then((next) => setStatus((previous) => previous.running === next.running ? previous : next))
         .catch(() => {});
+      getModeRuntimeStatus(client).then(syncModeRuntime).catch(() => {});
     }, STATUS_POLL_MS);
     return () => window.clearInterval(id);
-  }, [client]);
+  }, [client, syncModeRuntime]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -91,7 +107,6 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     }
     const run = ++autosaveRun.current;
     setMessage("Saving…");
-    const modeChanged = config.activeModeId !== savedConfig.activeModeId;
     const timeout = window.setTimeout(() => {
       saveConfig(client, config)
         .then(async (report) => {
@@ -103,7 +118,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
           }
           setSavedConfig(config);
           const proxyChanged = JSON.stringify(config.proxy) !== JSON.stringify(savedConfig.proxy);
-          if ((modeChanged || proxyChanged) && status.running) {
+          if (proxyChanged && status.running) {
             setMessage("Settings saved. Restarting proxy…");
             await restartProxy(client, config);
             if (run === autosaveRun.current) setStatus({ running: true });
@@ -121,6 +136,33 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
 
   async function handleStart() {
     await startProxy(client, config).then(() => setStatus({ running: true })).catch(showError);
+  }
+
+  async function handleModeSelect(modeId: string) {
+    const selectedActive = modeId === config.activeModeId;
+    const cancelsPending = selectedActive && Boolean(modeRuntime.pending);
+    try {
+      const report = await saveConfig(client, config);
+      setIssues(report.issues);
+      if (!report.ok) {
+        setMessage(describeIssues(report.issues));
+        return;
+      }
+      setSavedConfig(config);
+      const runtime = await requestModeSwitch(client, modeId);
+      if (cancelsPending) pendingModeTarget.current = null;
+      syncModeRuntime(runtime);
+      if (runtime.pending) setMessage("Mode switch timer started");
+      else if (cancelsPending) setMessage("Mode switch cancelled");
+      else setMessage(selectedActive ? "Mode already active" : "Mode switched");
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function handleCancelModeSwitch() {
+    pendingModeTarget.current = null;
+    await cancelModeSwitch(client).then(syncModeRuntime).then(() => setMessage("Mode switch cancelled")).catch(showError);
   }
 
   async function handleStop() {
@@ -154,7 +196,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
       case "settings":
         return <SettingsView proxy={config.proxy} running={status.running} network={network} activeApps={activeApps} onChange={(proxy) => setConfig({ ...config, proxy })} onStart={handleStart} onStop={handleStop} />;
       case "modes":
-        return <ModesView config={config} onConfigChange={setConfig} />;
+        return <ModesView config={config} runtime={modeRuntime} onConfigChange={setConfig} onSelectMode={handleModeSelect} onCancelPending={handleCancelModeSwitch} />;
       case "policy":
         return <PolicyView config={config} savedConfig={savedConfig} issues={issues} onConfigChange={setConfig} onReadNode={(path) => readCustomNode(client, path)} />;
       case "nodes":

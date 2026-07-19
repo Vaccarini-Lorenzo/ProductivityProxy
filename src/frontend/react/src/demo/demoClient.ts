@@ -12,6 +12,15 @@ function clone<T>(value: T): T {
 let config = clone(demoConfig);
 let running = false;
 let proxyStartedAt = 0;
+let modePending: { sourceModeId: string; targetModeId: string; readyAtMs: number } | null = null;
+
+function modeStatus() {
+  if (modePending && Date.now() >= modePending.readyAtMs) {
+    config.activeModeId = modePending.targetModeId;
+    modePending = null;
+  }
+  return { activeModeId: config.activeModeId, frictionSeconds: 1200, pending: modePending };
+}
 
 export const demoClient: CommandClient = {
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -42,6 +51,24 @@ export const demoClient: CommandClient = {
         return undefined as T;
       case "proxy_status":
         return { running } as T;
+      case "mode_runtime_status":
+        return clone(modeStatus()) as T;
+      case "request_mode_switch": {
+        const targetModeId = String(args!.targetModeId);
+        const source = config.modes.find((mode) => mode.id === config.activeModeId);
+        if (targetModeId === config.activeModeId) {
+          modePending = null;
+        } else if (source?.createFriction) {
+          modePending = { sourceModeId: config.activeModeId, targetModeId, readyAtMs: Date.now() + 1_200_000 };
+        } else {
+          config.activeModeId = targetModeId;
+          modePending = null;
+        }
+        return clone(modeStatus()) as T;
+      }
+      case "cancel_mode_switch":
+        modePending = null;
+        return clone(modeStatus()) as T;
       case "proxy_resources":
         return (running
           ? {

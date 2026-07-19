@@ -21,7 +21,7 @@ The project is good enough for:
 The main remaining blockers are:
 
 - packaged runtime strategy for mitmproxy, Python, and addon files,
-- clearer proxy startup diagnostics and process log capture,
+- clearer in-app proxy startup diagnostics using the captured `mitmdump.log`,
 - visible HTTPS CA setup/help,
 - config migrations/versioning and custom-node parameter schemas (structural graph validation and registered bundled-node params are now validated in the Python backend),
 - Linux desktop-environment-specific proxy implementations,
@@ -36,13 +36,14 @@ The main remaining blockers are:
 | Config and app data paths | Implemented with local config/state/events/custom nodes. |
 | Python policy engine | Implemented with loop guard, events, config hot reload, and default-policy tests. |
 | Default policies | Implemented for Productivity and Chilling defaults. |
+| Mode timing | Implemented with cancellable friction timers and one daily local-time interval per mode. |
 | React dashboard | Implemented for settings, modes, policies, nodes, autosave, backend-driven validation/reset, notifications, and observability. |
 | macOS system proxy support | Implemented with snapshot/restore, rollback paths, and a persisted snapshot that auto-restores after a crash on the next launch. |
 | Documentation | Current docs cover usage, development, architecture, contracts, assumptions, and readiness. |
 
 ## Recommended next work
 
-1. Add proxy process stdout/stderr capture and missing-`mitmdump` diagnostics.
+1. Surface `mitmdump.log` and missing-`mitmdump` diagnostics in the UI.
 2. Add a visible HTTPS CA setup/help panel.
 3. Add custom-node parameter schemas if user-created nodes need guided configuration.
 4. Add config migrations/versioning before changing persisted shapes again.

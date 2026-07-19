@@ -9,6 +9,7 @@ All persistent data is stored locally.
 | App config | JSON | Tauri app + Python proxy | app data `config.json` |
 | Usage state | JSON | Python proxy | app data `state.json` |
 | Event log | JSONL | Python proxy writes, Tauri reads | app data `events.jsonl` |
+| Proxy process log | Text | `mitmdump` stdout/stderr | app data `mitmdump.log` |
 | Custom nodes | Python files | Tauri writes, Python imports | app data `custom_nodes/` |
 | System proxy snapshot | JSON | Tauri | app data `system_proxy_snapshot.json` |
 | Default config | JSON | repo source | `src/proxy/defaults/default_config.json` |
@@ -52,15 +53,25 @@ Used by the Tauri backend to build `mitmdump` arguments and system proxy setting
   "id": "productivity",
   "name": "Productivity",
   "description": "Focused work mode",
+  "createFriction": true,
+  "defaultTime": {
+    "start": "09:00",
+    "end": "17:00"
+  },
   "policyIds": ["block-youtube-shorts", "limit-reddit"]
 }
 ```
 
 Rules:
 
-- `activeModeId` must match one mode `id`.
+- `activeModeId` must match one mode `id` and is changed at runtime through the Tauri mode commands.
 - Each `policyIds[]` value must reference a top-level policy in `policies`.
 - Policy order inside a mode is the order of `policyIds`.
+- `createFriction` defaults to `false`. When true, manual switches away wait for `PRODUCTIVE_PROXY_FRICTION_SECONDS`.
+- `defaultTime` is optional or `null`; when present, both values are local `HH:MM` times and must differ.
+- An end earlier than the start is an overnight interval.
+- Daily default intervals across modes cannot overlap; touching boundaries are allowed.
+- Schedule occurrence and pending countdown state are runtime-only and are not stored in `config.json`.
 
 ### Policy config
 
@@ -187,11 +198,11 @@ context.persistent_state.set("usage", value)
 
 Events are JSON lines. Each line is one object. Events are intentionally shaped for filtering in the frontend. The file is kept under `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`: once it grows past the budget the oldest half is dropped (compaction), so the file stays a bounded, recent window rather than growing without limit.
 
-By default (`PRODUCTIVE_PROXY_TELEMETRY_VERBOSE=false`) the engine writes one `request_finished` event per request, plus config, error, and custom-node events. Setting `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE=true` adds the full per-step trace (`request_started`, `policy_started`, `policy_step`, `policy_finished`).
+By default (`PRODUCTIVE_PROXY_TELEMETRY_VERBOSE=false`) the engine writes config, error, and custom-node events. Setting `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE=true` adds the per-step trace (`request_started`, `policy_started`, `policy_step`, `policy_finished`).
 
-Most events carry only the light correlation fields (`requestId`, `modeId`); the heavier request fields (`url`, `host`, `path`, `method`) are attached to request-level events only, and the frontend joins steps back to a request by `requestId`.
+Correlated request/policy events carry the light fields `requestId` and `modeId`. The frontend joins policy steps by `requestId`.
 
-Common fields on every event:
+Typical verbose event:
 
 ```json
 {
@@ -199,11 +210,13 @@ Common fields on every event:
   "timestamp": 1781020000.0,
   "category": "observability",
   "source": "python_proxy",
-  "type": "request_finished",
-  "level": "info",
-  "message": "Request blocked",
+  "type": "policy_step",
+  "level": "debug",
+  "message": "Step track returned next",
   "requestId": "...",
-  "modeId": "productivity"
+  "modeId": "productivity",
+  "policyId": "limit-reddit",
+  "stepId": "track"
 }
 ```
 
@@ -212,9 +225,9 @@ Known event groups:
 - log events from default/custom nodes,
 - `usage_tracked`,
 - `notification`,
-- observability events such as `config_loaded`, `config_rejected`, `request_started`, `request_finished`, `request_failed`, `policy_started`, `policy_step`, `policy_finished`, and `policy_error`.
+- observability events such as `config_loaded`, `config_rejected`, `request_started`, `request_failed`, `policy_started`, `policy_step`, `policy_finished`, and `policy_error`.
 
-`request_finished.outcome` is `allowed` or `blocked`. Every `request_finished` carries the request fields (`url`, `host`, `path`, `method`). When blocked, it also carries `decidingPolicyId`, `decidingPolicyName`, and `responseStatus`.
+`request_finished` is currently not emitted. The Resource panel's request traffic/latency aggregation still queries that reserved event type, so those request-derived metrics have no data until summary telemetry is restored or the panel is changed.
 
 `policy_step` (verbose only) contains routing fields such as `output`, `routeOutput`, `nextStepId`, and `durationMs`.
 
@@ -284,6 +297,7 @@ The config is rejected (and autosave is blocked) when any of these fail:
 
 - `activeModeId` references an existing mode,
 - each `mode.policyIds[]` references an existing policy,
+- mode friction flags and daily default times are well formed and default intervals do not overlap,
 - ids are unique (modes, policies, custom nodes, and steps within a policy),
 - custom node paths are absolute,
 - each policy has exactly one `start` node,

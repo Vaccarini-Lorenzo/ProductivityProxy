@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
 import popoverLogo from "./assets/popover-logo.png";
+import { ModeTransitionNotice } from "./components/ModeTransitionNotice";
 import { Button, Card, CheckRow, Icon, count } from "./components/ui";
 import type { AppConfig } from "./models/config/types";
-import { loadConfig, saveConfig, type CommandClient } from "./services/config/configRepository";
+import { loadConfig, type CommandClient } from "./services/config/configRepository";
 import { errorMessage } from "./services/errors/errorMessage";
 import type { Notifier } from "./services/notifications/notificationService";
 import { tauriNotifier } from "./services/notifications/tauriNotifier";
+import { cancelModeSwitch, getModeRuntimeStatus, requestModeSwitch, type ModeRuntimeStatus } from "./services/modes/modeRepository";
 import { STATUS_POLL_MS } from "./services/proxy/polling";
-import { getProxyStatus, restartProxy, startProxy, stopProxy } from "./services/proxy/proxyRepository";
+import { getProxyStatus, startProxy, stopProxy } from "./services/proxy/proxyRepository";
 import { tauriClient } from "./services/tauri/tauriClient";
 
 interface Props {
@@ -19,30 +21,33 @@ interface Props {
 /** Compact menu-bar popover: proxy on/off, running state, and mode switch. */
 export function Popover({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [modeRuntime, setModeRuntime] = useState<ModeRuntimeStatus | null>(null);
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState("");
   const shellRef = useRef<HTMLDivElement>(null);
   // While a start/stop request is in flight we trust the optimistic toggle and
   // ignore status polls, which would otherwise clobber it before it settles.
-  const pending = useRef(false);
+  const actionPending = useRef(false);
 
   useEffect(() => {
+    const syncMode = (runtime: ModeRuntimeStatus) => {
+      setModeRuntime(runtime);
+      setConfig((current) => current ? { ...current, activeModeId: runtime.activeModeId } : current);
+    };
     const refreshStatus = () => {
       getProxyStatus(client)
-        .then((status) => { if (!pending.current) setRunning(status.running); })
+        .then((status) => { if (!actionPending.current) setRunning(status.running); })
         .catch(() => {});
+      getModeRuntimeStatus(client).then(syncMode).catch(() => {});
     };
     const reloadConfig = () => loadConfig(client).then(setConfig).catch(showError);
     reloadConfig();
     refreshStatus();
-    // Poll the backend unconditionally: it is the single source of truth for
-    // whether the proxy is actually running (it may be started/stopped from the
-    // dashboard, or exit on its own).
     const poll = window.setInterval(refreshStatus, STATUS_POLL_MS);
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      refreshStatus();
       reloadConfig();
+      refreshStatus();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -76,8 +81,8 @@ export function Popover({ client = tauriClient, notifier = tauriNotifier }: Prop
   // Optimistic + async: flip the toggle immediately and run the start/stop in
   // the background. If it fails, snap the toggle back and notify the user.
   async function toggleProxy(next: boolean) {
-    if (!config || pending.current) return;
-    pending.current = true;
+    if (!config || actionPending.current) return;
+    actionPending.current = true;
     setRunning(next);
     setMessage("");
     try {
@@ -88,36 +93,30 @@ export function Popover({ client = tauriClient, notifier = tauriNotifier }: Prop
       const action = next ? "start" : "stop";
       notifier.notify("ProductivityProxy", `Couldn't ${action} the proxy: ${errorMessage(error)}`).catch(() => {});
     } finally {
-      pending.current = false;
+      actionPending.current = false;
     }
   }
 
-  function selectMode(id: string) {
-    if (!config || config.activeModeId === id || pending.current) return;
-    const previous = config;
-    const next = { ...config, activeModeId: id };
-    setConfig(next);
+  async function selectMode(id: string) {
+    if (!config || actionPending.current) return;
+    actionPending.current = true;
     setMessage("");
-    pending.current = true;
-    saveConfig(client, next)
-      .then(async (report) => {
-        if (!report.ok) {
-          setConfig(previous);
-          setMessage(report.issues[0]?.message ?? "Mode was not saved");
-          return;
-        }
-        if (!running) return;
-        setMessage("Reopening proxy connections…");
-        await restartProxy(client, next);
-        setRunning(true);
-        setMessage("");
-      })
-      .catch((error) => {
-        showError(error);
-        setConfig(previous);
-        getProxyStatus(client).then((status) => setRunning(status.running)).catch(() => {});
-      })
-      .finally(() => { pending.current = false; });
+    try {
+      const runtime = await requestModeSwitch(client, id);
+      setModeRuntime(runtime);
+      setConfig({ ...config, activeModeId: runtime.activeModeId });
+    } catch (error) {
+      showError(error);
+    } finally {
+      actionPending.current = false;
+    }
+  }
+
+  async function cancelPendingMode() {
+    const runtime = await cancelModeSwitch(client).catch((error) => { showError(error); return null; });
+    if (!runtime) return;
+    setModeRuntime(runtime);
+    setConfig((current) => current ? { ...current, activeModeId: runtime.activeModeId } : current);
   }
 
   return (
@@ -146,16 +145,20 @@ export function Popover({ client = tauriClient, notifier = tauriNotifier }: Prop
               />
             </div>
 
+            {modeRuntime?.pending && <ModeTransitionNotice compact pending={modeRuntime.pending} modes={config.modes} onCancel={cancelPendingMode} />}
+
             <Card title="Mode" icon="layers">
               <div className="list">
                 {config.modes.map((mode) => {
                   const isActive = mode.id === config.activeModeId;
+                  const isPending = mode.id === modeRuntime?.pending?.targetModeId;
                   return (
                     <div className={isActive ? "list-row active" : "list-row"} key={mode.id}>
                       <button className="list-main" type="button" onClick={() => selectMode(mode.id)}>
                         <span className="list-title">
                           {mode.name}
                           {isActive && <span className="badge">active</span>}
+                          {isPending && <span className="badge muted-badge">waiting</span>}
                         </span>
                         <small>{mode.description || count(mode.policyIds.length, "policy", "policies")}</small>
                       </button>

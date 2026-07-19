@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from proxy.services.config.mode_validation import validate_modes
 from proxy.services.config.proxy_validation import validate_proxy
 
 BUILTIN_NODE_TYPES = {"start", "end"}
@@ -79,6 +80,7 @@ def validate_config(raw: dict[str, Any]) -> list[dict[str, Any]]:
                 ))
 
     issues += validate_proxy(raw.get("proxy", {}), _issue)
+    issues += validate_modes(modes, _issue)
 
     for policy in policies:
         issues += _validate_policy(policy, custom_node_ids)

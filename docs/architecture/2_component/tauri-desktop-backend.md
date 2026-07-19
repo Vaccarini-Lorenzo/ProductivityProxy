@@ -20,6 +20,8 @@ The backend is a Tauri v2 Rust app. It exposes commands to the React dashboard a
 - `ProcessService` for the `mitmdump` child process,
 - an optional in-memory `SystemProxySnapshot` captured before enabling the macOS system proxy.
 
+`ModeRuntime` separately stores the pending manual mode switch and the last daily schedule occurrence applied during this app process. The pending countdown is intentionally in memory: hiding either window does not stop it, while quitting the whole app cancels it.
+
 Both fields are protected with `Mutex` because Tauri commands can run concurrently.
 
 The snapshot is also **persisted to disk** (`system_proxy_snapshot.json`, written by `services/system_proxy/lease.rs`) so the previous system proxy state survives a crash or force-kill and can be restored on the next launch. See [macOS system proxy handling](#macos-system-proxy-handling).
@@ -31,6 +33,8 @@ Stable command contracts live in [Command Contracts](../4_data_layer/command-con
 Important implementation details:
 
 - `read_app_config` materializes the default config on first read.
+- `mode_runtime_status`, `request_mode_switch`, and `cancel_mode_switch` are the only UI path for changing the runtime-owned `activeModeId`.
+- Normal config writes preserve the currently stored active mode, preventing stale dashboard autosaves from undoing a timer or scheduled change.
 - `write_custom_node` writes under app data `custom_nodes/` and strips path traversal from the file name.
 - `read_custom_node` allows app-data custom nodes and bundled default-node paths.
 - `start_proxy` requires `POLICY_MAX_STEPS` in the environment before it writes config or starts the child process.
@@ -56,6 +60,28 @@ src/proxy/addons/policy_proxy.py
 
 The repo root is discovered by walking upward from the current directory until `src/proxy/addons/policy_proxy.py` is found. This works for development but is a packaging risk.
 
+## Mode runtime
+
+A one-second background monitor owns mode timing independently of the React windows.
+
+Manual mode switch:
+
+- leaving a mode without `createFriction` changes `activeModeId` immediately,
+- leaving a friction mode creates a pending target with a deadline from `PRODUCTIVE_PROXY_FRICTION_SECONDS`,
+- repeating the same request keeps the original deadline,
+- choosing another target replaces the request and starts a new deadline,
+- choosing the active mode or pressing Cancel clears the request.
+
+Daily default time:
+
+- each mode may define one local-time `defaultTime`,
+- an interval is applied once per occurrence, including when the app starts or wakes inside it,
+- overnight intervals use the date on which they started as the occurrence key,
+- scheduled changes bypass friction and cancel any older pending manual switch,
+- a manual override after activation is left alone until a later schedule occurrence begins.
+
+Mode changes update the config file atomically. The running Python engine sees them through its existing config mtime hot reload, so mode changes do not restart `mitmdump`.
+
 ## Proxy process launch
 
 `build_mitmdump_args` builds arguments like:
@@ -77,7 +103,7 @@ If proxy auth is enabled, it adds:
 
 `ProcessService` starts `mitmdump`, stores the child handle, checks liveness with `try_wait`, and kills/waits during stop or drop.
 
-Current limitation: stdout and stderr are discarded, so proxy startup failures may be hard to diagnose from the UI.
+Proxy stdout and stderr are appended to app-data `mitmdump.log`. The UI still reports only the process-level startup error, so detailed diagnosis currently requires opening that file.
 
 ## macOS system proxy handling
 

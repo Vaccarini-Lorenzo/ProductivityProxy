@@ -26,12 +26,13 @@ The proxy engine requires these environment variables and fails fast when any is
 
 ```bash
 export POLICY_MAX_STEPS="1000"                    # evaluator loop guard
+export PRODUCTIVE_PROXY_FRICTION_SECONDS="1200"   # 20-minute manual mode-switch delay
 export PRODUCTIVE_PROXY_TELEMETRY_VERBOSE="false" # "true" emits the full per-step trace
 export PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES="5000000" # event log byte budget (compacted)
 export PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS="2"   # state write-behind interval
 ```
 
-The desktop app pre-checks only `POLICY_MAX_STEPS` before `start_proxy` launches `mitmdump`; the other three are enforced by the Python engine at runtime, so all four must be present in the environment the app starts `mitmdump` from. `mitmdump` inherits them from the app's environment. The manual proxy helper loads them from `.env.example`.
+The desktop mode runtime reads `PRODUCTIVE_PROXY_FRICTION_SECONDS` when reporting mode state or starting a friction timer. The desktop app pre-checks only `POLICY_MAX_STEPS` before `start_proxy` launches `mitmdump`; the three telemetry/state values are enforced by the Python engine at runtime. All five values must be present in the environment that starts the desktop app. `mitmdump` inherits the engine values, and the manual proxy helper loads `.env.example`.
 
 ## Run tests
 
