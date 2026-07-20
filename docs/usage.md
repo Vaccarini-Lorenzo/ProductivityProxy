@@ -25,7 +25,9 @@ Mitmproxy's CA is usually available after first run at:
 ## Start the desktop app
 
 ```bash
-export POLICY_MAX_STEPS="1000"
+set -a
+source .env
+set +a
 cd src/frontend/react
 npm run tauri dev
 ```

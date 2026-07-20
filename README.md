@@ -172,6 +172,9 @@ Add the file on the **Nodes** page, then drag it into any policy from the librar
   | `PRODUCTIVE_PROXY_FRICTION_SECONDS` | Delay before manually leaving a mode with Create friction enabled (`1200` = 20 minutes). |
   | `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE` | `true` adds the full per step policy trace to events. |
   | `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES` | Event log size budget before old events are compacted. |
+  | `PRODUCTIVE_PROXY_EVENT_QUEUE_MAX_ITEMS` | Maximum pending in-memory events; excess events are dropped. |
+  | `PRODUCTIVE_PROXY_ASYNC_QUEUE_MAX_ITEMS` | Maximum pending policy background jobs; excess submissions fail. |
+  | `PRODUCTIVE_PROXY_STREAM_LARGE_BODIES` | mitmproxy threshold for streaming HTTP bodies instead of retaining them in RAM. |
   | `PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS` | How often usage state is written to disk. |
 
 ## Quick start
@@ -185,6 +188,9 @@ export POLICY_MAX_STEPS="1000"
 export PRODUCTIVE_PROXY_FRICTION_SECONDS="1200"
 export PRODUCTIVE_PROXY_TELEMETRY_VERBOSE="false"
 export PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES="5000000"
+export PRODUCTIVE_PROXY_EVENT_QUEUE_MAX_ITEMS="1000"
+export PRODUCTIVE_PROXY_ASYNC_QUEUE_MAX_ITEMS="100"
+export PRODUCTIVE_PROXY_STREAM_LARGE_BODIES="1m"
 export PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS="2"
 cd src/frontend/react
 npm install

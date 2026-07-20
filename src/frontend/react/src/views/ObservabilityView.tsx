@@ -6,11 +6,15 @@ import { EVENT_POLL_MS } from "../services/proxy/polling";
 import { errorMessage } from "../services/errors/errorMessage";
 import { Select } from "../components/Select";
 import { ResourcePanel } from "../components/ResourcePanel";
+import type { ProxyResourceState } from "../components/useProxyResources";
 import { Card, Field, FieldGroup, Icon, IconButton, Modal, PageHeader, SearchInput, Toggle, count } from "../components/ui";
 
 interface Props {
   client: CommandClient;
   config: AppConfig;
+  autoRefresh: boolean;
+  onAutoRefreshChange: (enabled: boolean) => void;
+  proxyResources: ProxyResourceState;
 }
 
 interface Filters {
@@ -30,11 +34,10 @@ const EVENT_TYPE_OPTIONS = EVENT_TYPES.map((type) => ({ value: type, label: type
 const LEVEL_OPTIONS = ["", "debug", "info", "warning", "error"].map((level) => ({ value: level, label: level || "any" }));
 const CATEGORY_OPTIONS = ["", "observability", "custom_node"].map((category) => ({ value: category, label: category || "any" }));
 
-export function ObservabilityView({ client, config }: Props) {
+export function ObservabilityView({ client, config, autoRefresh, onAutoRefreshChange, proxyResources }: Props) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [events, setEvents] = useState<ProxyEvent[]>([]);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const [message, setMessage] = useState("");
   const policyOptions = useMemo(() => [{ value: "", label: "any" }, ...config.policies.map((p) => ({ value: p.id, label: p.name }))], [config.policies]);
   const selected = openIndex === null ? undefined : events[openIndex];
@@ -67,7 +70,7 @@ export function ObservabilityView({ client, config }: Props) {
 
   const toolbar = (
     <>
-      <Toggle checked={autoRefresh} onChange={setAutoRefresh} label="Auto-refresh" />
+      <Toggle checked={autoRefresh} onChange={onAutoRefreshChange} label="Auto-refresh" />
       <IconButton icon="refresh" label="Refresh" onClick={load} />
     </>
   );
@@ -76,7 +79,7 @@ export function ObservabilityView({ client, config }: Props) {
     <div className="page-stack">
       <PageHeader eyebrow="Observability" title="Policy trace" subtitle="Inspect requests, policy steps, and custom-node logs." />
 
-      <ResourcePanel client={client} autoRefresh={autoRefresh} />
+      <ResourcePanel client={client} autoRefresh={autoRefresh} proxyResources={proxyResources} />
 
       <Card title="Filters" icon="search" actions={toolbar}>
         <SearchInput value={filters.search} onChange={(v) => update("search", v)} placeholder="Search events…" ariaLabel="Search events" />

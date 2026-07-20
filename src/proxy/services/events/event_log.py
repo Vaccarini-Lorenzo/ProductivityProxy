@@ -14,19 +14,29 @@ class EventLog:
     """Appends events to a JSONL file from a background thread.
 
     Writes are enqueued and flushed off the caller's thread, so the mitmproxy
-    event loop never blocks on disk I/O. The file is kept under a byte budget:
-    once it grows past max_bytes the worker compacts it in place, dropping the
-    oldest half, so reads (and the dashboard) stay bounded. Call flush() to force
-    a sync point before reading in-process (read_recent does this automatically).
+    event loop never blocks on disk I/O. New events are dropped if the bounded
+    queue is full. The file is kept under a byte budget: once it grows past
+    max_bytes the worker compacts it in place, dropping the oldest half, so reads
+    stay bounded. Call flush() to force a sync point before reading in-process.
     """
 
-    def __init__(self, path: Path, max_bytes: int | None = None):
+    def __init__(
+        self,
+        path: Path,
+        max_bytes: int | None = None,
+        max_queue_items: int | None = None,
+    ):
         self.path = Path(path)
         self.max_bytes = max_bytes if max_bytes is not None else _max_bytes_from_env()
+        queue_limit = (
+            max_queue_items if max_queue_items is not None else _queue_max_items_from_env()
+        )
+        if queue_limit <= 0:
+            raise ValueError("Event log queue limit must be greater than zero")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._file = self.path.open("a", encoding="utf-8")
         self._bytes = self.path.stat().st_size
-        self._queue: queue.Queue = queue.Queue()
+        self._queue: queue.Queue = queue.Queue(maxsize=queue_limit)
         self._closed = False
         self._worker = threading.Thread(target=self._drain, daemon=True)
         self._worker.start()
@@ -34,7 +44,10 @@ class EventLog:
     def append(self, event: dict[str, Any]) -> None:
         if self._closed:
             return
-        self._queue.put(event)
+        try:
+            self._queue.put_nowait(event)
+        except queue.Full:
+            pass
 
     def flush(self) -> None:
         self._queue.join()
@@ -91,4 +104,13 @@ def _max_bytes_from_env() -> int:
     value = int(os.environ["PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES"])
     if value <= 0:
         raise ValueError("PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES must be greater than zero")
+    return value
+
+
+def _queue_max_items_from_env() -> int:
+    if "PRODUCTIVE_PROXY_EVENT_QUEUE_MAX_ITEMS" not in os.environ:
+        raise RuntimeError("Missing PRODUCTIVE_PROXY_EVENT_QUEUE_MAX_ITEMS")
+    value = int(os.environ["PRODUCTIVE_PROXY_EVENT_QUEUE_MAX_ITEMS"])
+    if value <= 0:
+        raise ValueError("PRODUCTIVE_PROXY_EVENT_QUEUE_MAX_ITEMS must be greater than zero")
     return value

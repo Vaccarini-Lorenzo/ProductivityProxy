@@ -15,7 +15,7 @@ Implementation details live in [Tauri Desktop Backend](../2_component/tauri-desk
 | `validate_node_code` | `{ code }` | `{ ok, issues[] }` | Checks custom-node code for Python syntax and a `run` function. |
 | `write_custom_node` | `{ fileName, code }` | path string | Validates code (syntax + `run`), then writes under app data `custom_nodes/`; errors on invalid code; path traversal is stripped from the file name. |
 | `read_custom_node` | `{ path }` | source string | Reads app-data custom nodes or bundled default nodes only. |
-| `start_proxy` | `{ config }` | void | Requires `POLICY_MAX_STEPS`, validates the config (errors if invalid), saves it, starts `mitmdump`, and enables supported system proxy settings. |
+| `start_proxy` | `{ config }` | void | Requires all engine environment values documented in the Development Guide, validates the config (errors if invalid), saves it, starts `mitmdump`, and enables supported system proxy settings. |
 | `stop_proxy` | none | void | Restores the stored system proxy snapshot and stops `mitmdump`. |
 | `proxy_status` | none | `{ running }` | Reports child-process state and restores system proxy if the child died. |
 | `read_recent_events` | `{ limit }` | JSON array | Reads the last N JSONL event entries. |
@@ -37,4 +37,4 @@ Implementation details live in [Tauri Desktop Backend](../2_component/tauri-desk
 - Event JSON written by Python must stay readable by Tauri and meaningful to React notification handling.
 - Custom node paths written by Tauri must be importable by Python.
 - Tauri owns system-proxy capture and restore; the snapshot persists across crashes and is restored without user action (see [Data Layer](config-state-events.md#storage-overview) and [Tauri Desktop Backend](../2_component/tauri-desktop-backend.md#macos-system-proxy-handling)).
-- Desktop proxy startup requires `POLICY_MAX_STEPS`; missing environment returns an error before proxy launch.
+- Desktop proxy startup requires every engine environment value; missing or empty values return an error before proxy launch.

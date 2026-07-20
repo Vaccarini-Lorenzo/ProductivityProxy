@@ -196,7 +196,7 @@ context.persistent_state.set("usage", value)
 
 ## Event log schema
 
-Events are JSON lines. Each line is one object. Events are intentionally shaped for filtering in the frontend. The file is kept under `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`: once it grows past the budget the oldest half is dropped (compaction), so the file stays a bounded, recent window rather than growing without limit.
+Events are JSON lines. Each line is one object. Events are intentionally shaped for filtering in the frontend. The writer's pending in-memory queue is capped by `PRODUCTIVE_PROXY_EVENT_QUEUE_MAX_ITEMS`; when producers outrun the writer, new events are dropped rather than growing memory without a bound. The file is kept under `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES`: once it grows past the budget the oldest half is dropped (compaction), so the file stays a bounded, recent window.
 
 By default (`PRODUCTIVE_PROXY_TELEMETRY_VERBOSE=false`) the engine writes config, error, and custom-node events. Setting `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE=true` adds the per-step trace (`request_started`, `policy_started`, `policy_step`, `policy_finished`).
 

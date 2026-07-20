@@ -1,4 +1,5 @@
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -17,6 +18,29 @@ class EventLogTest(unittest.TestCase):
             recent = log.read_recent(2)
 
         self.assertEqual([event["type"] for event in recent], ["second", "third"])
+
+    def test_drops_new_events_when_queue_is_full(self):
+        started = threading.Event()
+        release = threading.Event()
+
+        class BlockingValue:
+            def __str__(self):
+                started.set()
+                release.wait(timeout=2)
+                return "ready"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            log = EventLog(Path(tmp) / "events.jsonl", max_queue_items=1)
+            log.append({"type": "first", "value": BlockingValue()})
+            self.assertTrue(started.wait(timeout=1))
+            log.append({"type": "second"})
+            log.append({"type": "dropped"})
+            release.set()
+
+            events = log.read_recent(10)
+            log.close()
+
+        self.assertEqual([event["type"] for event in events], ["first", "second"])
 
     def test_compacts_file_to_stay_within_byte_budget(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -35,6 +35,13 @@ class PolicyProxyController:
         self.state = StateStore(state_path)
         self.evaluator = PolicyEvaluator(self.config)
 
+    def request_headers(self, flow) -> None:
+        if not self.config:
+            raise RuntimeError("PolicyProxyController is not configured")
+        self._reload_if_changed()
+        if not self.config.active_mode().policy_ids:
+            flow.request.stream = True
+
     def request(self, flow) -> None:
         if not self.evaluator or not self.config or not self.state or not self.event_log:
             raise RuntimeError("PolicyProxyController is not configured")

@@ -39,6 +39,17 @@ Responsibilities:
 
 The controller loads config during `configure`. On each request, it checks the config file mtime and hot-reloads if the file changed. Invalid reloads are rejected and the previous valid config keeps running.
 
+## Traffic streaming and memory bounds
+
+The addon avoids retaining traffic bodies that policy code cannot use:
+
+- every regular HTTP response body is streamed immediately because the engine has no response-body policy hook (CONNECT and 101 protocol upgrades are excluded),
+- request bodies are streamed immediately when the active mode has no policies,
+- in active policy modes, mitmproxy streams request bodies above `PRODUCTIVE_PROXY_STREAM_LARGE_BODIES`,
+- each WebSocket message is removed from mitmproxy's per-connection history after its hook runs.
+
+This keeps video, downloads, chilling-mode uploads, and long-lived WebSockets from growing the Python heap with cumulative payload data. A streamed request body is not available through `request.text()`, so policies that inspect bodies must keep their expected payloads below the configured threshold. Baseline RSS and memory for concurrently active connections still belong to mitmproxy and the OS; this is a payload-retention bound, not a fixed process-memory quota.
+
 ## Config model
 
 `proxy.models.policy.flow`
@@ -139,6 +150,8 @@ Public `request` exposes HTTP fields/actions such as `host`, `url`, `headers`, `
 
 `context.run_node(node_name, args)` runs a registered custom node synchronously in the same request/context and returns its output. `args` is passed as the called node's `input`; pass `{ "input": value, "params": {...} }` when the called node also needs `params`.
 
+`context.run_async(work)` submits to one background worker. Its pending queue is capped by `PRODUCTIVE_PROXY_ASYNC_QUEUE_MAX_ITEMS`; submission raises when the queue is full instead of retaining request closures without a bound.
+
 `context.state` is an in-memory key/value store shared by requests handled by the same evaluator; stored dict/list values are passed by reference and disappear when the proxy process restarts.
 
 `context.persistent_state` is a raw global JSON-backed store with `get(keyword)` / `set(keyword, data)`. Its public get/set contract and write-behind semantics live in [Data Layer](../4_data_layer/config-state-events.md#state-schema).
@@ -183,7 +196,7 @@ Security note: custom nodes and inline start/operator Python are executed direct
 
 ## Events
 
-`EventLog` appends one JSON object per line to `events.jsonl` from a background thread, so the event loop never blocks on disk I/O. The file is bounded by `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES` via compaction (see [Data Layer](../4_data_layer/config-state-events.md#event-log-schema)), which keeps both file size and dashboard read cost in check. Custom nodes call `context.log(type, message, level, **data)` for filterable custom events.
+`EventLog` appends one JSON object per line to `events.jsonl` from a background thread, so the event loop never blocks on disk I/O. Its pending queue is capped by `PRODUCTIVE_PROXY_EVENT_QUEUE_MAX_ITEMS` and drops new events when full. The file is bounded by `PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES` via compaction (see [Data Layer](../4_data_layer/config-state-events.md#event-log-schema)), which keeps both memory backlog, file size, and dashboard read cost bounded. Custom nodes call `context.log(type, message, level, **data)` for filterable custom events.
 
 The event taxonomy (default vs `PRODUCTIVE_PROXY_TELEMETRY_VERBOSE` events), schemas, and query contracts live in [Data Layer](../4_data_layer/config-state-events.md#event-log-schema).
 

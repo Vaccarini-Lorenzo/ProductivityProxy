@@ -11,23 +11,42 @@ export interface Bucket {
 
 const VIEW_W = 600;
 
+interface SparklineProps {
+  values: number[];
+  timestamps?: number[];
+  startMs?: number;
+  endMs?: number;
+  variant: string;
+  height?: number;
+  mini?: boolean;
+  min?: number;
+  max?: number;
+}
+
 /** Smooth, gradient-filled area sparkline with a glowing line and an end dot.
- * `variant` (cpu | mem | lat | bytes) selects the accent colour via CSS. */
-export function Sparkline({ values, variant, height = 120, mini = false, min, max }: { values: number[]; variant: string; height?: number; mini?: boolean; min?: number; max?: number }) {
+ * Timestamped data is positioned in a fixed wall-clock window; bucketed data
+ * without timestamps remains evenly distributed. */
+export function Sparkline({ values, timestamps, startMs, endMs, variant, height = 120, mini = false, min, max }: SparklineProps) {
   const gradientId = useId();
   const lo = min ?? (values.length ? Math.min(...values) : 0);
   const hi = max ?? (values.length ? Math.max(...values) : 1);
   const pad = min === undefined && max === undefined ? (hi - lo || Math.abs(hi) || 1) * 0.15 : 0;
   const bottom = lo - pad;
   const span = hi + pad - bottom || 1;
+  const timeSpan = startMs !== undefined && endMs !== undefined ? endMs - startMs : 0;
+  const usesTimeScale = timestamps?.length === values.length && startMs !== undefined && timeSpan > 0;
   const points = values.map((value, index) => {
-    const x = values.length > 1 ? (index / (values.length - 1)) * VIEW_W : 0;
+    const ratio = usesTimeScale
+      ? ((timestamps![index] - startMs!) / timeSpan)
+      : (values.length > 1 ? index / (values.length - 1) : 0);
+    const x = Math.max(0, Math.min(1, ratio)) * VIEW_W;
     const y = height - ((value - bottom) / span) * height;
     return [x, y] as const;
   });
   const line = smoothPath(points);
-  const area = points.length ? `${line} L${VIEW_W},${height} L0,${height} Z` : "";
+  const first = points[0];
   const last = points[points.length - 1];
+  const area = points.length ? `${line} L${last[0]},${height} L${first[0]},${height} Z` : "";
 
   return (
     <svg className={`resource-chart spark ${variant}`} viewBox={`0 0 ${VIEW_W} ${height}`} preserveAspectRatio={mini ? "none" : undefined} role="img" aria-label={`${variant} over time`}>

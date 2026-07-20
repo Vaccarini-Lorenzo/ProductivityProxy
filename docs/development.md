@@ -29,10 +29,13 @@ export POLICY_MAX_STEPS="1000"                    # evaluator loop guard
 export PRODUCTIVE_PROXY_FRICTION_SECONDS="1200"   # 20-minute manual mode-switch delay
 export PRODUCTIVE_PROXY_TELEMETRY_VERBOSE="false" # "true" emits the full per-step trace
 export PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES="5000000" # event log byte budget (compacted)
-export PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS="2"   # state write-behind interval
+export PRODUCTIVE_PROXY_EVENT_QUEUE_MAX_ITEMS="1000"   # pending in-memory event cap
+export PRODUCTIVE_PROXY_ASYNC_QUEUE_MAX_ITEMS="100"    # pending background-job cap
+export PRODUCTIVE_PROXY_STREAM_LARGE_BODIES="1m"       # HTTP body streaming threshold
+export PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS="2"         # state write-behind interval
 ```
 
-The desktop mode runtime reads `PRODUCTIVE_PROXY_FRICTION_SECONDS` when reporting mode state or starting a friction timer. The desktop app pre-checks only `POLICY_MAX_STEPS` before `start_proxy` launches `mitmdump`; the three telemetry/state values are enforced by the Python engine at runtime. All five values must be present in the environment that starts the desktop app. `mitmdump` inherits the engine values, and the manual proxy helper loads `.env.example`.
+The desktop mode runtime reads `PRODUCTIVE_PROXY_FRICTION_SECONDS` when reporting mode state or starting a friction timer. Before launching `mitmdump`, the desktop app checks every engine variable above except friction, which is checked during app setup. All eight values must be present in the environment that starts the desktop app. `mitmdump` inherits the engine values, and the manual proxy helper loads `.env.example`.
 
 ## Run tests
 

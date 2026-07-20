@@ -4,22 +4,26 @@ import { getProxyResources, type ProxyResources } from "../services/proxy/proxyR
 import { STATUS_POLL_MS } from "../services/proxy/polling";
 import { errorMessage } from "../services/errors/errorMessage";
 
-const HISTORY = 60;
+const RESOURCE_HISTORY_MS = 180 * 60_000;
+
+export interface ProxyResourceSample {
+  sampledAtMs: number;
+  pid?: number;
+  cpuPercent: number;
+  memBytes: number;
+}
 
 export interface ProxyResourceState {
   resources: ProxyResources | null;
-  cpu: number[];
-  mem: number[];
+  samples: ProxyResourceSample[];
   message: string;
 }
 
-/** Polls the proxy process resource sample (CPU/mem/uptime, taken from the Rust
- * side via `ps`) and keeps a short rolling history for the sparklines,
- * independent of the traffic window. */
+/** Polls proxy CPU/RSS via the Rust side and retains the largest selectable
+ * window. The view filters this timestamped history without losing older data. */
 export function useProxyResources(client: CommandClient, autoRefresh: boolean): ProxyResourceState {
   const [resources, setResources] = useState<ProxyResources | null>(null);
-  const [cpu, setCpu] = useState<number[]>([]);
-  const [mem, setMem] = useState<number[]>([]);
+  const [samples, setSamples] = useState<ProxyResourceSample[]>([]);
   const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
@@ -28,11 +32,20 @@ export function useProxyResources(client: CommandClient, autoRefresh: boolean): 
       setResources(next);
       setMessage("");
       if (next.running) {
-        setCpu((history) => [...history, next.cpuPercent ?? 0].slice(-HISTORY));
-        setMem((history) => [...history, next.memBytes ?? 0].slice(-HISTORY));
+        const sample = {
+          sampledAtMs: Date.now(),
+          pid: next.pid,
+          cpuPercent: next.cpuPercent ?? 0,
+          memBytes: next.memBytes ?? 0,
+        };
+        setSamples((history) => {
+          const sameProcess = history.length === 0 || history[history.length - 1].pid === sample.pid;
+          const current = sameProcess ? history : [];
+          const cutoff = sample.sampledAtMs - RESOURCE_HISTORY_MS;
+          return [...current, sample].filter((item) => item.sampledAtMs >= cutoff);
+        });
       } else {
-        setCpu([]);
-        setMem([]);
+        setSamples([]);
       }
     } catch (error) {
       setMessage(errorMessage(error));
@@ -48,5 +61,5 @@ export function useProxyResources(client: CommandClient, autoRefresh: boolean): 
     return () => window.clearInterval(id);
   }, [autoRefresh, load]);
 
-  return { resources, cpu, mem, message };
+  return { resources, samples, message };
 }

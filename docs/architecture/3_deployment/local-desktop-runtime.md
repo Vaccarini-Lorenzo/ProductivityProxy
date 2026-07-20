@@ -37,11 +37,9 @@ The desktop app currently expects `mitmdump` to be available on `PATH`.
 
 ## Required startup environment
 
-Desktop proxy startup and the manual proxy helper both require `POLICY_MAX_STEPS` in the environment. The value must be a positive integer and is used by the Python evaluator as the loop guard.
+Desktop proxy startup and the manual proxy helper require the engine variables shown in `.env.example`. They cover the policy loop guard, telemetry, event file/queue bounds, async-worker queue bound, state flush interval, and mitmproxy body-streaming threshold. The desktop app checks them before launching `mitmdump`; missing or empty values fail startup. See [Development Guide](../../development.md#environment).
 
-The desktop mode runtime requires `PRODUCTIVE_PROXY_FRICTION_SECONDS`, a positive integer. The supplied value is `1200` seconds (20 minutes).
-
-The manual proxy helper also requires the `PRODUCTIVE_PROXY_*` engine variables shown in `.env.example`. The desktop app pre-checks only `POLICY_MAX_STEPS`, but the `mitmdump` it launches runs the Python engine, so those same engine variables must also be present in the environment that starts the desktop app — otherwise the engine raises at runtime. See [Development Guide](../../development.md#environment).
+The desktop mode runtime separately requires `PRODUCTIVE_PROXY_FRICTION_SECONDS`, a positive integer. The supplied value is `1200` seconds (20 minutes).
 
 Command examples live in [Development Guide](../../development.md) and [Usage Guide](../../usage.md).
 

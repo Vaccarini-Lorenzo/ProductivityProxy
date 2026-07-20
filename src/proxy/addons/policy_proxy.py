@@ -31,8 +31,18 @@ class PolicyProxyAddon:
             Path(options.productive_event_log_path),
         )
 
+    def requestheaders(self, flow) -> None:
+        self.controller.request_headers(flow)
+
     def request(self, flow) -> None:
         self.controller.request(flow)
+
+    def responseheaders(self, flow) -> None:
+        if flow.request.method != "CONNECT" and flow.response.status_code != 101:
+            flow.response.stream = True
+
+    def websocket_message(self, flow) -> None:
+        flow.websocket.messages.clear()
 
     def done(self) -> None:
         self.controller.close()

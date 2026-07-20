@@ -75,7 +75,17 @@ pub fn write_app_config(app: AppHandle, config: Value) -> Result<ValidationRepor
 
 #[tauri::command(async)]
 pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Result<(), String> {
-    require_env("POLICY_MAX_STEPS")?;
+    for name in [
+        "POLICY_MAX_STEPS",
+        "PRODUCTIVE_PROXY_TELEMETRY_VERBOSE",
+        "PRODUCTIVE_PROXY_EVENT_LOG_MAX_BYTES",
+        "PRODUCTIVE_PROXY_EVENT_QUEUE_MAX_ITEMS",
+        "PRODUCTIVE_PROXY_ASYNC_QUEUE_MAX_ITEMS",
+        "PRODUCTIVE_PROXY_STATE_FLUSH_SECONDS",
+    ] {
+        require_env(name)?;
+    }
+    let stream_large_bodies = require_env("PRODUCTIVE_PROXY_STREAM_LARGE_BODIES")?;
     let _lifecycle = state.lifecycle.lock().map_err(to_string)?;
     let paths = paths_for_app(&app)?;
     let (config, report) = app_config::validate_and_write(&paths, config, true)?;
@@ -89,7 +99,7 @@ pub fn start_proxy(app: AppHandle, state: State<AppState>, config: Value) -> Res
     restore_marked_system_proxy(&state.system_proxy_snapshot, &paths.system_proxy_snapshot_path)?;
 
     let settings = ProxySettings::from_app_config(&config).map_err(to_string)?;
-    let args = build_mitmdump_args(&settings, &paths.proxy)?;
+    let args = build_mitmdump_args(&settings, &paths.proxy, &stream_large_bodies)?;
     let snapshot = if settings.uses_system_proxy() {
         let snapshot = capture_system_proxy_snapshot().map_err(to_string)?;
         save_system_proxy_snapshot(&paths.system_proxy_snapshot_path, &snapshot)
@@ -251,10 +261,12 @@ fn system_proxy_snapshot_path_for_app(app: &AppHandle) -> Result<PathBuf, String
         .map_err(to_string)
 }
 
-fn require_env(name: &str) -> Result<(), String> {
-    std::env::var(name)
-        .map(|_| ())
-        .map_err(|_| format!("Missing {name}"))
+fn require_env(name: &str) -> Result<String, String> {
+    let value = std::env::var(name).map_err(|_| format!("Missing {name}"))?;
+    if value.trim().is_empty() {
+        return Err(format!("{name} must not be empty"));
+    }
+    Ok(value)
 }
 
 /// Best-effort cleanup on app exit: restore the captured system proxy state and

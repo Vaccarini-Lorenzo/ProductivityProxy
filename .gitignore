@@ -42,3 +42,6 @@ dist/
 # Local agentic
 **/.agents
 **/.pi
+
+# Local install helper
+/scripts/swap_local_app.sh

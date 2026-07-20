@@ -19,8 +19,10 @@ fn builds_local_unauthenticated_args() {
     };
     let paths = paths();
 
-    let args = build_mitmdump_args(&settings, &paths).unwrap();
+    let args = build_mitmdump_args(&settings, &paths, "1m").unwrap();
 
+    assert!(args.contains(&"--quiet".into()));
+    assert!(args.contains(&"stream_large_bodies=1m".into()));
     assert!(args.contains(&"--listen-host".into()));
     assert!(args.contains(&"127.0.0.1".into()));
     assert!(args.contains(&"--listen-port".into()));
@@ -42,7 +44,7 @@ fn builds_lan_authenticated_args() {
     };
     let paths = paths();
 
-    let args = build_mitmdump_args(&settings, &paths).unwrap();
+    let args = build_mitmdump_args(&settings, &paths, "1m").unwrap();
 
     assert!(args.contains(&"0.0.0.0".into()));
     assert!(args.contains(&"9090".into()));
@@ -90,7 +92,7 @@ fn builds_app_specific_local_capture_args() {
     };
     let paths = paths();
 
-    let args = build_mitmdump_args(&settings, &paths).unwrap();
+    let args = build_mitmdump_args(&settings, &paths, "1m").unwrap();
 
     assert!(args.contains(&"--mode".into()));
     assert!(args.contains(&"local:Google Chrome,Google Chrome Helper".into()));
@@ -111,7 +113,7 @@ fn rejects_app_specific_without_apps() {
         app_capture_targets: vec![],
     };
 
-    let error = build_mitmdump_args(&settings, &paths()).unwrap_err();
+    let error = build_mitmdump_args(&settings, &paths(), "1m").unwrap_err();
 
     assert_eq!(error, "select at least one app for App-specific routing");
 }
@@ -128,7 +130,7 @@ fn rejects_local_capture_names_that_change_the_spec() {
         app_capture_targets: vec!["curl,!wget".into()],
     };
 
-    let error = build_mitmdump_args(&settings, &paths()).unwrap_err();
+    let error = build_mitmdump_args(&settings, &paths(), "1m").unwrap_err();
 
     assert_eq!(error, "invalid app capture target: curl,!wget");
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { TerminalNav, type View } from "./components/TerminalNav";
+import { useProxyResources } from "./components/useProxyResources";
 import { Icon } from "./components/ui";
 import { ModesView } from "./views/ModesView";
 import { NodesView, type SaveNodeInput } from "./views/NodesView";
@@ -34,11 +35,13 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
   const [network, setNetwork] = useState<NetworkInfo>();
   const [activeApps, setActiveApps] = useState<ActiveApp[]>([]);
   const [events, setEvents] = useState<ProxyEvent[]>([]);
+  const [observabilityAutoRefresh, setObservabilityAutoRefresh] = useState(true);
   const [message, setMessage] = useState("");
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const seenNotifications = useRef(new Set<string>());
   const autosaveRun = useRef(0);
   const pendingModeTarget = useRef<string | null>(null);
+  const proxyResources = useProxyResources(client, observabilityAutoRefresh);
 
   const syncModeRuntime = useCallback((runtime: ModeRuntimeStatus) => {
     if (pendingModeTarget.current && !runtime.pending) setMessage("Mode switched");
@@ -59,7 +62,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
     getNetworkInfo(client).then(setNetwork).catch(showError);
     listActiveApps(client).then(setActiveApps).catch(showError);
     readRecentEvents(client, 50).then((loaded) => {
-      seenNotifications.current = rememberNotificationEvents(loaded, seenNotifications.current);
+      seenNotifications.current = rememberNotificationEvents(loaded);
       setEvents(loaded);
     }).catch(showError);
   }, [client]);
@@ -202,7 +205,7 @@ export function App({ client = tauriClient, notifier = tauriNotifier }: Props) {
       case "nodes":
         return <NodesView nodes={config.customNodes} onSave={handleSaveNode} onRead={(path) => readCustomNode(client, path)} onValidateCode={(code) => validateNodeCode(client, code)} onDelete={handleDeleteNode} />;
       case "observability":
-        return <ObservabilityView client={client} config={config} />;
+        return <ObservabilityView client={client} config={config} autoRefresh={observabilityAutoRefresh} onAutoRefreshChange={setObservabilityAutoRefresh} proxyResources={proxyResources} />;
     }
   }
 

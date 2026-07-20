@@ -23,7 +23,7 @@ export function MetricBox({ label, value, unit, meta, cap, ticks, xTicks, accent
         </div>
         <div className="mb-plot">{children}</div>
         <div />
-        <div className="mb-xaxis" aria-hidden="true">{xTicks.map((tick) => <span key={tick}>{tick}</span>)}</div>
+        <div className="mb-xaxis" aria-hidden="true">{xTicks.map((tick, index) => <span key={`${tick}-${index}`}>{tick}</span>)}</div>
       </div>
       <div className="mb-bar">
         <span className="mb-reading">{value}{unit && <small>{unit}</small>}</span>

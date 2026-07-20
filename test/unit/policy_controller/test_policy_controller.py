@@ -56,6 +56,43 @@ class PolicyProxyControllerTest(unittest.TestCase):
             controller.event_log.flush()
             self.assertIn("controller_seen", event_path.read_text(encoding="utf-8"))
 
+    def test_streams_request_bodies_when_active_mode_has_no_policies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "config.json"
+            block_path = Path(tmp) / "block.py"
+            block_path.write_text(
+                "def run(input, request, context, params):\n    return input\n",
+                encoding="utf-8",
+            )
+            config_path.write_text(json.dumps(_config("off", str(block_path))), encoding="utf-8")
+            controller = PolicyProxyController()
+            controller.configure(config_path, Path(tmp) / "state.json", Path(tmp) / "events.jsonl")
+            flow = FakeFlow()
+
+            controller.request_headers(flow)
+            controller.close()
+
+            self.assertTrue(flow.request.stream)
+
+    def test_keeps_request_body_available_when_active_mode_has_policies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "config.json"
+            block_path = Path(tmp) / "block.py"
+            block_path.write_text(
+                "def run(input, request, context, params):\n    return input\n",
+                encoding="utf-8",
+            )
+            config_path.write_text(json.dumps(_config("work", str(block_path))), encoding="utf-8")
+            controller = PolicyProxyController()
+            controller.configure(config_path, Path(tmp) / "state.json", Path(tmp) / "events.jsonl")
+            flow = FakeFlow()
+            flow.request.stream = False
+
+            controller.request_headers(flow)
+            controller.close()
+
+            self.assertFalse(flow.request.stream)
+
     def test_reloads_config_when_file_changes(self):
         with tempfile.TemporaryDirectory() as tmp:
             config_path = Path(tmp) / "config.json"

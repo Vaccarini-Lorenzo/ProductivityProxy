@@ -5,13 +5,14 @@ import { EVENT_POLL_MS } from "../services/proxy/polling";
 import { errorMessage } from "../services/errors/errorMessage";
 import { Select } from "./Select";
 import { MetricBox } from "./MetricBox";
-import { useProxyResources } from "./useProxyResources";
+import type { ProxyResourceSample, ProxyResourceState } from "./useProxyResources";
 import { Sparkline, formatBytes, formatMs, percentile, type Bucket } from "./charts";
 import { Card } from "./ui";
 
 interface Props {
   client: CommandClient;
   autoRefresh: boolean;
+  proxyResources: ProxyResourceState;
 }
 
 const WINDOW_OPTIONS = [
@@ -41,11 +42,12 @@ interface Stats {
 
 /** Resource consumption as four always-visible tiles. Each tile is just the
  * graph plus a compact value bar pinned to the bottom; no expand/collapse. */
-export function ResourcePanel({ client, autoRefresh }: Props) {
+export function ResourcePanel({ client, autoRefresh, proxyResources }: Props) {
   const [windowMinutes, setWindowMinutes] = useState("15");
   const [events, setEvents] = useState<ProxyEvent[]>([]);
   const [message, setMessage] = useState("");
-  const { resources, cpu, mem, message: sysMessage } = useProxyResources(client, autoRefresh);
+  const windowMins = Number(windowMinutes);
+  const { resources, samples, message: sysMessage } = proxyResources;
 
   const load = useCallback(async () => {
     const since = Date.now() / 1000 - Number(windowMinutes) * 60;
@@ -66,10 +68,15 @@ export function ResourcePanel({ client, autoRefresh }: Props) {
     return () => window.clearInterval(id);
   }, [autoRefresh, load]);
 
-  const windowMins = Number(windowMinutes);
   const stats = useMemo(() => aggregate(events, windowMins), [events, windowMins]);
   const windowSelect = <Select ariaLabel="Resource window" value={windowMinutes} options={WINDOW_OPTIONS} onChange={setWindowMinutes} />;
   const xTicks = timeTicks(windowMins);
+  const windowEndMs = Date.now();
+  const windowStartMs = windowEndMs - windowMins * 60_000;
+  const visibleSamples = samplesInWindow(samples, windowMins, windowEndMs);
+  const sampleTimes = visibleSamples.map((sample) => sample.sampledAtMs);
+  const cpu = visibleSamples.map((sample) => sample.cpuPercent);
+  const mem = visibleSamples.map((sample) => sample.memBytes);
   const running = resources?.running ?? false;
   const cpuNow = cpu.length ? cpu[cpu.length - 1] : resources?.cpuPercent ?? 0;
   const memNow = mem.length ? mem[mem.length - 1] : resources?.memBytes ?? 0;
@@ -87,11 +94,11 @@ export function ResourcePanel({ client, autoRefresh }: Props) {
       {(message || sysMessage) && <p className="inline-note">{message || sysMessage}</p>}
       <div className="metric-boxes">
         <MetricBox label="CPU" accent="cpu" value={running ? cpuNow.toFixed(1) : "—"} unit={running ? "%" : undefined} meta={running ? `peak ${Math.max(...cpu, cpuNow, 0).toFixed(1)}%` : "stopped"} cap="100%" ticks={["100%", "75%", "50%", "25%", "0%"]} xTicks={xTicks}>
-          <Sparkline values={cpu} variant="cpu" mini min={0} max={100} />
+          <Sparkline values={cpu} timestamps={sampleTimes} startMs={windowStartMs} endMs={windowEndMs} variant="cpu" mini min={0} max={100} />
         </MetricBox>
 
-        <MetricBox label="Memory" accent="mem" value={memValue} unit={memUnit} meta={running ? `peak ${formatBytes(Math.max(...mem, memNow, 0))}` : "stopped"} cap={formatBytes(memScale)} ticks={byteTicks(memScale)} xTicks={xTicks}>
-          <Sparkline values={mem} variant="mem" mini min={0} max={memScale} />
+        <MetricBox label="Proxy RSS" accent="mem" value={memValue} unit={memUnit} meta={running ? `peak ${formatBytes(Math.max(...mem, memNow, 0))}` : "stopped"} cap={formatBytes(memScale)} ticks={byteTicks(memScale)} xTicks={xTicks}>
+          <Sparkline values={mem} timestamps={sampleTimes} startMs={windowStartMs} endMs={windowEndMs} variant="mem" mini min={0} max={memScale} />
         </MetricBox>
 
         <MetricBox label="Engine latency" accent="lat" value={latValue} unit={latUnit} meta={stats.latSamples ? `p95 ${formatMs(stats.latP95)} · p50 ${formatMs(stats.latP50)} · max ${formatMs(stats.maxLatency)}` : "no data"} cap={formatMs(latScale)} ticks={msTicks(latScale)} xTicks={xTicks}>
@@ -191,9 +198,19 @@ function formatCount(value: number): string {
   return Math.round(value).toLocaleString();
 }
 
-function timeTicks(minutes: number): string[] {
-  const step = Math.max(1, Math.round(minutes / 3));
-  return [`-${minutes}m`, `-${minutes - step}m`, `-${step}m`, "now"];
+export function samplesInWindow(samples: ProxyResourceSample[], minutes: number, nowMs: number): ProxyResourceSample[] {
+  const cutoff = nowMs - minutes * 60_000;
+  return samples.filter((sample) => sample.sampledAtMs >= cutoff && sample.sampledAtMs <= nowMs);
+}
+
+export function timeTicks(minutes: number): string[] {
+  return [minutes, minutes * 2 / 3, minutes / 3, 0].map(formatTimeOffset);
+}
+
+function formatTimeOffset(minutes: number): string {
+  if (minutes === 0) return "now";
+  if (minutes >= 60 && minutes % 60 === 0) return `-${minutes / 60}h`;
+  return `-${Math.round(minutes)}m`;
 }
 
 function percent(part: number, whole: number): string {

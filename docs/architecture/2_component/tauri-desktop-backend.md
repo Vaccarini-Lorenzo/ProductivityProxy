@@ -37,7 +37,7 @@ Important implementation details:
 - Normal config writes preserve the currently stored active mode, preventing stale dashboard autosaves from undoing a timer or scheduled change.
 - `write_custom_node` writes under app data `custom_nodes/` and strips path traversal from the file name.
 - `read_custom_node` allows app-data custom nodes and bundled default-node paths.
-- `start_proxy` requires `POLICY_MAX_STEPS` in the environment before it writes config or starts the child process.
+- `start_proxy` checks all required Python-engine environment values before it writes config or starts the child process.
 - `proxy_status` restores system proxy settings if the child process died.
 
 ## App data paths
@@ -87,12 +87,14 @@ Mode changes update the config file atomically. The running Python engine sees t
 `build_mitmdump_args` builds arguments like:
 
 ```text
+--quiet
 --listen-host 127.0.0.1|0.0.0.0
 --listen-port <port>
 -s <repo>/src/proxy/addons/policy_proxy.py
 --set productive_config_path=<app-data>/config.json
 --set productive_state_path=<app-data>/state.json
 --set productive_event_log_path=<app-data>/events.jsonl
+--set stream_large_bodies=<PRODUCTIVE_PROXY_STREAM_LARGE_BODIES>
 ```
 
 If proxy auth is enabled, it adds:
@@ -103,7 +105,7 @@ If proxy auth is enabled, it adds:
 
 `ProcessService` starts `mitmdump`, stores the child handle, checks liveness with `try_wait`, and kills/waits during stop or drop.
 
-Proxy stdout and stderr are appended to app-data `mitmdump.log`. The UI still reports only the process-level startup error, so detailed diagnosis currently requires opening that file.
+Proxy warnings and errors are appended to app-data `mitmdump.log`. `--quiet` suppresses the normal per-flow dump, preventing ordinary browsing from growing that file continuously. The UI still reports only the process-level startup error, so detailed diagnosis currently requires opening the file.
 
 ## macOS system proxy handling
 

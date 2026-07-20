@@ -35,7 +35,8 @@ All React CSS lives under `src/frontend/react/src/style/`. Components and views 
 - detected local/LAN network info,
 - recent proxy events for notifications,
 - user-facing message string,
-- a set of notification events already shown.
+- notification keys from the current recent-event window, used for deduplication,
+- timestamped proxy CPU/RSS history and the observability auto-refresh preference.
 
 On mount it asks the Tauri backend for app config, proxy status, mode runtime status, recent events, and network info. It then polls on intervals defined in `services/proxy/polling.ts`: proxy and mode status every `STATUS_POLL_MS` (2000 ms) and recent events every `EVENT_POLL_MS` (3000 ms). The menu-bar `Popover` polls both runtime statuses on the same `STATUS_POLL_MS` interval, and `ObservabilityView` refreshes its event feed every `EVENT_POLL_MS`.
 
@@ -117,7 +118,10 @@ Current responsibilities:
 - query JSONL events through `query_events`,
 - filter by category, type, level, policy, request ID, time window, and search text,
 - inspect selected event JSON,
-- show a request timeline when `requestId` is present.
+- show a request timeline when `requestId` is present,
+- sample proxy CPU and RSS every two seconds and retain the selected time window for the resource charts.
+
+The memory tile is labeled **Proxy RSS** because it samples the `mitmdump` child with `ps`; it is not the React/Tauri process heap. `App` retains timestamped CPU/RSS samples for the largest selectable window (three hours), including while another dashboard view is open. The resource panel filters and positions them on the selected 15/30/60/180-minute wall-clock scale, so changing the selector reuses older samples instead of having to collect the larger window again.
 
 ## Graph editor and step inspector
 
